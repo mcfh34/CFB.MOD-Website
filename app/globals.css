@@ -1110,3 +1110,18 @@ footer { margin-left:244px; border-color:rgba(59,216,255,.16); background:#03081
   .edge-analysis-card > header { gap:10px; padding:12px; }
   .edge-analysis-card > p { padding:12px; }
 }
+
+/* Harper+ v7.1 — All137 marks should carry the same visual weight as Top 25. */
+.all137-row { min-height:116px; }
+.all137-row .team-mark-sm { width:92px; height:92px; }
+.all137-summary .team-mark-md { width:104px; height:104px; }
+
+@media (max-width:760px) {
+  .all137-row .team-mark-sm { width:88px; height:88px; }
+  .all137-summary .team-mark-md { width:96px; height:96px; }
+}
+
+@media (max-width:420px) {
+  .all137-row .team-mark-sm { width:84px; height:84px; }
+  .all137-summary .team-mark-md { width:92px; height:92px; }
+}
