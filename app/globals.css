@@ -1138,3 +1138,90 @@ footer { margin-left:244px; border-color:rgba(59,216,255,.16); background:#03081
     border-top:1px solid rgba(92,190,246,.17);
   }
 }
+
+/* Harper+ v7.3 — compact title-game scoreboards for narrow cards. */
+.conference-projections article {
+  container-name:title-game;
+  container-type:inline-size;
+}
+
+@container title-game (max-width:620px) {
+  .conference-matchup {
+    min-height:0;
+    grid-template-columns:minmax(0,1fr);
+    gap:0;
+    padding:8px 12px 12px;
+  }
+
+  .conference-matchup > div,
+  .conference-matchup > div:last-child {
+    width:100%;
+    min-height:68px;
+    grid-template-columns:56px minmax(0,1fr) 48px;
+    gap:12px;
+    padding:6px 9px;
+    border:1px solid transparent;
+    border-radius:6px;
+    text-align:left;
+  }
+
+  .conference-matchup > div.winner {
+    border-color:rgba(255,200,87,.18);
+    background:linear-gradient(90deg,rgba(255,200,87,.11),rgba(59,216,255,.035));
+  }
+
+  .conference-matchup > div > .team-mark,
+  .conference-matchup > div:last-child .team-mark {
+    grid-column:1;
+    grid-row:1;
+    width:56px;
+    height:56px;
+  }
+
+  .conference-matchup > div > span,
+  .conference-matchup > div:last-child span {
+    grid-column:2;
+    grid-row:1;
+    min-width:0;
+    overflow:visible;
+    font-size:12px;
+    line-height:1.25;
+    text-align:left;
+    text-overflow:clip;
+    white-space:normal;
+  }
+
+  .conference-matchup > div > strong,
+  .conference-matchup > div:last-child strong {
+    grid-column:3;
+    grid-row:1;
+    padding:0;
+    font-size:25px;
+    line-height:1;
+    text-align:right;
+  }
+
+  .conference-matchup > i {
+    width:100%;
+    height:22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    border:0;
+    border-radius:0;
+    background:transparent;
+  }
+
+  .conference-matchup > i::before,
+  .conference-matchup > i::after {
+    content:"";
+    flex:1;
+    height:1px;
+    background:linear-gradient(90deg,transparent,rgba(59,216,255,.2));
+  }
+
+  .conference-matchup > i::after {
+    background:linear-gradient(90deg,rgba(59,216,255,.2),transparent);
+  }
+}
