@@ -12,20 +12,20 @@ Harper+ is a full-stack college football analytics site built from the CFB MOD 2
 - predictive conference championship and College Football Playoff simulation
 - historical model vintages from 2021 forward
 
-## Model v5
+## Model v6
 
 The projection engine combines:
 
 - a 25% iterative opponent adjustment that rises as high as 52% for early, FCS-heavy, or weakly connected schedules
 - reliability-weighted Bayesian shrinkage toward the preseason prior so a small sample against weak opposition cannot masquerade as an elite profile
-- a four-season preseason prior weighted 40/30/20/10
+- a four-season preseason prior weighted 40/30/20/10, adjusted by returning production and a deliberately capped recruiting signal
 - a 35% result-only Elo margin seeded from the preseason profile
 - opponent expectation and capped margin-of-victory Elo updates
 - a 1.5-point home-field advantage
 
 All performance reporting is time-safe: forecasts use only the prior weekly profile. Workbook columns that reconstruct scores from the completed game's box score are excluded from model accuracy.
 
-Harper BCS v2 combines results, strength of record, schedule strength, quality wins, Colley, Elo, opponent-adjusted power, and direct head-to-head results. Head-to-head is included in the results score and breaks near-ties in the final composite.
+Harper BCS v3 is résumé-led: 50% results and strength of record, 20% schedule and quality wins, and 30% trimmed computer ratings. Mature undefeated and one-loss résumés receive explicit protection, while direct head-to-head controls close comparisons. Recruiting is not used in the ranking, so a conference label or roster reputation cannot manufacture a résumé.
 
 ## Data pipeline
 

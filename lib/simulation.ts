@@ -253,6 +253,18 @@ export function buildSeasonSimulation(season: number, requestedWeek: number, eff
     const projection = matchup(first, second, preliminaryMap.get(first.team), preliminaryMap.get(second.team), false);
     const firstWins = projection.margin >= 0;
     const winner = firstWins ? first.team : second.team;
+    const firstRecord = teamRecords.get(first.team);
+    const secondRecord = teamRecords.get(second.team);
+    if (firstRecord) {
+      firstRecord.expectedWins += projection.firstWinProbability;
+      if (firstWins) { firstRecord.wins += 1; firstRecord.winsOver.push(second.team); }
+      else { firstRecord.losses += 1; firstRecord.lossesTo.push(second.team); }
+    }
+    if (secondRecord) {
+      secondRecord.expectedWins += 1 - projection.firstWinProbability;
+      if (firstWins) { secondRecord.losses += 1; secondRecord.lossesTo.push(first.team); }
+      else { secondRecord.wins += 1; secondRecord.winsOver.push(first.team); }
+    }
     conferenceChampionships.push({ conference, firstTeam: first.team, secondTeam: second.team, winner, firstScore: projection.firstScore, secondScore: projection.secondScore, winnerProbability: firstWins ? projection.firstWinProbability : 1 - projection.firstWinProbability });
     championshipGames.push({ gameId: `sim-${season}-${conference}`, week: 15, startDate: null, neutralSite: true, homeTeam: first.team, homePoints: projection.firstScore, awayTeam: second.team, awayPoints: projection.secondScore });
   }
@@ -280,7 +292,10 @@ export function buildSeasonSimulation(season: number, requestedWeek: number, eff
   const seedMap = new Map(field.map((entry) => [entry.team, entry.seed]));
   const rankings: SimulatedRankingRow[] = finalRankings.map((row) => {
     const record = teamRecords.get(row.team) ?? { wins: row.wins, losses: row.losses, expectedWins: row.wins, conferenceWins: 0, conferenceLosses: 0, winsOver: [], lossesTo: [] };
-    return { ...row, expectedWins: record.expectedWins, projectedWins: record.wins, projectedLosses: record.losses, projectedRecord: `${record.wins}–${record.losses}`, projectedWinsOver: record.winsOver, projectedLossesTo: record.lossesTo, conferenceChampion: championSet.has(row.team), playoffSeed: seedMap.get(row.team) ?? null };
+    const opponentRank = (team: string) => finalRankingMap.get(team)?.rank ?? 999;
+    const biggestWins = [...new Set(record.winsOver)].sort((a, b) => opponentRank(a) - opponentRank(b) || a.localeCompare(b)).slice(0, 3);
+    const worstLosses = [...new Set(record.lossesTo)].sort((a, b) => opponentRank(b) - opponentRank(a) || a.localeCompare(b)).slice(0, 3);
+    return { ...row, expectedWins: record.expectedWins, projectedWins: record.wins, projectedLosses: record.losses, projectedRecord: `${record.wins}–${record.losses}`, projectedWinsOver: biggestWins, projectedLossesTo: worstLosses, conferenceChampion: championSet.has(row.team), playoffSeed: seedMap.get(row.team) ?? null };
   });
   const championshipGame = bracket.games.at(-1);
   return {

@@ -55,6 +55,7 @@ export type BcsRankingRow = {
 type TeamRecord = { wins: number; losses: number; ties: number; games: number };
 
 const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+const clamp = (value: number, minimum: number, maximum: number) => Math.max(minimum, Math.min(maximum, value));
 
 function percentiles(values: Map<string, number>) {
   const ordered = [...values.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
@@ -169,6 +170,7 @@ export function buildBcsRankings(games: RankingGame[], profiles: RankingProfile[
   }
 
   const resume = new Map<string, number>();
+  const recordValue = new Map<string, number>();
   const sor = new Map<string, number>();
   const sos = new Map<string, number>();
   const quality = new Map<string, number>();
@@ -205,11 +207,16 @@ export function buildBcsRankings(games: RankingGame[], profiles: RankingProfile[
     const winPercentage = winValue / gamesPlayed;
     const schedule = average(details.map((detail) => opponentStrength.get(detail.opponent) ?? 0.35));
     const qualityScore = (qualityWins - 0.5 * badLosses) / gamesPlayed;
+    const lossRate = record.losses / gamesPlayed;
+    const recordScore = winPercentage - 0.08 * lossRate + 0.015 * Math.min(1, record.games / 10);
     sos.set(profile.team, record.games ? schedule : 0.5);
     quality.set(profile.team, qualityScore);
     headToHead.set(profile.team, record.games ? headToHeadValue / gamesPlayed : 0);
     sor.set(profile.team, record.games ? (winValue - expectedWins) / Math.sqrt(gamesPlayed) : 0);
-    resume.set(profile.team, 0.65 * winPercentage + 0.25 * (record.games ? schedule : 0.5) + 0.1 * qualityScore);
+    recordValue.set(profile.team, record.games ? recordScore : 0.5);
+    // Record is the anchor. Schedule and quality wins add context without
+    // becoming a conference-size proxy that can erase an elite win-loss mark.
+    resume.set(profile.team, 0.78 * winPercentage + 0.15 * (record.games ? schedule : 0.5) + 0.07 * qualityScore);
     const offense = average([Number(profile.offYppIndex), Number(profile.offYpaIndex), Number(profile.offYpcIndex)]);
     const defense = average([Number(profile.defYppIndex), Number(profile.defYpaIndex), Number(profile.defYpcIndex)]);
     power.set(profile.team, Math.log(Math.max(0.05, offense)) - Math.log(Math.max(0.05, defense)));
@@ -218,6 +225,7 @@ export function buildBcsRankings(games: RankingGame[], profiles: RankingProfile[
   }
 
   const resumePercentiles = percentiles(resume);
+  const recordPercentiles = percentiles(recordValue);
   const sorPercentiles = percentiles(sor);
   const sosPercentiles = percentiles(sos);
   const qualityPercentiles = percentiles(quality);
@@ -234,12 +242,15 @@ export function buildBcsRankings(games: RankingGame[], profiles: RankingProfile[
     const computerSignals = [resumePercentiles, sorPercentiles, headToHeadPercentiles, colleyPercentiles, eloPercentiles, powerPercentiles]
       .map((component) => component.get(team) ?? 0).sort((a, b) => a - b);
     const computer = average(computerSignals.slice(1, -1));
-    const results = 0.48 * (resumePercentiles.get(team) ?? 0) + 0.32 * (sorPercentiles.get(team) ?? 0) + 0.2 * (headToHeadPercentiles.get(team) ?? 0);
-    const schedule = 0.65 * (sosPercentiles.get(team) ?? 0) + 0.35 * (qualityPercentiles.get(team) ?? 0);
+    const results = 0.48 * (recordPercentiles.get(team) ?? 0) + 0.27 * (resumePercentiles.get(team) ?? 0) + 0.17 * (sorPercentiles.get(team) ?? 0) + 0.08 * (headToHeadPercentiles.get(team) ?? 0);
+    const schedule = 0.72 * (sosPercentiles.get(team) ?? 0) + 0.28 * (qualityPercentiles.get(team) ?? 0);
+    const record = records.get(team) ?? { wins: 0, losses: 0, ties: 0, games: 0 };
+    const maturity = clamp((record.games - 3) / 5, 0, 1);
+    const recordProtection = maturity * (record.losses === 0 ? 0.045 : record.losses === 1 ? 0.018 : 0);
     resultsScore.set(team, results);
     scheduleScore.set(team, schedule);
     computerScore.set(team, computer);
-    bcsScore.set(team, (results + schedule + computer) / 3);
+    bcsScore.set(team, clamp(0.5 * results + 0.2 * schedule + 0.3 * computer + recordProtection, 0, 1));
   }
 
   const sorRanks = ranks(sor);
@@ -251,9 +262,14 @@ export function buildBcsRankings(games: RankingGame[], profiles: RankingProfile[
   const profileByTeam = new Map(profiles.map((profile) => [profile.team, profile]));
   return [...eligible].sort((a, b) => {
     const scoreDifference = (bcsScore.get(b) ?? 0) - (bcsScore.get(a) ?? 0);
-    if (Math.abs(scoreDifference) > 0.005) return scoreDifference;
     const directEdge = (directResults.get(`${a}\u0000${b}`) ?? 0) - (directResults.get(`${b}\u0000${a}`) ?? 0);
-    if (directEdge) return directEdge > 0 ? -1 : 1;
+    if (directEdge && Math.abs(scoreDifference) <= 0.04) return directEdge > 0 ? -1 : 1;
+    const aRecord = records.get(a) ?? { wins: 0, losses: 0, ties: 0, games: 0 };
+    const bRecord = records.get(b) ?? { wins: 0, losses: 0, ties: 0, games: 0 };
+    if (Math.min(aRecord.games, bRecord.games) >= 6 && Math.abs(aRecord.losses - bRecord.losses) >= 2 && Math.abs(scoreDifference) < 0.075) {
+      return aRecord.losses - bRecord.losses;
+    }
+    if (Math.abs(scoreDifference) > 0.004) return scoreDifference;
     return (resultsScore.get(b) ?? 0) - (resultsScore.get(a) ?? 0) || (computerScore.get(b) ?? 0) - (computerScore.get(a) ?? 0) || a.localeCompare(b);
   }).map((team, index) => {
     const profile = profileByTeam.get(team)!;

@@ -25,6 +25,23 @@ export const cfbTeams = sqliteTable("cfb_teams", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [primaryKey({ columns: [table.season, table.team] }), index("cfb_teams_season_idx").on(table.season)]);
 
+export const preseasonInputs = sqliteTable("preseason_inputs", {
+  season: integer("season").notNull(),
+  team: text("team").notNull(),
+  conference: text("conference"),
+  returningPpa: real("returning_ppa"),
+  returningPassingPpa: real("returning_passing_ppa"),
+  returningReceivingPpa: real("returning_receiving_ppa"),
+  returningRushingPpa: real("returning_rushing_ppa"),
+  returningUsage: real("returning_usage"),
+  returningPassingUsage: real("returning_passing_usage"),
+  returningReceivingUsage: real("returning_receiving_usage"),
+  returningRushingUsage: real("returning_rushing_usage"),
+  recruitingRank: integer("recruiting_rank"),
+  recruitingPoints: real("recruiting_points"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [primaryKey({ columns: [table.season, table.team] }), index("preseason_inputs_season_idx").on(table.season)]);
+
 export const cfbGames = sqliteTable("cfb_games", {
   gameId: text("game_id").primaryKey(),
   season: integer("season").notNull(),

@@ -13,6 +13,7 @@ import {
   type TeamModel,
   type WeekProfile,
 } from "./modelData";
+import { analyzeMatchupEdges, type MatchupEdgeAnalysis } from "../lib/matchupAnalysis";
 
 type Section = "overview" | "rankings" | "simulation" | "matchup" | "all137" | "stats" | "schedule" | "teams" | "methodology";
 
@@ -45,6 +46,7 @@ type ScheduleRow = {
   provider?:string;formattedSpread?:string;spreadOpen?:number|null;overUnderOpen?:number|null;
   homeLogo?:string;awayLogo?:string;
   storedModelVersion?:string;predictionSource?:"materialized"|"live-profile"|"pending";
+  edgeAnalysis?:MatchupEdgeAnalysis;
 };
 
 type AccuracyMetric = { wins:number;losses:number;pushes:number;graded:number;accuracy:number|null;meanAbsoluteError:number|null };
@@ -68,7 +70,7 @@ type SeasonSimulation = {
   season:number;requestedWeek:number;effectiveWeek:number;fieldMode:"actual-field"|"projected-field";format:4|12;methodology:string;champion:string|null;championshipProbability:number|null;
   rankings:SimulatedRankingRow[];conferenceChampionships:ConferenceProjection[];bracket:BracketProjection[];
 };
-type BackfillResult = { season:number;stage:"teams"|"schedule"|"stats"|"complete";week?:number;teams?:number;games?:number;stats?:number;profiles?:number;predictions?:number };
+type BackfillResult = { season:number;stage:"teams"|"priors"|"schedule"|"stats"|"complete";week?:number;teams?:number;games?:number;stats?:number;profiles?:number;predictions?:number };
 type BackfillPayload = { configured?:boolean;currentSeason?:number;missing?:number[];seasons?:Array<{season:number;ready:boolean;teamCount:number;logoCount:number;gameCount:number;postseasonGameCount:number;statRowCount:number;profileTeamCount:number;profileCount:number;predictionCount:number;lineCount:number;completedWeekCount:number;statWeekCount:number;stage:string;progressPercent:number}>;message?:string;importedSeason?:number;retryAfterSeconds?:number;result?:BackfillResult };
 
 async function readJsonBody<T>(response: Response): Promise<T> {
@@ -290,6 +292,7 @@ function projectMatchup(home: TeamModel, away: TeamModel, week: number, neutral:
   const margin = homeScore - awayScore;
   const volatility = 13.8 + Math.abs(average(hp.o.slice(0, 3)) - average(ap.o.slice(0, 3))) * 3;
   const homeWin = normalCdf(margin / volatility);
+  const edgeAnalysis = analyzeMatchupEdges(home.name, away.name, hp.o, hp.d, ap.o, ap.d, neutral, margin);
   return {
     homeScore,
     awayScore,
@@ -299,6 +302,7 @@ function projectMatchup(home: TeamModel, away: TeamModel, week: number, neutral:
     homeStats,
     awayStats,
     volatility,
+    edgeAnalysis,
   };
 }
 
@@ -322,6 +326,20 @@ function TeamMark({ name, size = "md", logo }: { name: string; size?: "sm" | "md
       {hasLogo ? <>{/* Remote school marks come from the season identity feed. */}<img src={logoSource} alt="" onError={() => setFailedSource(logoSource)} /></> : <span>{initials}</span>}
     </span>
   );
+}
+
+function EdgeAnalysisCard({ analysis, compact = false }: { analysis: MatchupEdgeAnalysis; compact?: boolean }) {
+  const units = [analysis.pass, analysis.run, analysis.defense];
+  return <section className={`edge-analysis-card ${compact ? "compact" : ""}`}>
+    <header><div><span>MATCHUP EDGE</span><h3>{analysis.headline}</h3></div><b>{analysis.projectedMargin.toFixed(1)} PTS</b></header>
+    <p>{analysis.summary}</p>
+    <div className="edge-unit-grid">{units.map((unit) => <article className={`edge-unit ${unit.strength}`} key={unit.unit}>
+      <span>{unit.unit === "defense" ? "DEFENSIVE EDGE" : `${unit.unit.toUpperCase()} GAME`}</span>
+      <strong>{unit.edgeTeam || "EVEN"}</strong>
+      <small>{unit.unit === "defense" ? `${unit.homeValue.toFixed(0)}% vs ${unit.awayValue.toFixed(0)}% allowed` : `${unit.homeValue.toFixed(1)} vs ${unit.awayValue.toFixed(1)} projected`}</small>
+    </article>)}</div>
+    {!compact ? <div className="edge-factor-list">{analysis.factors.map((factor) => <span key={factor}>{factor}</span>)}</div> : null}
+  </section>;
 }
 
 type ProfileNumberKey = keyof Pick<DynamicProfileRow,
@@ -429,7 +447,7 @@ function BackfillBanner() {
         if (!missing.length) { if (!cancelled) setState({ status:"done",message:archiveSummary(payload) }); return; }
         const importing = missing[0];
         const seasonStatus = payload.seasons?.find((row) => row.season === importing);
-        const stageLabel = seasonStatus?.stage === "teams" ? "team identities and logos" : seasonStatus?.stage === "schedule" ? "schedule and final scores" : seasonStatus?.stage === "stats" ? `weekly box scores (${seasonStatus.statWeekCount}/${seasonStatus.completedWeekCount})` : "Harper+ v5 formula snapshots";
+        const stageLabel = seasonStatus?.stage === "teams" ? "team identities and logos" : seasonStatus?.stage === "priors" ? "returning production and recruiting priors" : seasonStatus?.stage === "schedule" ? "schedule and final scores" : seasonStatus?.stage === "stats" ? `weekly box scores (${seasonStatus.statWeekCount}/${seasonStatus.completedWeekCount})` : "Harper+ v6 formula snapshots";
         if (!cancelled) setState({ status:"running",message:`Automatic archive work: ${importing} ${stageLabel} · ${seasonStatus?.progressPercent ?? 0}%` });
       } catch (error) {
         if (!cancelled) setState({ status:"error",message:error instanceof Error ? error.message : "Historical backfill failed" });
@@ -505,6 +523,8 @@ function MatchupLab({ season, week, setSeason, setWeek }: ModelVintageProps) {
             {projection ? <b>{((1 - projection.homeWin) * 100).toFixed(0)}% WIN</b> : null}
           </div>
         </div>
+
+        {projection ? <EdgeAnalysisCard analysis={projection.edgeAnalysis} /> : null}
 
         {projection ? <div className="matchup-data-grid">
           <div className="stat-comparison">
@@ -615,6 +635,7 @@ function signed(value: number | null, digits = 1) {
 function SchedulePage({ season, setSeason }: Pick<ModelVintageProps, "season" | "setSeason">) {
   const [week, setWeek] = useState(0);
   const [teamFilter, setTeamFilter] = useState("");
+  const [expandedGameId, setExpandedGameId] = useState<string | null>(null);
   const [rows, setRows] = useState<ScheduleRow[]>([]);
   const [configured, setConfigured] = useState(false);
   const [loadedKey, setLoadedKey] = useState("");
@@ -648,15 +669,15 @@ function SchedulePage({ season, setSeason }: Pick<ModelVintageProps, "season" | 
       {activeRows.map((row) => {
         const perspective = teamFilter ? (row.homeTeam === teamFilter ? `vs ${row.awayTeam}` : `@ ${row.homeTeam}`) : `${row.awayTeam} @ ${row.homeTeam}`;
         const location = row.neutralSite ? "NEUTRAL" : teamFilter ? (row.homeTeam === teamFilter ? "HOME" : "AWAY") : (row.venue || "");
-        return <div className="schedule-row" key={row.gameId}>
+        return <article className={`schedule-game-entry ${expandedGameId === row.gameId ? "open" : ""}`} key={row.gameId}><div className="schedule-row">
           <div data-label="DATE / PHASE"><strong>{formatGameDate(row.startDate)}</strong><small>{row.seasonType === "postseason" ? `POSTSEASON · W${row.week}` : `REGULAR · W${row.week}`}</small></div>
           <div data-label="MATCHUP" className="schedule-matchup-cell"><span className="schedule-logo-pair"><TeamMark name={row.awayTeam} size="sm" logo={row.awayLogo} /><TeamMark name={row.homeTeam} size="sm" logo={row.homeLogo} /></span><span><strong>{perspective}</strong><small>{location}</small></span></div>
           <div data-label="H+ MODEL" className="schedule-model-cell"><b>{row.predictedAwayScore === null || row.predictedHomeScore === null ? "—" : `${row.predictedAwayScore.toFixed(0)}–${row.predictedHomeScore.toFixed(0)}`}</b><small>Spread {signed(row.modelHomeSpread)} · Total {row.modelTotal === null ? "—" : row.modelTotal.toFixed(1)}</small><small>{row.homeWinProbability === null ? "MODEL BUILD PENDING" : `${row.homeTeam} ${(row.homeWinProbability * 100).toFixed(0)}% · ${row.predictionSource === "live-profile" ? "LIVE PROFILE" : `FROM WK ${row.generatedFromWeek ?? "—"}`}`}</small></div>
           <div data-label="FINAL"><b>{row.awayPoints === null || row.homePoints === null ? "—" : `${row.awayPoints}–${row.homePoints}`}</b><small>{row.completed ? "FINAL" : "UPCOMING"}</small></div>
           <div data-label="VEGAS"><span>{row.formattedSpread || (row.vegasSpread === null ? "Spread —" : `${row.homeTeam} ${signed(row.vegasSpread)}`)}</span><small>O/U {row.vegasTotal === null ? "—" : row.vegasTotal.toFixed(1)} · {row.provider || "market"}</small></div>
-          <div data-label="MODEL EDGE"><span>Spread {signed(row.spreadEdge)}</span><small>Total {signed(row.totalEdge)}</small></div>
+          <div data-label="MODEL EDGE"><span>Spread {signed(row.spreadEdge)}</span><small>Total {signed(row.totalEdge)}</small>{row.edgeAnalysis ? <button className="schedule-edge-toggle" type="button" aria-expanded={expandedGameId === row.gameId} onClick={() => setExpandedGameId((current) => current === row.gameId ? null : row.gameId)}>{expandedGameId === row.gameId ? "HIDE WHY" : "WHY FAVORED"}</button> : null}</div>
           <div data-label="GRADE" className="result-stack"><span className={`result-pill ${row.spreadResult || "pending"}`}>ATS {row.spreadResult || "—"}</span><span className={`result-pill ${row.totalResult || "pending"}`}>O/U {row.totalResult || "—"}</span><small>{row.spreadError === null ? "" : `Err ${row.spreadError.toFixed(1)} / ${row.totalError?.toFixed(1) ?? "—"}`}</small></div>
-        </div>;
+        </div>{expandedGameId === row.gameId && row.edgeAnalysis ? <EdgeAnalysisCard analysis={row.edgeAnalysis} compact /> : null}</article>;
       })}
     </div>}
     <p className="all137-disclaimer">Predictions are generated from the prior week’s profile so completed-game results never leak into the forecast. The season ATS, totals and error cards are intentionally graded from Week 5 onward; the schedule table still preserves every game and result.</p>
@@ -689,7 +710,7 @@ function TeamLab({ season, week, setSeason, setWeek }: ModelVintageProps) {
       <aside className="team-directory"><div className="team-directory-search"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search team or conference" aria-label="Search teams" /><span>{filtered.length} of {availableTeams.length} teams</span></div><div className="team-directory-list">{filtered.map((team) => <button key={team.name} className={selected.name === team.name ? "active" : ""} onClick={() => selectTeam(team.name)}><TeamMark name={team.name} size="sm" logo={team.logo} /><span><strong>{team.name}</strong><small>{team.conference}</small></span></button>)}</div></aside>
       <article id="team-profile-card" className="team-profile-card" style={{ "--team": selected.color } as CSSProperties}>
         <div className="team-profile-hero"><TeamMark name={selected.name} size="lg" logo={selected.logo} /><div><span>{selected.conference}</span><h2>{selected.name}</h2><p>{selected.mascot}</p></div><div className="team-rank-callout"><small>BCS-STYLE RK</small><strong>{ranked ? `#${ranked.rank}` : profile?.rank ? `#${profile.rank}` : "—"}</strong></div></div>
-        {profile && selectedRow ? <><div className="profile-columns"><TeamMetricPanel title="OFFENSIVE PRODUCTION" subtitle="Raw output with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="offense" /><TeamMetricPanel title="DEFENSIVE OUTPUT ALLOWED" subtitle="Raw allowances with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="defense" /></div><div className="trend-panel"><div><strong>MODEL VINTAGE</strong><span>{week===0?`${season} preseason · 40/30/20/10 prior-season blend`:`${season} cumulative profile through week ${week}`}</span></div><div className="index-readout"><span>ADJ OFFENSE VS FBS AVG</span><strong>{(average(profile.o.slice(0, 3))*100).toFixed(0)}%</strong><span>ADJ OPP OUTPUT ALLOWED</span><strong>{(average(profile.d.slice(0, 3))*100).toFixed(0)}%</strong></div></div></> : <div className="empty-state">No completed profile exists at or before this week.</div>}
+        {profile && selectedRow ? <><div className="profile-columns"><TeamMetricPanel title="OFFENSIVE PRODUCTION" subtitle="Raw output with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="offense" /><TeamMetricPanel title="DEFENSIVE OUTPUT ALLOWED" subtitle="Raw allowances with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="defense" /></div><div className="trend-panel"><div><strong>MODEL VINTAGE</strong><span>{week===0?`${season} preseason · four-season history + returning production + recruiting`:`${season} cumulative profile through week ${week}`}</span></div><div className="index-readout"><span>ADJ OFFENSE VS FBS AVG</span><strong>{(average(profile.o.slice(0, 3))*100).toFixed(0)}%</strong><span>ADJ OPP OUTPUT ALLOWED</span><strong>{(average(profile.d.slice(0, 3))*100).toFixed(0)}%</strong></div></div></> : <div className="empty-state">No completed profile exists at or before this week.</div>}
       </article>
     </div>}
   </section>;
@@ -718,7 +739,7 @@ function SeasonSimulationPage({ season, week, setSeason, setWeek }: ModelVintage
           <h2>{data.champion || "Field pending"}</h2>
           <p>{data.fieldMode === "actual-field"
             ? `${season} preserves the teams and seeds that actually made the playoff, but none of the displayed matchup results use the real bracket outcomes.`
-            : `${season} uses projected records, conference standings, head-to-head tiebreaks and Harper BCS v2. The five highest-ranked projected conference champions plus seven at-larges qualify; the top four seeds receive byes.`}</p>
+            : `${season} uses projected records, conference standings, head-to-head tiebreaks and the résumé-protected Harper BCS v3. The five highest-ranked projected conference champions plus seven at-larges qualify; the top four seeds receive byes.`}</p>
         </div>
         {data.champion ? <TeamMark name={data.champion} size="lg" logo={logoByTeam.get(data.champion)} /> : null}
         <div className="simulation-hero-metrics"><div><small>FORMAT</small><strong>{data.format} TEAM</strong></div><div><small>TITLE GAME EDGE</small><strong>{data.championshipProbability === null ? "—" : `${(data.championshipProbability*100).toFixed(0)}%`}</strong></div><div><small>DATA VINTAGE</small><strong>WK {data.effectiveWeek}</strong></div></div>
@@ -728,10 +749,10 @@ function SeasonSimulationPage({ season, week, setSeason, setWeek }: ModelVintage
         <article className="simulation-rankings-card">
           <div className="block-head"><div><span className="section-kicker">PROJECTED FINAL TABLE</span><h2>Top 25 after championship week</h2></div><small>H2H APPLIED</small></div>
           <div className="sim-rankings-shell">
-            <div className="sim-rankings-head"><span>RK</span><span>TEAM / PROJECTED PATH</span><span>RECORD</span><span>EXP W</span><span>SOS</span><span>H2H</span><span>CFP</span></div>
+            <div className="sim-rankings-head"><span>RK</span><span>TEAM / KEY RESULTS</span><span>RECORD</span><span>EXP W</span><span>SOS</span><span>H2H</span><span>CFP</span></div>
             {data.rankings.slice(0,25).map((row) => <div className="sim-ranking-row" key={row.team}>
               <strong>{row.rank}</strong>
-              <div><TeamMark name={row.team} size="sm" logo={row.logo} /><span><strong>{row.team}</strong><small>{row.projectedWinsOver.length ? `Wins: ${row.projectedWinsOver.slice(-3).join(", ")}` : row.conference || "FBS"}</small></span></div>
+              <div><TeamMark name={row.team} size="sm" logo={row.logo} /><span className="sim-team-copy"><strong>{row.team}</strong><small className="sim-best-wins"><b>BEST WINS</b>{row.projectedWinsOver.length ? row.projectedWinsOver.join(", ") : "No wins projected"}</small><small className="sim-worst-losses"><b>WORST LOSSES</b>{row.projectedLossesTo.length ? row.projectedLossesTo.join(", ") : "None"}</small></span></div>
               <div className="sim-ranking-metrics">
                 <b data-label="RECORD">{row.projectedRecord}</b>
                 <span data-label="EXP W">{row.expectedWins.toFixed(1)}</span>
@@ -805,26 +826,26 @@ function Methodology() {
 
         <article className="formula-card">
           <span className="card-label">HARPER BCS</span>
-          <h2>Equal thirds, résumé first</h2>
+          <h2>Résumé-led, schedule-aware</h2>
           <div className="weight-list">
-            <div><span>Results + strength of record</span><strong>33⅓%</strong></div>
-            <div><span>SOS + quality wins</span><strong>33⅓%</strong></div>
-            <div><span>Trimmed six-signal computer</span><strong>33⅓%</strong></div>
+            <div><span>Results + strength of record</span><strong>50%</strong></div>
+            <div><span>SOS + quality wins</span><strong>20%</strong></div>
+            <div><span>Trimmed six-signal computer</span><strong>30%</strong></div>
           </div>
-          <p>Like the former BCS computer component, the best and worst of six normalized signals are removed before the remaining four are averaged. The six signals are résumé, SOR, direct head-to-head, Colley, result-only Elo and opponent-adjusted Harper power. Head-to-head is also the first tiebreaker when composite scores are within half a point.</p>
+          <p>The best and worst of six normalized computer signals are removed before the remaining four are averaged. Record protection keeps mature undefeated and one-loss résumés from being erased by conference-connected SOS, while direct head-to-head controls close comparisons and materially fewer losses break near-ties.</p>
         </article>
       </div>
 
       <div className="model-governance">
-        <article><span className="card-label">PRESEASON PRIOR</span><h2>Four seasons, recency weighted</h2><strong>40% · 30% · 20% · 10%</strong><p>The latest completed season carries the most weight. Available seasons are re-normalized for newer FBS teams, then stored as Week 0 so opening-week projections have a real statistical prior.</p></article>
+        <article><span className="card-label">PRESEASON PRIOR</span><h2>History plus roster continuity</h2><strong>40 · 30 · 20 · 10 + RP + RECRUIT</strong><p>The four-season performance blend remains the anchor. CFBD returning-production splits make the meaningful offensive adjustment, while recruiting class strength receives only a capped nudge so brand and conference talent cannot overwhelm demonstrated performance.</p></article>
         <article><span className="card-label">DURABLE DATA LAYERS</span><h2>Raw history stays fixed; formulas can evolve</h2><strong>STATS + OUTCOMES CACHED ONCE</strong><p>Completed schedules, scores, lines and team-game stats are retained. A model-version change rebuilds profiles and projections from that archive without downloading unchanged historical results again.</p></article>
         <article><span className="card-label">LEAKAGE GATE</span><h2>Only information available before kickoff counts</h2><strong>PRIOR-WEEK PROFILES ONLY</strong><p>The workbook’s postgame “real stats” reconstruction is intentionally excluded from forecast accuracy because it uses the completed game’s box score. Harper+ grades only predictions generated from the prior weekly snapshot.</p></article>
       </div>
 
       <div className="calibration-ledger">
-        <div className="workbook-map-head"><div><span className="card-label">LIVE VALIDATION LEDGER</span><h2>Every model-ready season · Week 5+</h2></div><b>{calibration.data?.modelVersion || "V5"}</b></div>
+        <div className="workbook-map-head"><div><span className="card-label">LIVE VALIDATION LEDGER</span><h2>Every model-ready season · Week 5+</h2></div><b>{calibration.data?.modelVersion || "V6"}</b></div>
         <div className="calibration-head"><span>SEASON</span><span>ATS</span><span>ATS RECORD</span><span>SPREAD MAE</span><span>TOTALS</span><span>TOTAL RECORD</span></div>
-        {calibration.loading ? <div className="calibration-empty">Loading prior-week-only audits…</div> : calibration.data?.rows.length ? calibration.data.rows.map((row) => <div className="calibration-row" key={row.season}><strong>{row.season}</strong><b>{row.spread.accuracy === null ? "—" : `${(row.spread.accuracy*100).toFixed(1)}%`}</b><span>{row.spread.wins}–{row.spread.losses}{row.spread.pushes ? `–${row.spread.pushes}P` : ""}</span><span>{row.spread.meanAbsoluteError === null ? "—" : row.spread.meanAbsoluteError.toFixed(1)}</span><b>{row.total.accuracy === null ? "—" : `${(row.total.accuracy*100).toFixed(1)}%`}</b><span>{row.total.wins}–{row.total.losses}{row.total.pushes ? `–${row.total.pushes}P` : ""}</span></div>) : <div className="calibration-empty">V5 audits will appear as cached seasons finish recalculating. No postgame box-score columns are used.</div>}
+        {calibration.loading ? <div className="calibration-empty">Loading prior-week-only audits…</div> : calibration.data?.rows.length ? calibration.data.rows.map((row) => <div className="calibration-row" key={row.season}><strong>{row.season}</strong><b>{row.spread.accuracy === null ? "—" : `${(row.spread.accuracy*100).toFixed(1)}%`}</b><span>{row.spread.wins}–{row.spread.losses}{row.spread.pushes ? `–${row.spread.pushes}P` : ""}</span><span>{row.spread.meanAbsoluteError === null ? "—" : row.spread.meanAbsoluteError.toFixed(1)}</span><b>{row.total.accuracy === null ? "—" : `${(row.total.accuracy*100).toFixed(1)}%`}</b><span>{row.total.wins}–{row.total.losses}{row.total.pushes ? `–${row.total.pushes}P` : ""}</span></div>) : <div className="calibration-empty">V6 audits will appear as cached seasons finish recalculating. No postgame box-score columns are used.</div>}
         <p>Accuracy is descriptive, not guaranteed. A formula change is evaluated across the historical archive, with market grading beginning in Week 5 and postseason games retained.</p>
       </div>
 
@@ -960,9 +981,9 @@ export default function Home() {
             </article>
             <aside>
               <div className="block-head"><div><span className="section-kicker">MODEL SIGNAL</span><h2>What drives the ranking</h2></div></div>
-              <div className="signal-card"><b>⅓</b><div><strong>RESULTS + SOR</strong><p>Wins matter most after opponent context is applied.</p></div></div>
-              <div className="signal-card"><b>⅓</b><div><strong>SCHEDULE + QUALITY WINS</strong><p>Weak schedules can no longer hide behind raw production.</p></div></div>
-              <div className="signal-card"><b>⅓</b><div><strong>TRIMMED COMPUTER SCORE</strong><p>The best and worst of six signals are removed, BCS-style.</p></div></div>
+              <div className="signal-card"><b>50%</b><div><strong>RESULTS + SOR</strong><p>The loss column and head-to-head results anchor the ranking.</p></div></div>
+              <div className="signal-card"><b>20%</b><div><strong>SCHEDULE + QUALITY WINS</strong><p>Opponent quality adds context without becoming a conference-size bonus.</p></div></div>
+              <div className="signal-card"><b>30%</b><div><strong>TRIMMED COMPUTER SCORE</strong><p>The best and worst of six signals are removed, BCS-style.</p></div></div>
               <div className="source-card"><span>SELF-CONTAINED DATA PIPELINE</span><strong>Automatic Monday refresh</strong><p>Schedules → box scores → market lines → weekly percentages → projections → historical snapshots.</p><button onClick={() => setSection("schedule")}>OPEN SCHEDULE →</button></div>
             </aside>
           </div>

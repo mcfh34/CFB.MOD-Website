@@ -26,7 +26,14 @@ type Line = {
   overUnderOpen: number | null; homeMoneyline: number | null; awayMoneyline: number | null;
 };
 
-export const MODEL_VERSION = "harper-plus-v5";
+export type PreseasonInput = {
+  season: number; team: string; conference: string | null;
+  returningPpa: number | null; returningPassingPpa: number | null; returningReceivingPpa: number | null; returningRushingPpa: number | null;
+  returningUsage: number | null; returningPassingUsage: number | null; returningReceivingUsage: number | null; returningRushingUsage: number | null;
+  recruitingRank: number | null; recruitingPoints: number | null;
+};
+
+export const MODEL_VERSION = "harper-plus-v6";
 const PRESEASON_WEIGHTS = [0.4, 0.3, 0.2, 0.1] as const;
 const BASE_URL = "https://api.collegefootballdata.com";
 export const FIRST_HISTORICAL_SEASON = 2021;
@@ -246,6 +253,41 @@ function normalizeTeams(payload: unknown, season: number) {
       logo,
     };
   });
+}
+
+function normalizePreseasonInputs(returningPayload: unknown, recruitingPayload: unknown, season: number, eligibleTeams: Set<string>): PreseasonInput[] {
+  const returningByTeam = new Map(asRecords(returningPayload).map((row) => [textValue(row, "team") ?? "", row]));
+  const recruitingByTeam = new Map(asRecords(recruitingPayload).map((row) => [textValue(row, "team") ?? "", row]));
+  const metric = (row: JsonRecord | undefined, ...keys: string[]) => row ? numberValue(row, ...keys) : null;
+  return [...eligibleTeams].sort().map((team) => {
+    const returning = returningByTeam.get(team);
+    const recruiting = recruitingByTeam.get(team);
+    return {
+      season,
+      team,
+      conference: returning ? textValue(returning, "conference") : null,
+      returningPpa: metric(returning, "percentPPA", "percent_ppa", "returningPPA", "returning_ppa"),
+      returningPassingPpa: metric(returning, "percentPassingPPA", "percent_passing_ppa", "returningPassingPPA"),
+      returningReceivingPpa: metric(returning, "percentReceivingPPA", "percent_receiving_ppa", "returningReceivingPPA"),
+      returningRushingPpa: metric(returning, "percentRushingPPA", "percent_rushing_ppa", "returningRushingPPA"),
+      returningUsage: metric(returning, "usage", "returningUsage", "returning_usage"),
+      returningPassingUsage: metric(returning, "passingUsage", "passing_usage", "returningPassingUsage"),
+      returningReceivingUsage: metric(returning, "receivingUsage", "receiving_usage", "returningReceivingUsage"),
+      returningRushingUsage: metric(returning, "rushingUsage", "rushing_usage", "returningRushingUsage"),
+      recruitingRank: metric(recruiting, "rank"),
+      recruitingPoints: metric(recruiting, "points", "rating"),
+    };
+  });
+}
+
+async function fetchPreseasonInputs(key: string, season: number, eligibleTeams: Set<string>) {
+  // These feeds materially change Week 0. Unlike optional market data, a failed
+  // roster feed must leave the priors stage incomplete so the bounded retry
+  // queue can try again instead of permanently caching an all-null placeholder.
+  const returningPayload = await cfbd("/player/returning", key, { year: season });
+  await pause(1600);
+  const recruitingPayload = await cfbd("/recruiting/teams", key, { year: season });
+  return normalizePreseasonInputs(returningPayload, recruitingPayload, season, eligibleTeams);
 }
 
 function buildProfiles(games: NormalizedGame[], rows: NormalizedStat[], season: number, eligibleTeams: Set<string>, preseasonProfiles: Profile[] = []) {
@@ -475,7 +517,7 @@ async function upsertJsonRows<T>(db: D1Database, sql: string, rows: T[], size = 
 }
 
 type PersistSeasonPayload = {
-  teams: unknown[]; games: NormalizedGame[]; stats: NormalizedStat[]; lines: Line[]; profiles: Profile[];
+  teams: unknown[]; preseasonInputs: PreseasonInput[]; games: NormalizedGame[]; stats: NormalizedStat[]; lines: Line[]; profiles: Profile[];
   predictions: unknown[]; snapshots: unknown[];
 };
 
@@ -483,6 +525,10 @@ async function persistSeason(db: D1Database, rows: PersistSeasonPayload) {
   await upsertJsonRows(db, `INSERT INTO cfb_teams (season,team,team_id,abbreviation,mascot,conference,color,alt_color,logo,updated_at)
     SELECT json_extract(value,'$.season'),json_extract(value,'$.team'),json_extract(value,'$.teamId'),json_extract(value,'$.abbreviation'),json_extract(value,'$.mascot'),json_extract(value,'$.conference'),json_extract(value,'$.color'),json_extract(value,'$.altColor'),json_extract(value,'$.logo'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
     ON CONFLICT(season,team) DO UPDATE SET team_id=excluded.team_id,abbreviation=excluded.abbreviation,mascot=excluded.mascot,conference=excluded.conference,color=excluded.color,alt_color=excluded.alt_color,logo=excluded.logo,updated_at=CURRENT_TIMESTAMP`, rows.teams);
+
+  await upsertJsonRows(db, `INSERT INTO preseason_inputs (season,team,conference,returning_ppa,returning_passing_ppa,returning_receiving_ppa,returning_rushing_ppa,returning_usage,returning_passing_usage,returning_receiving_usage,returning_rushing_usage,recruiting_rank,recruiting_points,updated_at)
+    SELECT json_extract(value,'$.season'),json_extract(value,'$.team'),json_extract(value,'$.conference'),json_extract(value,'$.returningPpa'),json_extract(value,'$.returningPassingPpa'),json_extract(value,'$.returningReceivingPpa'),json_extract(value,'$.returningRushingPpa'),json_extract(value,'$.returningUsage'),json_extract(value,'$.returningPassingUsage'),json_extract(value,'$.returningReceivingUsage'),json_extract(value,'$.returningRushingUsage'),json_extract(value,'$.recruitingRank'),json_extract(value,'$.recruitingPoints'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
+    ON CONFLICT(season,team) DO UPDATE SET conference=excluded.conference,returning_ppa=excluded.returning_ppa,returning_passing_ppa=excluded.returning_passing_ppa,returning_receiving_ppa=excluded.returning_receiving_ppa,returning_rushing_ppa=excluded.returning_rushing_ppa,returning_usage=excluded.returning_usage,returning_passing_usage=excluded.returning_passing_usage,returning_receiving_usage=excluded.returning_receiving_usage,returning_rushing_usage=excluded.returning_rushing_usage,recruiting_rank=excluded.recruiting_rank,recruiting_points=excluded.recruiting_points,updated_at=CURRENT_TIMESTAMP`, rows.preseasonInputs);
 
   await upsertJsonRows(db, `INSERT INTO cfb_games (game_id,season,week,season_type,start_date,completed,neutral_site,conference_game,venue,home_team,home_conference,home_points,away_team,away_conference,away_points,updated_at)
     SELECT json_extract(value,'$.id'),json_extract(value,'$.season'),json_extract(value,'$.week'),json_extract(value,'$.seasonType'),json_extract(value,'$.startDate'),json_extract(value,'$.completed'),json_extract(value,'$.neutralSite'),json_extract(value,'$.conferenceGame'),json_extract(value,'$.venue'),json_extract(value,'$.homeTeam'),json_extract(value,'$.homeConference'),json_extract(value,'$.homePoints'),json_extract(value,'$.awayTeam'),json_extract(value,'$.awayConference'),json_extract(value,'$.awayPoints'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
@@ -509,7 +555,7 @@ async function persistSeason(db: D1Database, rows: PersistSeasonPayload) {
     ON CONFLICT(season,week) DO UPDATE SET team_count=excluded.team_count,game_count=excluded.game_count,completed_game_count=excluded.completed_game_count,source=excluded.source,model_version=excluded.model_version,created_at=CURRENT_TIMESTAMP`, rows.snapshots);
 }
 
-const emptyPersistRows = (): PersistSeasonPayload => ({ teams: [], games: [], stats: [], lines: [], profiles: [], predictions: [], snapshots: [] });
+const emptyPersistRows = (): PersistSeasonPayload => ({ teams: [], preseasonInputs: [], games: [], stats: [], lines: [], profiles: [], predictions: [], snapshots: [] });
 
 async function loadSeasonGames(db: D1Database, season: number): Promise<NormalizedGame[]> {
   const result = await db.prepare(`SELECT game_id,season,week,season_type,start_date,completed,neutral_site,conference_game,venue,home_team,home_conference,home_points,away_team,away_conference,away_points
@@ -558,20 +604,84 @@ async function loadSeasonLines(db: D1Database, season: number): Promise<Line[]> 
   })).filter((row: Line) => row.gameId);
 }
 
+function centeredPercentile(inputs: PreseasonInput[], accessor: (input: PreseasonInput) => number | null) {
+  const values = inputs.map((input) => ({ team: input.team, value: accessor(input) })).filter((row): row is { team: string; value: number } => row.value !== null && Number.isFinite(row.value));
+  const ordered = [...values].sort((a, b) => b.value - a.value || a.team.localeCompare(b.team));
+  const output = new Map<string, number>();
+  if (ordered.length < 2) return output;
+  for (let start = 0; start < ordered.length;) {
+    let end = start;
+    while (end + 1 < ordered.length && Math.abs(ordered[end + 1].value - ordered[start].value) < 1e-10) end += 1;
+    const percentile = 1 - ((start + end) / 2) / (ordered.length - 1);
+    for (let index = start; index <= end; index += 1) output.set(ordered[index].team, percentile * 2 - 1);
+    start = end + 1;
+  }
+  return output;
+}
+
+function finiteAverage(values: Array<number | null>) {
+  const valid = values.filter((value): value is number => value !== null && Number.isFinite(value));
+  return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null;
+}
+
+export function applyPreseasonRosterAdjustments(profiles: Profile[], inputs: PreseasonInput[]) {
+  const overallContinuity = centeredPercentile(inputs, (input) => input.returningPpa ?? input.returningUsage);
+  const passingContinuity = centeredPercentile(inputs, (input) => finiteAverage([
+    input.returningPassingPpa, input.returningReceivingPpa, input.returningPassingUsage, input.returningReceivingUsage,
+  ]) ?? input.returningPpa ?? input.returningUsage);
+  const rushingContinuity = centeredPercentile(inputs, (input) => finiteAverage([
+    input.returningRushingPpa, input.returningRushingUsage,
+  ]) ?? input.returningPpa ?? input.returningUsage);
+  const recruiting = centeredPercentile(inputs, (input) => input.recruitingPoints ?? (input.recruitingRank === null ? null : -input.recruitingRank));
+  const clampIndex = (value: number) => Math.max(0.72, Math.min(1.38, value));
+
+  return profiles.map((profile) => {
+    const overall = overallContinuity.get(profile.team) ?? 0;
+    const passing = passingContinuity.get(profile.team) ?? overall;
+    const rushing = rushingContinuity.get(profile.team) ?? overall;
+    const recruit = recruiting.get(profile.team) ?? 0;
+    // Returning production carries the meaningful roster-continuity signal.
+    // Recruiting nudges the prior only slightly so brand/conference talent does
+    // not overpower what a team has actually put on film in prior seasons.
+    const offenseMultipliers = [
+      Math.exp(0.035 * overall + 0.012 * recruit),
+      Math.exp(0.055 * passing + 0.012 * recruit),
+      Math.exp(0.055 * rushing + 0.012 * recruit),
+      1,
+      1,
+    ];
+    const defenseMultipliers = [Math.exp(-0.015 * recruit), Math.exp(-0.015 * recruit), Math.exp(-0.015 * recruit), 1, 1];
+    return {
+      ...profile,
+      off: profile.off.map((value, index) => value * offenseMultipliers[index]) as Profile["off"],
+      def: profile.def.map((value, index) => value * defenseMultipliers[index]) as Profile["def"],
+      oi: profile.oi.map((value, index) => clampIndex(value * offenseMultipliers[index])) as Profile["oi"],
+      di: profile.di.map((value, index) => clampIndex(value * defenseMultipliers[index])) as Profile["di"],
+    };
+  });
+}
+
 async function loadPreseasonProfiles(db: D1Database, season: number, eligibleTeams: Set<string>): Promise<Profile[]> {
   const firstPriorSeason = Math.max(FIRST_HISTORICAL_SEASON, season - PRESEASON_WEIGHTS.length);
-  const result = await db.prepare(`SELECT
-      wp.season,wp.team,wp.off_ypp AS offYpp,wp.off_ypa AS offYpa,wp.off_ypc AS offYpc,wp.off_patt AS offPatt,wp.off_ratt AS offRatt,
-      wp.def_ypp AS defYpp,wp.def_ypa AS defYpa,wp.def_ypc AS defYpc,wp.def_patt AS defPatt,wp.def_ratt AS defRatt,
-      wp.off_ypp_index AS offYppIndex,wp.off_ypa_index AS offYpaIndex,wp.off_ypc_index AS offYpcIndex,wp.off_patt_index AS offPattIndex,wp.off_ratt_index AS offRattIndex,
-      wp.def_ypp_index AS defYppIndex,wp.def_ypa_index AS defYpaIndex,wp.def_ypc_index AS defYpcIndex,wp.def_patt_index AS defPattIndex,wp.def_ratt_index AS defRattIndex
-    FROM weekly_profiles wp
-    JOIN (
-      SELECT season,team,MAX(week) AS week FROM weekly_profiles
-      WHERE season>=? AND season<? AND week>0 GROUP BY season,team
-    ) latest ON latest.season=wp.season AND latest.team=wp.team AND latest.week=wp.week
-    WHERE wp.season>=? AND wp.season<?`)
-    .bind(firstPriorSeason, season, firstPriorSeason, season).all<JsonRecord>();
+  const [result, inputResult] = await Promise.all([
+    db.prepare(`SELECT
+        wp.season,wp.team,wp.off_ypp AS offYpp,wp.off_ypa AS offYpa,wp.off_ypc AS offYpc,wp.off_patt AS offPatt,wp.off_ratt AS offRatt,
+        wp.def_ypp AS defYpp,wp.def_ypa AS defYpa,wp.def_ypc AS defYpc,wp.def_patt AS defPatt,wp.def_ratt AS defRatt,
+        wp.off_ypp_index AS offYppIndex,wp.off_ypa_index AS offYpaIndex,wp.off_ypc_index AS offYpcIndex,wp.off_patt_index AS offPattIndex,wp.off_ratt_index AS offRattIndex,
+        wp.def_ypp_index AS defYppIndex,wp.def_ypa_index AS defYpaIndex,wp.def_ypc_index AS defYpcIndex,wp.def_patt_index AS defPattIndex,wp.def_ratt_index AS defRattIndex
+      FROM weekly_profiles wp
+      JOIN (
+        SELECT season,team,MAX(week) AS week FROM weekly_profiles
+        WHERE season>=? AND season<? AND week>0 GROUP BY season,team
+      ) latest ON latest.season=wp.season AND latest.team=wp.team AND latest.week=wp.week
+      WHERE wp.season>=? AND wp.season<?`)
+      .bind(firstPriorSeason, season, firstPriorSeason, season).all<JsonRecord>(),
+    db.prepare(`SELECT season,team,conference,returning_ppa AS returningPpa,returning_passing_ppa AS returningPassingPpa,
+        returning_receiving_ppa AS returningReceivingPpa,returning_rushing_ppa AS returningRushingPpa,returning_usage AS returningUsage,
+        returning_passing_usage AS returningPassingUsage,returning_receiving_usage AS returningReceivingUsage,returning_rushing_usage AS returningRushingUsage,
+        recruiting_rank AS recruitingRank,recruiting_points AS recruitingPoints
+      FROM preseason_inputs WHERE season=?`).bind(season).all<JsonRecord>(),
+  ]);
 
   const byTeam = new Map<string, JsonRecord[]>();
   for (const row of result.results as JsonRecord[]) {
@@ -598,7 +708,7 @@ async function loadPreseasonProfiles(db: D1Database, season: number, eligibleTea
     return fallback.map((_, metric) => weighted.reduce((sum, item) => sum + accessor(item.row)[metric] * item.weight, 0) / totalWeight) as [number, number, number, number, number];
   };
 
-  return [...eligibleTeams].map((team) => {
+  const baseProfiles = [...eligibleTeams].map((team) => {
     const history = byTeam.get(team) ?? [];
     return {
       season,
@@ -611,6 +721,22 @@ async function loadPreseasonProfiles(db: D1Database, season: number, eligibleTea
       di: weightedTuple(history, (row) => tuple(row, "def", "Index"), neutralIndex),
     };
   });
+  const inputs = (inputResult.results as JsonRecord[]).map((row): PreseasonInput => ({
+    season: numberValue(row, "season") ?? season,
+    team: textValue(row, "team") ?? "",
+    conference: textValue(row, "conference"),
+    returningPpa: numberValue(row, "returningPpa"),
+    returningPassingPpa: numberValue(row, "returningPassingPpa"),
+    returningReceivingPpa: numberValue(row, "returningReceivingPpa"),
+    returningRushingPpa: numberValue(row, "returningRushingPpa"),
+    returningUsage: numberValue(row, "returningUsage"),
+    returningPassingUsage: numberValue(row, "returningPassingUsage"),
+    returningReceivingUsage: numberValue(row, "returningReceivingUsage"),
+    returningRushingUsage: numberValue(row, "returningRushingUsage"),
+    recruitingRank: numberValue(row, "recruitingRank"),
+    recruitingPoints: numberValue(row, "recruitingPoints"),
+  })).filter((row) => row.team && eligibleTeams.has(row.team));
+  return applyPreseasonRosterAdjustments(baseProfiles, inputs);
 }
 
 export async function calculateCachedPerformance(db: D1Database, season: number) {
@@ -662,6 +788,7 @@ type SeasonCoverage = {
   season: number;
   teamCount: number;
   logoCount: number;
+  preseasonInputCount: number;
   gameCount: number;
   postseasonGameCount: number;
   profileTeamCount: number;
@@ -675,11 +802,12 @@ async function getSeasonCoverage(db: D1Database, season: number): Promise<Season
     db.prepare(`SELECT
       (SELECT COUNT(*) FROM cfb_teams WHERE season=?) AS teamCount,
       (SELECT COUNT(*) FROM cfb_teams WHERE season=? AND logo IS NOT NULL AND logo<>'') AS logoCount,
+      (SELECT COUNT(*) FROM preseason_inputs WHERE season=? AND (returning_ppa IS NOT NULL OR returning_usage IS NOT NULL OR recruiting_rank IS NOT NULL OR recruiting_points IS NOT NULL)) AS preseasonInputCount,
       (SELECT COUNT(*) FROM cfb_games WHERE season=?) AS gameCount,
       (SELECT COUNT(*) FROM cfb_games WHERE season=? AND season_type='postseason') AS postseasonGameCount,
       (SELECT COUNT(DISTINCT team) FROM weekly_profiles WHERE season=?) AS profileTeamCount,
       (SELECT COUNT(*) FROM model_predictions WHERE season=?) AS predictionCount,
-      (SELECT COUNT(*) FROM betting_lines WHERE season=?) AS lineCount`).bind(season, season, season, season, season, season, season).first<{ teamCount: number; logoCount: number; gameCount: number; postseasonGameCount: number; profileTeamCount: number; predictionCount: number; lineCount: number }>(),
+      (SELECT COUNT(*) FROM betting_lines WHERE season=?) AS lineCount`).bind(season, season, season, season, season, season, season, season).first<{ teamCount: number; logoCount: number; preseasonInputCount: number; gameCount: number; postseasonGameCount: number; profileTeamCount: number; predictionCount: number; lineCount: number }>(),
     db.prepare(`SELECT g.week AS week,COUNT(DISTINCT g.game_id) AS gameCount,COUNT(DISTINCT s.game_id) AS statGameCount
       FROM cfb_games g LEFT JOIN team_game_stats s ON s.game_id=g.game_id
       WHERE g.season=? AND g.season_type='regular' AND g.completed=1 AND g.week BETWEEN 1 AND 15
@@ -689,6 +817,7 @@ async function getSeasonCoverage(db: D1Database, season: number): Promise<Season
     season,
     teamCount: Number(counts?.teamCount ?? 0),
     logoCount: Number(counts?.logoCount ?? 0),
+    preseasonInputCount: Number(counts?.preseasonInputCount ?? 0),
     gameCount: Number(counts?.gameCount ?? 0),
     postseasonGameCount: Number(counts?.postseasonGameCount ?? 0),
     profileTeamCount: Number(counts?.profileTeamCount ?? 0),
@@ -706,6 +835,7 @@ export type BackfillSeasonStatus = {
   season: number;
   teamCount: number;
   logoCount: number;
+  preseasonInputCount: number;
   gameCount: number;
   postseasonGameCount: number;
   statRowCount: number;
@@ -715,7 +845,7 @@ export type BackfillSeasonStatus = {
   lineCount: number;
   completedWeekCount: number;
   statWeekCount: number;
-  stage: "teams" | "schedule" | "stats" | "formulas" | "ready";
+  stage: "teams" | "priors" | "schedule" | "stats" | "formulas" | "ready";
   progressPercent: number;
   ready: boolean;
 };
@@ -723,9 +853,10 @@ export type BackfillSeasonStatus = {
 export async function getBackfillStatus(env: PipelineEnv) {
   const currentSeason = currentCollegeFootballSeason();
   const seasons = Array.from({ length: currentSeason - FIRST_HISTORICAL_SEASON + 1 }, (_, index) => FIRST_HISTORICAL_SEASON + index);
-  const [teamResult, logoResult, gameResult, postseasonResult, statResult, profileResult, profileRowResult, predictionResult, lineResult, weekResult] = await Promise.all([
+  const [teamResult, logoResult, preseasonInputResult, gameResult, postseasonResult, statResult, profileResult, profileRowResult, predictionResult, lineResult, weekResult] = await Promise.all([
     env.DB.prepare("SELECT season,COUNT(*) AS count FROM cfb_teams WHERE season>=? GROUP BY season").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number }>(),
     env.DB.prepare("SELECT season,COUNT(*) AS count FROM cfb_teams WHERE season>=? AND logo IS NOT NULL AND logo<>'' GROUP BY season").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number }>(),
+    env.DB.prepare("SELECT season,COUNT(*) AS count FROM preseason_inputs WHERE season>=? AND (returning_ppa IS NOT NULL OR returning_usage IS NOT NULL OR recruiting_rank IS NOT NULL OR recruiting_points IS NOT NULL) GROUP BY season").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number }>(),
     env.DB.prepare("SELECT season,COUNT(*) AS count FROM cfb_games WHERE season>=? GROUP BY season").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number }>(),
     env.DB.prepare("SELECT season,COUNT(*) AS count FROM cfb_games WHERE season>=? AND season_type='postseason' GROUP BY season").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number }>(),
     env.DB.prepare("SELECT season,COUNT(*) AS count FROM team_game_stats WHERE season>=? GROUP BY season").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number }>(),
@@ -741,6 +872,7 @@ export async function getBackfillStatus(env: PipelineEnv) {
   const counts = (rows: Array<{ season: number; count: number }>) => new Map(rows.map((row) => [Number(row.season), Number(row.count)]));
   const teams = counts(teamResult.results);
   const logos = counts(logoResult.results);
+  const preseasonInputs = counts(preseasonInputResult.results);
   const games = counts(gameResult.results);
   const postseasonGames = counts(postseasonResult.results);
   const statRows = counts(statResult.results);
@@ -757,6 +889,7 @@ export async function getBackfillStatus(env: PipelineEnv) {
   const status: BackfillSeasonStatus[] = seasons.map((season) => {
     const teamCount = teams.get(season) ?? 0;
     const logoCount = logos.get(season) ?? 0;
+    const preseasonInputCount = preseasonInputs.get(season) ?? 0;
     const gameCount = games.get(season) ?? 0;
     const postseasonGameCount = postseasonGames.get(season) ?? 0;
     const statRowCount = statRows.get(season) ?? 0;
@@ -770,11 +903,11 @@ export async function getBackfillStatus(env: PipelineEnv) {
     // A preseason current-year load legitimately has no weekly profiles yet.
     const profilesReady = completedWeekCount === 0 && season === currentSeason ? true : profileTeamCount >= 100;
     const scheduleReady = gameCount > 0 && (season === currentSeason || postseasonGameCount > 0);
-    const ready = teamCount >= 100 && logoCount >= 100 && scheduleReady && statWeekCount >= completedWeekCount && predictionCount >= gameCount && profilesReady;
-    const stage = ready ? "ready" : teamCount < 100 || logoCount < 100 ? "teams" : !scheduleReady ? "schedule" : statWeekCount < completedWeekCount ? "stats" : "formulas";
+    const ready = teamCount >= 100 && logoCount >= 100 && preseasonInputCount >= 100 && scheduleReady && statWeekCount >= completedWeekCount && predictionCount >= gameCount && profilesReady;
+    const stage = ready ? "ready" : teamCount < 100 || logoCount < 100 ? "teams" : preseasonInputCount < 100 ? "priors" : !scheduleReady ? "schedule" : statWeekCount < completedWeekCount ? "stats" : "formulas";
     const stageProgress = completedWeekCount ? statWeekCount / completedWeekCount : 1;
-    const progressPercent = ready ? 100 : stage === "teams" ? Math.min(14, teamCount / 100 * 14) : stage === "schedule" ? 18 : stage === "stats" ? 20 + stageProgress * 70 : 94;
-    return { season, teamCount, logoCount, gameCount, postseasonGameCount, statRowCount, profileTeamCount, profileCount, predictionCount, lineCount, completedWeekCount, statWeekCount, stage, progressPercent: Math.round(progressPercent), ready };
+    const progressPercent = ready ? 100 : stage === "teams" ? Math.min(12, teamCount / 100 * 12) : stage === "priors" ? 16 : stage === "schedule" ? 20 : stage === "stats" ? 22 + stageProgress * 68 : 94;
+    return { season, teamCount, logoCount, preseasonInputCount, gameCount, postseasonGameCount, statRowCount, profileTeamCount, profileCount, predictionCount, lineCount, completedWeekCount, statWeekCount, stage, progressPercent: Math.round(progressPercent), ready };
   });
   return { currentSeason, seasons: status, missing: status.filter((row) => !row.ready).map((row) => row.season).sort((a, b) => b - a) };
 }
@@ -835,6 +968,19 @@ export async function syncSeasonStep(env: PipelineEnv, season: number, trigger: 
       return { season, stage: "teams" as const, teams: teams.length, durationMs: Date.now() - started };
     }
 
+    if (coverage.preseasonInputCount < 100) {
+      const teamResult = await db.prepare("SELECT team FROM cfb_teams WHERE season=?").bind(season).all<{ team: string }>();
+      const eligibleTeams = new Set(teamResult.results.map((row) => row.team));
+      const preseasonInputs = await fetchPreseasonInputs(env.CFBD_API_KEY, season, eligibleTeams);
+      const rows = emptyPersistRows();
+      rows.preseasonInputs = preseasonInputs;
+      await persistSeason(db, rows);
+      const returningTeams = preseasonInputs.filter((row) => row.returningPpa !== null || row.returningUsage !== null).length;
+      const recruitingTeams = preseasonInputs.filter((row) => row.recruitingPoints !== null || row.recruitingRank !== null).length;
+      await recordRun(db, season, 0, "running", 0, `${trigger} stage priors; stored ${returningTeams} returning-production rows and ${recruitingTeams} recruiting rows`);
+      return { season, stage: "priors" as const, teams: preseasonInputs.length, returningTeams, recruitingTeams, durationMs: Date.now() - started };
+    }
+
     if (coverage.gameCount === 0 || (season < currentCollegeFootballSeason() && coverage.postseasonGameCount === 0)) {
       const payload = await cfbd("/games", env.CFBD_API_KEY, { year: season, seasonType: "both", classification: "fbs" });
       const games = normalizeGames(payload, season);
@@ -880,6 +1026,13 @@ export async function syncSeason(env: PipelineEnv, season: number, trigger: Sync
     const teamWrite = emptyPersistRows();
     teamWrite.teams = teamRows;
     await persistSeason(db, teamWrite);
+    await pause(1600);
+
+    const eligibleTeams = new Set(teamRows.map((row) => row.team));
+    const preseasonInputs = await fetchPreseasonInputs(env.CFBD_API_KEY, season, eligibleTeams);
+    const preseasonWrite = emptyPersistRows();
+    preseasonWrite.preseasonInputs = preseasonInputs;
+    await persistSeason(db, preseasonWrite);
     await pause(1600);
 
     const gamePayload = await cfbd("/games", env.CFBD_API_KEY, { year: season, seasonType: "both", classification: "fbs" });

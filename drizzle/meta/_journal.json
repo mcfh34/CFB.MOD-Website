@@ -15,6 +15,13 @@
       "when": 1784132138295,
       "tag": "0001_legal_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784220216845,
+      "tag": "0002_fixed_santa_claus",
+      "breakpoints": true
     }
   ]
 }

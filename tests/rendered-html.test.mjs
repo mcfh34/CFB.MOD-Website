@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const developmentPreviewMeta =
@@ -34,4 +35,12 @@ test("renders development preview metadata", async () => {
   assert.match(html, /aria-controls=["']primary-navigation["']/i);
   assert.match(html, /id=["']primary-navigation["']/i);
   assert.match(html, /class=["'][^"']*ranking-metrics/i);
+});
+
+test("ships the matchup and season-path analysis surfaces", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /MATCHUP EDGE/i);
+  assert.match(source, /WHY FAVORED/i);
+  assert.match(source, /BEST WINS/i);
+  assert.match(source, /WORST LOSSES/i);
 });

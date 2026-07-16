@@ -11,6 +11,7 @@ import {
 import { modelCalibration } from "../../modelData";
 import { buildBcsRankings, type RankingGame, type RankingProfile } from "../../../lib/rankings";
 import { buildSeasonSimulation, type SimulationScheduleGame } from "../../../lib/simulation";
+import { analyzeMatchupEdges } from "../../../lib/matchupAnalysis";
 
 type CloudflareEnv = { DB?: D1Database; CFBD_API_KEY?: string };
 
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
           AND home_points IS NOT NULL AND away_points IS NOT NULL ORDER BY week,start_date,game_id`).bind(season, requestedWeek).all<RankingGame>(),
       ]);
       const rows = buildBcsRankings(gameResult.results as RankingGame[], profileResult.results as RankingProfile[]);
-      return Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), season, requestedWeek, effectiveWeek, methodology: "Harper BCS v2 · direct head-to-head", rows });
+      return Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), season, requestedWeek, effectiveWeek, methodology: "Harper BCS v3 · résumé protected · direct head-to-head", rows });
     }
 
     if (view === "simulation") {
@@ -237,9 +238,6 @@ export async function GET(request: Request) {
         WHERE ${conditions.join(" AND ")} ORDER BY CASE WHEN g.start_date IS NULL THEN 1 ELSE 0 END,g.start_date,g.season_type,g.week,g.home_team`;
       const rows = await db.prepare(query).bind(...binds).all<Record<string, unknown>>();
       const needsLiveProjection = rows.results.some((row) => nullableNumber(row.predictedHomeScore) === null || row.storedModelVersion !== MODEL_VERSION);
-      if (!needsLiveProjection) {
-        return Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), season, week: requestedWeek, team: team || null, modelVersion: MODEL_VERSION, rows: rows.results.map((row) => ({ ...row, predictionSource: "materialized" })) });
-      }
 
       const [profileResult, gameResult, teamResult] = await Promise.all([
         db.prepare(`SELECT season,week,team,games_played AS gamesPlayed,
@@ -271,15 +269,31 @@ export async function GET(request: Request) {
       const pregameElo = buildPregameElo(games, preseasonProfiles, eligibleTeams);
       const maxProfileWeek = Math.max(0, ...profiles.map((profile) => profile.week));
       const byGame = new Map(games.map((game) => [game.id, game]));
+      const neutralIndex: Profile["oi"] = [1, 1, 1, 1, 1];
       const enriched = rows.results.map((row) => {
-        if (nullableNumber(row.predictedHomeScore) !== null && row.storedModelVersion === MODEL_VERSION) return { ...row, predictionSource: "materialized" };
         const game = byGame.get(String(row.gameId));
         if (!game) return { ...row, predictionSource: "pending" };
-        const generatedFromWeek = game.seasonType === "postseason" ? maxProfileWeek : Math.max(0, game.week - 1);
+        const generatedFromWeek = nullableNumber(row.generatedFromWeek) ?? (game.seasonType === "postseason" ? maxProfileWeek : Math.max(0, game.week - 1));
+        const homeProfile = latestProfile(profiles, game.homeTeam, generatedFromWeek);
+        const awayProfile = latestProfile(profiles, game.awayTeam, generatedFromWeek);
+        if (!needsLiveProjection && nullableNumber(row.modelHomeSpread) !== null) {
+          const edgeAnalysis = analyzeMatchupEdges(
+            game.homeTeam, game.awayTeam, homeProfile?.oi ?? neutralIndex, homeProfile?.di ?? neutralIndex,
+            awayProfile?.oi ?? neutralIndex, awayProfile?.di ?? neutralIndex, game.neutralSite, -Number(row.modelHomeSpread),
+          );
+          return { ...row, generatedFromWeek, edgeAnalysis, predictionSource: "materialized" };
+        }
+        if (nullableNumber(row.predictedHomeScore) !== null && row.storedModelVersion === MODEL_VERSION) {
+          const edgeAnalysis = analyzeMatchupEdges(
+            game.homeTeam, game.awayTeam, homeProfile?.oi ?? neutralIndex, homeProfile?.di ?? neutralIndex,
+            awayProfile?.oi ?? neutralIndex, awayProfile?.di ?? neutralIndex, game.neutralSite, -Number(row.modelHomeSpread ?? 0),
+          );
+          return { ...row, generatedFromWeek, edgeAnalysis, predictionSource: "materialized" };
+        }
         const ratings = pregameElo.get(game.id);
         const prediction = project(
-          latestProfile(profiles, game.homeTeam, generatedFromWeek),
-          latestProfile(profiles, game.awayTeam, generatedFromWeek),
+          homeProfile,
+          awayProfile,
           game.neutralSite,
           ratings?.get(game.homeTeam) ?? (eligibleTeams.has(game.homeTeam) ? 1500 : modelCalibration.fcsElo),
           ratings?.get(game.awayTeam) ?? (eligibleTeams.has(game.awayTeam) ? 1500 : modelCalibration.fcsElo),
@@ -293,6 +307,10 @@ export async function GET(request: Request) {
         const atsActual = actualMargin === null || vegasSpread === null ? null : actualMargin + vegasSpread;
         const spreadResult = spreadEdge === null || atsActual === null ? null : atsActual === 0 || spreadEdge === 0 ? "PUSH" : Math.sign(spreadEdge) === Math.sign(atsActual) ? "W" : "L";
         const totalResult = totalEdge === null || actualTotal === null || vegasTotal === null ? null : actualTotal === vegasTotal || totalEdge === 0 ? "PUSH" : Math.sign(totalEdge) === Math.sign(actualTotal - vegasTotal) ? "W" : "L";
+        const edgeAnalysis = analyzeMatchupEdges(
+          game.homeTeam, game.awayTeam, homeProfile?.oi ?? neutralIndex, homeProfile?.di ?? neutralIndex,
+          awayProfile?.oi ?? neutralIndex, awayProfile?.di ?? neutralIndex, game.neutralSite, prediction.margin,
+        );
         return {
           ...row,
           generatedFromWeek,
@@ -307,6 +325,7 @@ export async function GET(request: Request) {
           totalError: actualTotal === null ? null : Math.abs(prediction.modelTotal - actualTotal),
           spreadResult,
           totalResult,
+          edgeAnalysis,
           storedModelVersion: MODEL_VERSION,
           predictionSource: "live-profile",
         };
