@@ -1225,3 +1225,98 @@ footer { margin-left:244px; border-color:rgba(59,216,255,.16); background:#03081
     background:linear-gradient(90deg,rgba(59,216,255,.2),transparent);
   }
 }
+
+/* Harper+ v7.4 — sortable Team Stats on desktop and mobile. */
+.stats-head > div {
+  min-width:0;
+  height:100%;
+}
+
+.stats-head button {
+  width:100%;
+  height:42px;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  overflow:hidden;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  letter-spacing:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+
+.stats-head button span {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.stats-head button i {
+  flex:0 0 auto;
+  color:#5c7891;
+  font-size:10px;
+  font-style:normal;
+  opacity:.55;
+}
+
+.stats-head button:hover,
+.stats-head button:focus-visible {
+  color:#dff8ff;
+  outline:none;
+}
+
+.stats-head button:focus-visible {
+  box-shadow:inset 0 0 0 1px rgba(59,216,255,.55);
+}
+
+.stats-head button.active {
+  color:var(--cyan);
+  box-shadow:inset 0 -2px var(--cyan);
+}
+
+.stats-head button.active i {
+  color:var(--gold);
+  opacity:1;
+}
+
+.stats-mobile-sort {
+  display:none;
+}
+
+@media (max-width:760px) {
+  .stats-mobile-sort {
+    width:100%;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 92px;
+    gap:7px;
+  }
+
+  .stats-mobile-sort label {
+    grid-column:1/3;
+    color:#6f8da6;
+    font:800 7px/1 var(--font-geist-mono);
+    letter-spacing:.12em;
+  }
+
+  .stats-mobile-sort select {
+    width:100%;
+    min-width:0;
+  }
+
+  .stats-mobile-sort button {
+    min-height:46px;
+    border:1px solid rgba(59,216,255,.28);
+    border-radius:3px;
+    background:rgba(59,216,255,.08);
+    color:var(--cyan);
+    font:850 9px/1 var(--font-geist-mono);
+    letter-spacing:.08em;
+    cursor:pointer;
+  }
+}

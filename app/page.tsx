@@ -14,6 +14,13 @@ import {
   type WeekProfile,
 } from "./modelData";
 import { analyzeMatchupEdges, type MatchupEdgeAnalysis } from "../lib/matchupAnalysis";
+import {
+  TEAM_STATS_SORT_COLUMNS,
+  defaultTeamStatsSortDirection,
+  sortTeamStatsRows,
+  type TeamStatsSortDirection,
+  type TeamStatsSortKey,
+} from "../lib/teamStatsSort";
 
 type Section = "overview" | "rankings" | "simulation" | "matchup" | "all137" | "stats" | "schedule" | "teams" | "methodology";
 
@@ -585,6 +592,8 @@ function All137({ season, week, setSeason, setWeek }: ModelVintageProps) {
 function TeamStatsPage({ season, week, setSeason, setWeek }: ModelVintageProps) {
   const [query, setQuery] = useState("");
   const [conference, setConference] = useState("ALL");
+  const [sortKey, setSortKey] = useState<TeamStatsSortKey>("offYpp");
+  const [sortDirection, setSortDirection] = useState<TeamStatsSortDirection>("desc");
   const dynamic = useDynamicProfiles(season, week);
   const fallbackRows = useMemo<DynamicProfileRow[]>(() => dynamic.rows.length ? [] : dynamic.teams.flatMap((team) => {
     const profile = latestProfile(team, week);
@@ -596,10 +605,22 @@ function TeamStatsPage({ season, week, setSeason, setWeek }: ModelVintageProps) 
   }), [dynamic.rows.length, dynamic.teams, season, week]);
   const rows = dynamic.rows.length ? dynamic.rows : fallbackRows;
   const conferences = useMemo(() => [...new Set(rows.map((row) => row.conference || "FBS"))].sort(), [rows]);
-  const filtered = rows.filter((row) => (conference === "ALL" || row.conference === conference) && `${row.team} ${row.conference}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => b.offYppIndex - a.offYppIndex);
+  const filtered = useMemo(() => sortTeamStatsRows(rows.filter((row) =>
+    (conference === "ALL" || row.conference === conference)
+    && `${row.team} ${row.conference}`.toLowerCase().includes(query.toLowerCase())
+  ), sortKey, sortDirection), [conference, query, rows, sortDirection, sortKey]);
   const topOffense = [...rows].sort((a, b) => average([b.offYppIndex, b.offYpaIndex, b.offYpcIndex]) - average([a.offYppIndex, a.offYpaIndex, a.offYpcIndex]))[0];
   const topDefense = [...rows].sort((a, b) => average([a.defYppIndex, a.defYpaIndex, a.defYpcIndex]) - average([b.defYppIndex, b.defYpaIndex, b.defYpcIndex]))[0];
   const averageGames = rows.length ? average(rows.map((row) => row.gamesPlayed)) : 0;
+  const activeSort = TEAM_STATS_SORT_COLUMNS.find((column) => column.key === sortKey) ?? TEAM_STATS_SORT_COLUMNS[2];
+  const changeSort = (nextKey:TeamStatsSortKey) => {
+    if (nextKey === sortKey) {
+      setSortDirection((current) => current === "asc" ? "desc" : "asc");
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDirection(defaultTeamStatsSortDirection(nextKey));
+  };
 
   return <section className="page-section stats-page">
     <div className="section-kicker">TEAM STAT DATABASE · <span className={`data-source ${dynamic.source}`}>{sourceLabel(dynamic.source, season)}</span></div>
@@ -611,9 +632,12 @@ function TeamStatsPage({ season, week, setSeason, setWeek }: ModelVintageProps) 
         <article><span>TOP OFFENSE INDEX</span><strong>{topOffense?.team}</strong><small>{topOffense ? `${(average([topOffense.offYppIndex, topOffense.offYpaIndex, topOffense.offYpcIndex]) * 100).toFixed(0)} rating` : "—"}</small></article>
         <article><span>TOP DEFENSE INDEX</span><strong>{topDefense?.team}</strong><small>{topDefense ? `${(average([topDefense.defYppIndex, topDefense.defYpaIndex, topDefense.defYpcIndex]) * 100).toFixed(0)}% allowed` : "—"}</small></article>
       </div>
-      <div className="data-toolbar"><div><strong>Weekly team profiles</strong><span>Opponent allowed values are schedule-adjusted percentages of FBS average; lower is better.</span></div><div><select value={conference} onChange={(event) => setConference(event.target.value)} aria-label="Filter conference"><option value="ALL">All conferences</option>{conferences.map((value) => <option key={value}>{value}</option>)}</select><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search team" aria-label="Search team stats" /></div></div>
+      <div className="data-toolbar"><div><strong>Weekly team profiles</strong><span>Sorted by {activeSort.label} {sortDirection === "asc" ? "ascending" : "descending"}. Opponent allowed percentages: lower is better.</span></div><div><select value={conference} onChange={(event) => setConference(event.target.value)} aria-label="Filter conference"><option value="ALL">All conferences</option>{conferences.map((value) => <option key={value}>{value}</option>)}</select><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search team" aria-label="Search team stats" /><div className="stats-mobile-sort"><label htmlFor="team-stats-sort">SORT TEAM STATS</label><select id="team-stats-sort" value={sortKey} onChange={(event) => changeSort(event.target.value as TeamStatsSortKey)} aria-label="Sort team stats by column">{TEAM_STATS_SORT_COLUMNS.map((column) => <option key={column.key} value={column.key}>{column.label}</option>)}</select><button type="button" onClick={() => setSortDirection((current) => current === "asc" ? "desc" : "asc")} aria-label={`Change sort direction to ${sortDirection === "asc" ? "descending" : "ascending"}`}>{sortDirection === "asc" ? "↑ ASC" : "↓ DESC"}</button></div></div></div>
       <div className="stats-table-shell">
-        <div className="stats-head"><span>TEAM</span><span>GP</span><span>OFF YPP</span><span>OFF YPA</span><span>OFF YPC</span><span>PASS / GM</span><span>RUSH / GM</span><span>OPP YPP</span><span>OPP YPA</span><span>OPP YPC</span></div>
+        <div className="stats-head" role="row">{TEAM_STATS_SORT_COLUMNS.map((column) => {
+          const active = column.key === sortKey;
+          return <div role="columnheader" aria-sort={active ? (sortDirection === "asc" ? "ascending" : "descending") : "none"} key={column.key}><button type="button" className={active ? "active" : ""} onClick={() => changeSort(column.key)} aria-label={`Sort by ${column.label}${active ? `, currently ${sortDirection === "asc" ? "ascending" : "descending"}` : ""}`}><span>{column.label}</span><i aria-hidden="true">{active ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</i></button></div>;
+        })}</div>
         {filtered.map((row) => <div className="stats-row" key={row.team}><div><TeamMark name={row.team} size="sm" logo={row.logo} /><span><strong>{row.team}</strong><small>{row.conference || "FBS"}</small></span></div><div className="stats-metrics"><span data-label="GP">{row.gamesPlayed || "—"}</span><b data-label="OFF YPP">{row.offYpp.toFixed(2)}</b><span data-label="OFF YPA">{row.offYpa.toFixed(2)}</span><span data-label="OFF YPC">{row.offYpc.toFixed(2)}</span><span data-label="PASS / GM">{row.offPatt.toFixed(1)}</span><span data-label="RUSH / GM">{row.offRatt.toFixed(1)}</span><b data-label="OPP YPP" className={row.defYppIndex < 1 ? "positive" : "negative"}>{(row.defYppIndex * 100).toFixed(0)}%</b><span data-label="OPP YPA">{(row.defYpaIndex * 100).toFixed(0)}%</span><span data-label="OPP YPC">{(row.defYpcIndex * 100).toFixed(0)}%</span></div></div>)}
       </div>
       <p className="all137-disclaimer">Raw offensive efficiencies stay cumulative through the selected week. The opponent columns use the revised iterative schedule correction, preserving both era context and the quality of offenses each defense actually faced.</p>

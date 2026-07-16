@@ -5,6 +5,7 @@ import { buildBcsRankings, type RankingProfile } from "../lib/rankings";
 import { applyPreseasonRosterAdjustments, buildPregameElo, scheduleCalibrationWeights, type NormalizedGame, type PreseasonInput, type Profile } from "../lib/dataPipeline";
 import { analyzeMatchupEdges } from "../lib/matchupAnalysis";
 import { buildSeasonSimulation, type SimulationScheduleGame } from "../lib/simulation";
+import { TEAM_STATS_SORT_COLUMNS, defaultTeamStatsSortDirection, sortTeamStatsRows, type TeamStatsSortableRow } from "../lib/teamStatsSort";
 
 function profile(team: string, conference: string, power = 1): RankingProfile {
   return {
@@ -165,4 +166,28 @@ test("historical seasons preserve the actual field while re-simulating results",
   assert.equal(simulation.rankings.find((row) => row.team === "Clemson")?.playoffSeed, 12);
   assert.equal(simulation.bracket.length, 11);
   assert.match(simulation.methodology, /re-simulated/);
+});
+
+test("every displayed Team Stats column sorts in both directions without mutating source rows", () => {
+  const rows:TeamStatsSortableRow[] = [
+    { team:"Alpha", gamesPlayed:1, offYpp:4, offYpa:5, offYpc:3, offPatt:20, offRatt:25, defYppIndex:.7, defYpaIndex:.8, defYpcIndex:.9 },
+    { team:"Beta", gamesPlayed:2, offYpp:5, offYpa:6, offYpc:4, offPatt:30, offRatt:35, defYppIndex:1, defYpaIndex:1.1, defYpcIndex:1.2 },
+    { team:"Gamma", gamesPlayed:3, offYpp:6, offYpa:7, offYpc:5, offPatt:40, offRatt:45, defYppIndex:1.3, defYpaIndex:1.4, defYpcIndex:1.5 },
+  ];
+  const sourceOrder = rows.map((row) => row.team);
+
+  for (const column of TEAM_STATS_SORT_COLUMNS) {
+    assert.deepEqual(sortTeamStatsRows(rows, column.key, "asc").map((row) => row.team), ["Alpha", "Beta", "Gamma"], `${column.label} ascending`);
+    assert.deepEqual(sortTeamStatsRows(rows, column.key, "desc").map((row) => row.team), ["Gamma", "Beta", "Alpha"], `${column.label} descending`);
+  }
+
+  assert.deepEqual(rows.map((row) => row.team), sourceOrder);
+});
+
+test("Team Stats defaults to best-first sorting for production and opponent allowances", () => {
+  assert.equal(defaultTeamStatsSortDirection("team"), "asc");
+  assert.equal(defaultTeamStatsSortDirection("offYpp"), "desc");
+  assert.equal(defaultTeamStatsSortDirection("offPatt"), "desc");
+  assert.equal(defaultTeamStatsSortDirection("defYppIndex"), "asc");
+  assert.equal(defaultTeamStatsSortDirection("defYpcIndex"), "asc");
 });
