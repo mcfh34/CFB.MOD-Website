@@ -665,3 +665,332 @@ footer { margin-left:244px; border-color:rgba(59,216,255,.16); background:#03081
 @media (prefers-reduced-motion:reduce) {
   .live-dot,.leader-card > .team-mark { animation:none; }
 }
+
+/* Harper+ v6 — touch-first navigation, mobile data cards, and larger school marks. */
+.mobile-menu-toggle { display:none; }
+.ranking-metrics,
+.all137-row > .all137-metrics,
+.stats-metrics,
+.sim-ranking-row > .sim-ranking-metrics { display:contents; }
+.all137-metrics > b,.sim-ranking-metrics > b { color:#f2f8ff; font-size:13px; }
+
+/* The mark itself grows, while a tighter inset gives detailed school logos more usable canvas. */
+.team-mark.has-logo { padding:3%; }
+.ranking-row { min-height:90px; }
+.ranking-row .team-mark-sm { width:68px; height:68px; }
+.sim-ranking-row { min-height:90px; }
+.sim-ranking-row .team-mark-sm { width:68px; height:68px; }
+.all137-row { min-height:90px; }
+.all137-row .team-mark-sm { width:66px; height:66px; }
+.stats-row { min-height:90px; }
+.stats-row .team-mark-sm { width:66px; height:66px; }
+.team-directory button { min-height:84px; }
+.team-directory button .team-mark-sm { width:66px; height:66px; }
+.team-profile-hero .team-mark-lg { width:180px; height:180px; }
+.matchup-side > .team-mark-lg { width:170px; height:170px; }
+.simulation-hero > .team-mark { width:154px; height:154px; }
+.scorebug-team .team-mark-md { width:72px; height:72px; }
+.schedule-logo-pair .team-mark { width:48px; height:48px; }
+.conference-matchup .team-mark { width:48px; height:48px; }
+.bracket-game .team-mark { width:40px; height:40px; }
+
+@media (max-width:760px) {
+  html { scroll-padding-top:82px; }
+  body { -webkit-text-size-adjust:100%; }
+  button { -webkit-tap-highlight-color:transparent; }
+  input,select { min-height:46px!important; font-size:16px!important; }
+
+  .topline { height:32px; font-size:8px; }
+  .main-header {
+    grid-template-columns:auto minmax(0,1fr) auto;
+    grid-template-rows:auto auto;
+    gap:8px 10px;
+    padding:9px 10px;
+    align-items:center;
+    box-shadow:0 12px 30px rgba(0,0,0,.42);
+  }
+  .main-header .brand { grid-column:1; grid-row:1; padding:0; }
+  .main-header .brand > span { width:44px; height:44px; }
+  .mobile-menu-toggle {
+    grid-column:2;
+    grid-row:1;
+    min-width:0;
+    min-height:46px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:6px 10px;
+    border:1px solid rgba(59,216,255,.26);
+    border-radius:5px;
+    background:linear-gradient(90deg,rgba(59,216,255,.1),rgba(255,54,95,.06));
+    color:#edf8ff;
+    text-align:left;
+  }
+  .mobile-menu-bars { width:20px; flex:0 0 20px; display:grid; gap:4px; }
+  .mobile-menu-bars i { width:20px; height:2px; display:block; border-radius:2px; background:var(--cyan); transition:transform .18s ease,opacity .18s ease; }
+  .menu-open .mobile-menu-bars i:first-child { transform:translateY(6px) rotate(45deg); }
+  .menu-open .mobile-menu-bars i:nth-child(2) { opacity:0; }
+  .menu-open .mobile-menu-bars i:last-child { transform:translateY(-6px) rotate(-45deg); }
+  .mobile-menu-toggle > span:last-child { min-width:0; display:flex; flex-direction:column; }
+  .mobile-menu-toggle small { color:#6f8da6; font:800 7px/1 var(--font-geist-mono); letter-spacing:.12em; }
+  .mobile-menu-toggle strong { margin-top:4px; overflow:hidden; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+  .refresh-button { grid-column:3; grid-row:1; width:46px; height:46px; display:grid; place-items:center; padding:0; }
+  .refresh-button span { font-size:22px; }
+  .main-header nav {
+    grid-column:1/4;
+    grid-row:2;
+    width:100%;
+    max-height:min(62vh,430px);
+    display:none!important;
+    grid-template-columns:1fr 1fr;
+    gap:7px;
+    overflow-y:auto;
+    padding:10px 0 2px;
+    border-top:1px solid rgba(59,216,255,.16);
+  }
+  .main-header nav.open { display:grid!important; }
+  .main-header nav button {
+    width:100%;
+    min-width:0;
+    min-height:50px;
+    padding:0 10px;
+    border:1px solid rgba(92,190,246,.12);
+    border-radius:4px;
+    background:rgba(7,20,35,.84);
+    font-size:11px;
+  }
+  .main-header nav button::before { width:22px; margin-right:7px; }
+  .main-header nav button::after { display:none; }
+  .main-header nav button:hover { transform:none; }
+
+  .refresh-strip { min-height:35px; padding:8px 11px; line-height:1.4; }
+  .backfill-banner { align-items:flex-start; padding:10px 11px; }
+  .backfill-banner > div { grid-template-columns:auto 1fr; gap:7px 8px; }
+  .backfill-banner > div > small { grid-column:1/3; overflow:visible; line-height:1.4; text-overflow:clip; white-space:normal; }
+  .overview,.page-section { margin-left:10px; margin-right:10px; }
+  .page-section { padding-top:28px; padding-bottom:54px; }
+  .section-title-row { gap:16px; margin-bottom:20px; }
+  .section-title-row h1 { font-size:38px; line-height:.95; }
+  .section-title-row p { font-size:11px; line-height:1.55; }
+
+  .leader-card { min-height:430px; padding:28px 18px; }
+  .leader-card > .team-mark { width:132px; height:132px; top:45px; right:17px; }
+  .hero-copy h1 { max-width:86%; font-size:clamp(44px,14vw,58px); overflow-wrap:anywhere; }
+  .scorebug-team { min-height:92px; padding:13px 15px; }
+  .scorebug-team .team-mark-md { width:68px; height:68px; }
+
+  /* National rankings become stacked, labeled cards instead of a sideways table. */
+  .rankings-shell { overflow:visible; border:0; background:transparent; box-shadow:none; }
+  .rankings-head { display:none; }
+  .ranking-row {
+    min-width:0;
+    min-height:0;
+    display:grid;
+    grid-template-columns:42px minmax(0,1fr);
+    gap:10px 12px;
+    margin-bottom:10px;
+    padding:14px;
+    border:1px solid rgba(92,190,246,.22);
+    border-radius:6px;
+    background:linear-gradient(145deg,rgba(13,28,48,.97),rgba(5,12,23,.98));
+  }
+  .ranking-number { grid-column:1; align-self:center; font-size:26px; text-align:center; }
+  .ranking-team { grid-column:2; min-width:0; gap:14px; }
+  .ranking-team strong { overflow:hidden; font-size:15px; text-overflow:ellipsis; white-space:nowrap; }
+  .ranking-team small { font-size:9px; }
+  .ranking-row .team-mark-sm { width:68px; height:68px; }
+  .ranking-metrics {
+    grid-column:1/3;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:1px;
+    overflow:hidden;
+    border:1px solid rgba(92,190,246,.13);
+    border-radius:4px;
+    background:rgba(59,216,255,.08);
+  }
+  .ranking-metrics > * {
+    min-width:0;
+    min-height:54px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    padding:7px 4px;
+    background:#071321;
+    font-size:11px;
+    text-align:center;
+  }
+  .ranking-metrics > *::before,.all137-metrics > *::before,.stats-metrics > *::before,.sim-ranking-metrics > *::before {
+    content:attr(data-label);
+    color:#64819b;
+    font:800 7px/1 var(--font-geist-mono);
+    letter-spacing:.08em;
+  }
+  .ranking-metrics > :last-child { grid-column:1/4; }
+
+  /* All137 standings use the same readable card language. */
+  .all137-table-shell { overflow:visible; border:0; background:transparent; box-shadow:none; }
+  .all137-head { display:none; }
+  .all137-row {
+    min-width:0;
+    min-height:0;
+    display:grid;
+    grid-template-columns:42px minmax(0,1fr);
+    gap:10px 12px;
+    margin-bottom:10px;
+    padding:14px;
+    border:1px solid rgba(92,190,246,.2);
+    border-radius:6px;
+    background:#071321;
+  }
+  .all137-row > strong { align-self:center; font-size:25px; text-align:center; }
+  .all137-row > div:not(.all137-metrics) { min-width:0; gap:14px; }
+  .all137-row > div:not(.all137-metrics) strong { overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }
+  .all137-row .team-mark-sm { width:68px; height:68px; }
+  .all137-row > .all137-metrics {
+    grid-column:1/3;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:1px;
+    overflow:hidden;
+    border-radius:4px;
+    background:rgba(59,216,255,.08);
+  }
+  .all137-metrics > * {
+    min-height:54px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:7px 3px;
+    background:#06101d;
+    font-size:11px;
+    text-align:center;
+  }
+
+  /* Team Stats keeps all ten fields, but exposes them as a scan-friendly 3x3 grid. */
+  .stats-table-shell { overflow:visible; border:0; background:transparent; box-shadow:none; }
+  .stats-head { display:none; }
+  .stats-row {
+    min-width:0;
+    min-height:0;
+    display:block;
+    margin-bottom:10px;
+    padding:14px;
+    border:1px solid rgba(92,190,246,.2);
+    border-radius:6px;
+    background:#071321;
+  }
+  .stats-row > div:first-child { min-width:0; gap:14px; padding-bottom:12px; }
+  .stats-row > div:first-child strong { font-size:15px; }
+  .stats-row .team-mark-sm { width:68px; height:68px; }
+  .stats-metrics {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:1px;
+    overflow:hidden;
+    border-radius:4px;
+    background:rgba(59,216,255,.08);
+  }
+  .stats-metrics > * {
+    min-height:55px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:7px 3px;
+    background:#06101d;
+    font-size:11px;
+    text-align:center;
+  }
+
+  /* Season simulation Top 25 receives the same no-horizontal-scroll treatment. */
+  .sim-rankings-shell { overflow:visible; border:0; background:transparent; }
+  .sim-rankings-head { display:none; }
+  .sim-ranking-row {
+    min-width:0;
+    min-height:0;
+    display:grid;
+    grid-template-columns:42px minmax(0,1fr);
+    gap:10px 12px;
+    margin-bottom:10px;
+    padding:14px;
+    border:1px solid rgba(92,190,246,.2);
+    border-radius:6px;
+    background:#071321;
+  }
+  .sim-ranking-row > strong:first-child { align-self:center; font-size:25px; text-align:center; }
+  .sim-ranking-row > div:not(.sim-ranking-metrics) { min-width:0; gap:14px; }
+  .sim-ranking-row > div:not(.sim-ranking-metrics) strong { font-size:14px; }
+  .sim-ranking-row .team-mark-sm { width:68px; height:68px; }
+  .sim-ranking-row > .sim-ranking-metrics {
+    grid-column:1/3;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:1px;
+    overflow:hidden;
+    border-radius:4px;
+    background:rgba(59,216,255,.08);
+  }
+  .sim-ranking-metrics > * {
+    min-height:54px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:7px 3px;
+    background:#06101d;
+    font-size:11px;
+    text-align:center;
+  }
+
+  .schedule-row > .schedule-matchup-cell { min-height:104px; }
+  .schedule-logo-pair { min-width:128px; gap:24px; }
+  .schedule-logo-pair .team-mark { width:54px; height:54px; }
+  .matchup-side { min-height:300px; padding:24px 18px; }
+  .matchup-side > .team-mark-lg { width:142px; height:142px; }
+  .matchup-center { min-height:150px; }
+  .projected-score { font-size:58px; }
+
+  .team-directory { max-height:450px; }
+  .team-directory > div.team-directory-list { max-height:350px; }
+  .team-directory button { min-height:84px; }
+  .team-directory button .team-mark-sm { width:66px; height:66px; }
+  #team-profile-card { scroll-margin-top:82px; }
+  .team-profile-hero {
+    min-height:0;
+    display:grid;
+    grid-template-columns:132px minmax(0,1fr);
+    gap:16px;
+    padding:20px 16px;
+  }
+  .team-profile-hero .team-mark-lg { width:132px; height:132px; }
+  .team-profile-hero h2 { font-size:30px; overflow-wrap:anywhere; }
+  .team-rank-callout { grid-column:1/3; width:100%; display:flex; align-items:center; justify-content:space-between; padding-top:12px; border-top:1px solid rgba(92,190,246,.14); text-align:left; }
+  .team-rank-callout strong { font-size:42px; }
+
+  .simulation-hero { grid-template-columns:minmax(0,1fr) 108px; }
+  .simulation-hero > .team-mark { width:108px; height:108px; }
+  .conference-matchup .team-mark { width:46px; height:46px; }
+  .bracket-game .team-mark { width:42px; height:42px; }
+  .all137-summary .team-mark-md { width:76px; height:76px; }
+}
+
+@media (max-width:420px) {
+  .mobile-menu-toggle { padding-left:8px; padding-right:8px; }
+  .mobile-menu-toggle small { display:none; }
+  .mobile-menu-toggle strong { margin-top:0; font-size:11px; }
+  .main-header nav button { min-height:48px; padding:0 8px; font-size:10px; }
+  .section-title-row h1 { font-size:34px; }
+  .ranking-row,.all137-row,.stats-row,.sim-ranking-row { padding:12px; }
+  .ranking-metrics,.sim-ranking-row > .sim-ranking-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ranking-metrics > :last-child { grid-column:1/3; }
+  .all137-row > .all137-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .team-profile-hero { grid-template-columns:118px minmax(0,1fr); padding:17px 13px; }
+  .team-profile-hero .team-mark-lg { width:118px; height:118px; }
+}

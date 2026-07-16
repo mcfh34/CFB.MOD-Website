@@ -399,13 +399,15 @@ function RankingsTable({ rows, season, week, limit, loading=false }: { rows:Seas
               <small>{entry.conference || teamMap.get(entry.team)?.conference}</small>
             </span>
           </div>
-          <span>{entry.record}</span>
-          <strong>{(entry.bcsScore*100).toFixed(1)}</strong>
-          <span>{(entry.resultsScore*100).toFixed(0)}</span>
-          <strong>#{entry.headToHeadRank}</strong>
-          <strong>#{entry.sosRank}</strong>
-          <strong>#{entry.powerRank}</strong>
-          <span>{champions.has(entry.team) ? <small className={`champ-tag ${champions.get(entry.team)?.status}`}>{champions.get(entry.team)?.status === "actual" ? "ACTUAL CHAMP" : "PRED CHAMP"}</small> : <i className="dash">—</i>}</span>
+          <div className="ranking-metrics">
+            <span data-label="RECORD">{entry.record}</span>
+            <strong data-label="BCS AVG">{(entry.bcsScore*100).toFixed(1)}</strong>
+            <span data-label="RESULTS">{(entry.resultsScore*100).toFixed(0)}</span>
+            <strong data-label="H2H RK">#{entry.headToHeadRank}</strong>
+            <strong data-label="SOS RK">#{entry.sosRank}</strong>
+            <strong data-label="H+ RK">#{entry.powerRank}</strong>
+            <span data-label="CONF TITLE">{champions.has(entry.team) ? <small className={`champ-tag ${champions.get(entry.team)?.status}`}>{champions.get(entry.team)?.status === "actual" ? "ACTUAL CHAMP" : "PRED CHAMP"}</small> : <i className="dash">—</i>}</span>
+          </div>
         </div>
       ))}
     </div>
@@ -553,7 +555,7 @@ function All137({ season, week, setSeason, setWeek }: ModelVintageProps) {
       <div className="all137-toolbar"><div><strong>Round-robin standings</strong><span>Each record contains {availableTeams.length - 1} neutral-field games.</span></div><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search team or conference" aria-label="Search All137 rankings" /></div>
       <div className="all137-table-shell">
         <div className="all137-head"><span>RK</span><span>TEAM</span><span>PROJECTED RECORD</span><span>WIN %</span><span>EXPECTED WINS</span><span>AVG MARGIN</span></div>
-        {filtered.map((row) => <div className="all137-row" key={row.team.name}><strong>{row.rank}</strong><div><TeamMark name={row.team.name} size="sm" logo={row.team.logo} /><span><strong>{row.team.name}</strong><small>{row.team.conference}</small></span></div><b>{row.wins}–{row.losses}</b><span>{(row.winPct * 100).toFixed(1)}%</span><span>{row.expectedWins.toFixed(1)}</span><span className={row.averageMargin >= 0 ? "positive" : "negative"}>{row.averageMargin >= 0 ? "+" : ""}{row.averageMargin.toFixed(1)}</span></div>)}
+        {filtered.map((row) => <div className="all137-row" key={row.team.name}><strong>{row.rank}</strong><div><TeamMark name={row.team.name} size="sm" logo={row.team.logo} /><span><strong>{row.team.name}</strong><small>{row.team.conference}</small></span></div><div className="all137-metrics"><b data-label="RECORD">{row.wins}–{row.losses}</b><span data-label="WIN %">{(row.winPct * 100).toFixed(1)}%</span><span data-label="EXP WINS">{row.expectedWins.toFixed(1)}</span><span data-label="AVG MARGIN" className={row.averageMargin >= 0 ? "positive" : "negative"}>{row.averageMargin >= 0 ? "+" : ""}{row.averageMargin.toFixed(1)}</span></div></div>)}
       </div>
       <p className="all137-disclaimer">The field automatically follows the official FBS membership returned for the selected season. In this snapshot, each team is evaluated against {availableTeams.length - 1} opponents.</p>
     </>}
@@ -592,7 +594,7 @@ function TeamStatsPage({ season, week, setSeason, setWeek }: ModelVintageProps) 
       <div className="data-toolbar"><div><strong>Weekly team profiles</strong><span>Opponent allowed values are schedule-adjusted percentages of FBS average; lower is better.</span></div><div><select value={conference} onChange={(event) => setConference(event.target.value)} aria-label="Filter conference"><option value="ALL">All conferences</option>{conferences.map((value) => <option key={value}>{value}</option>)}</select><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search team" aria-label="Search team stats" /></div></div>
       <div className="stats-table-shell">
         <div className="stats-head"><span>TEAM</span><span>GP</span><span>OFF YPP</span><span>OFF YPA</span><span>OFF YPC</span><span>PASS / GM</span><span>RUSH / GM</span><span>OPP YPP</span><span>OPP YPA</span><span>OPP YPC</span></div>
-        {filtered.map((row) => <div className="stats-row" key={row.team}><div><TeamMark name={row.team} size="sm" logo={row.logo} /><span><strong>{row.team}</strong><small>{row.conference || "FBS"}</small></span></div><span>{row.gamesPlayed || "—"}</span><b>{row.offYpp.toFixed(2)}</b><span>{row.offYpa.toFixed(2)}</span><span>{row.offYpc.toFixed(2)}</span><span>{row.offPatt.toFixed(1)}</span><span>{row.offRatt.toFixed(1)}</span><b className={row.defYppIndex < 1 ? "positive" : "negative"}>{(row.defYppIndex * 100).toFixed(0)}%</b><span>{(row.defYpaIndex * 100).toFixed(0)}%</span><span>{(row.defYpcIndex * 100).toFixed(0)}%</span></div>)}
+        {filtered.map((row) => <div className="stats-row" key={row.team}><div><TeamMark name={row.team} size="sm" logo={row.logo} /><span><strong>{row.team}</strong><small>{row.conference || "FBS"}</small></span></div><div className="stats-metrics"><span data-label="GP">{row.gamesPlayed || "—"}</span><b data-label="OFF YPP">{row.offYpp.toFixed(2)}</b><span data-label="OFF YPA">{row.offYpa.toFixed(2)}</span><span data-label="OFF YPC">{row.offYpc.toFixed(2)}</span><span data-label="PASS / GM">{row.offPatt.toFixed(1)}</span><span data-label="RUSH / GM">{row.offRatt.toFixed(1)}</span><b data-label="OPP YPP" className={row.defYppIndex < 1 ? "positive" : "negative"}>{(row.defYppIndex * 100).toFixed(0)}%</b><span data-label="OPP YPA">{(row.defYpaIndex * 100).toFixed(0)}%</span><span data-label="OPP YPC">{(row.defYpcIndex * 100).toFixed(0)}%</span></div></div>)}
       </div>
       <p className="all137-disclaimer">Raw offensive efficiencies stay cumulative through the selected week. The opponent columns use the revised iterative schedule correction, preserving both era context and the quality of offenses each defense actually faced.</p>
     </>}
@@ -675,13 +677,17 @@ function TeamLab({ season, week, setSeason, setWeek }: ModelVintageProps) {
   const seasonRankings = useSeasonRankings(season, week);
   const ranked = selected ? seasonRankings.rows.find((entry) => entry.team === selected.name) : undefined;
   const filtered = availableTeams.filter((team) => `${team.name} ${team.conference}`.toLowerCase().includes(query.toLowerCase()));
+  const selectTeam = (teamName:string) => {
+    setSelectedName(teamName);
+    if (window.innerWidth <= 760) window.requestAnimationFrame(() => document.getElementById("team-profile-card")?.scrollIntoView({ behavior:"smooth", block:"start" }));
+  };
 
   return <section className="page-section">
     <div className="section-kicker">{availableTeams.length} TEAMS · {season} {week===0?"PRESEASON BASELINE":`WEEK ${week}`} · <span className={`data-source ${dynamic.source}`}>{sourceLabel(dynamic.source, season)}</span></div>
     <div className="section-title-row"><div><h1>Team Lab</h1><p>Raw offense, opponent output allowed, opponent-adjusted percentages of the FBS average and correctly oriented national ranks.</p></div><VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} /></div>
     {!selected ? <div className="data-empty"><strong>No team profile is available for this model vintage.</strong><span>Choose a populated snapshot or activate historical sync.</span></div> : <div className="team-lab-grid">
-      <aside className="team-directory"><div className="team-directory-search"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search team or conference" aria-label="Search teams" /><span>{filtered.length} of {availableTeams.length} teams</span></div><div className="team-directory-list">{filtered.map((team) => <button key={team.name} className={selected.name === team.name ? "active" : ""} onClick={() => setSelectedName(team.name)}><TeamMark name={team.name} size="sm" logo={team.logo} /><span><strong>{team.name}</strong><small>{team.conference}</small></span></button>)}</div></aside>
-      <article className="team-profile-card" style={{ "--team": selected.color } as CSSProperties}>
+      <aside className="team-directory"><div className="team-directory-search"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search team or conference" aria-label="Search teams" /><span>{filtered.length} of {availableTeams.length} teams</span></div><div className="team-directory-list">{filtered.map((team) => <button key={team.name} className={selected.name === team.name ? "active" : ""} onClick={() => selectTeam(team.name)}><TeamMark name={team.name} size="sm" logo={team.logo} /><span><strong>{team.name}</strong><small>{team.conference}</small></span></button>)}</div></aside>
+      <article id="team-profile-card" className="team-profile-card" style={{ "--team": selected.color } as CSSProperties}>
         <div className="team-profile-hero"><TeamMark name={selected.name} size="lg" logo={selected.logo} /><div><span>{selected.conference}</span><h2>{selected.name}</h2><p>{selected.mascot}</p></div><div className="team-rank-callout"><small>BCS-STYLE RK</small><strong>{ranked ? `#${ranked.rank}` : profile?.rank ? `#${profile.rank}` : "—"}</strong></div></div>
         {profile && selectedRow ? <><div className="profile-columns"><TeamMetricPanel title="OFFENSIVE PRODUCTION" subtitle="Raw output with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="offense" /><TeamMetricPanel title="DEFENSIVE OUTPUT ALLOWED" subtitle="Raw allowances with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="defense" /></div><div className="trend-panel"><div><strong>MODEL VINTAGE</strong><span>{week===0?`${season} preseason · 40/30/20/10 prior-season blend`:`${season} cumulative profile through week ${week}`}</span></div><div className="index-readout"><span>ADJ OFFENSE VS FBS AVG</span><strong>{(average(profile.o.slice(0, 3))*100).toFixed(0)}%</strong><span>ADJ OPP OUTPUT ALLOWED</span><strong>{(average(profile.d.slice(0, 3))*100).toFixed(0)}%</strong></div></div></> : <div className="empty-state">No completed profile exists at or before this week.</div>}
       </article>
@@ -726,11 +732,13 @@ function SeasonSimulationPage({ season, week, setSeason, setWeek }: ModelVintage
             {data.rankings.slice(0,25).map((row) => <div className="sim-ranking-row" key={row.team}>
               <strong>{row.rank}</strong>
               <div><TeamMark name={row.team} size="sm" logo={row.logo} /><span><strong>{row.team}</strong><small>{row.projectedWinsOver.length ? `Wins: ${row.projectedWinsOver.slice(-3).join(", ")}` : row.conference || "FBS"}</small></span></div>
-              <b>{row.projectedRecord}</b>
-              <span>{row.expectedWins.toFixed(1)}</span>
-              <span>#{row.sosRank}</span>
-              <span>#{row.headToHeadRank}</span>
-              <span>{row.playoffSeed ? <b className="seed-pill">#{row.playoffSeed}</b> : row.conferenceChampion ? <b className="champ-pill">CHAMP</b> : "—"}</span>
+              <div className="sim-ranking-metrics">
+                <b data-label="RECORD">{row.projectedRecord}</b>
+                <span data-label="EXP W">{row.expectedWins.toFixed(1)}</span>
+                <span data-label="SOS">#{row.sosRank}</span>
+                <span data-label="H2H">#{row.headToHeadRank}</span>
+                <span data-label="CFP">{row.playoffSeed ? <b className="seed-pill">#{row.playoffSeed}</b> : row.conferenceChampion ? <b className="champ-pill">CHAMP</b> : "—"}</span>
+              </div>
             </div>)}
           </div>
         </article>
@@ -830,6 +838,7 @@ function Methodology() {
 
 export default function Home() {
   const [section, setSection] = useState<Section>("overview");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [modelSeason, setModelSeason] = useState(modelSnapshot.season);
   const [modelWeek, setModelWeek] = useState(modelSnapshot.week);
   const [refreshState, setRefreshState] = useState<"idle" | "running" | "done" | "error">("idle");
@@ -839,6 +848,28 @@ export default function Home() {
   const leaderTeam = teamMap.get(leader.team);
   const featuredProjection = projectMatchup(teamMap.get("Indiana")!, teamMap.get("Ohio State")!, modelSnapshot.week, true);
   const seasonPerformance = useSeasonPerformance(modelSeason);
+  const activeNavLabel = nav.find((item) => item.id === section)?.label || "Model HQ";
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileNavOpen(false); };
+    const closeOnDesktop = () => { if (window.innerWidth > 760) setMobileNavOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("resize", closeOnDesktop);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("resize", closeOnDesktop);
+    };
+  }, []);
+
+  const navigateTo = (nextSection: Section) => {
+    setSection(nextSection);
+    setMobileNavOpen(false);
+    if (nextSection === "simulation" && modelSeason === modelSnapshot.season && activeModelSeason > modelSnapshot.season) {
+      setModelSeason(activeModelSeason);
+      setModelWeek(activeModelWeek);
+    }
+    window.requestAnimationFrame(() => window.scrollTo({ top:0, behavior:"smooth" }));
+  };
 
   const refresh = async () => {
     setRefreshState("running");
@@ -863,19 +894,17 @@ export default function Home() {
         <div>{seasonPerformance.loading ? "…" : (seasonPerformance.data?.gameCount ?? 0).toLocaleString()} GAMES TRACKED</div>
       </div>
 
-      <header className="main-header">
-        <button className="brand" onClick={() => { setSection("overview"); setModelSeason(modelSnapshot.season); setModelWeek(modelSnapshot.week); }} aria-label="Harper Plus home">
+      <header className={`main-header ${mobileNavOpen ? "menu-open" : ""}`}>
+        <button className="brand" onClick={() => { setModelSeason(modelSnapshot.season); setModelWeek(modelSnapshot.week); navigateTo("overview"); }} aria-label="Harper Plus home">
           <span className="brand-mark" aria-hidden="true"><b>H</b><i>+</i></span>
           <div><strong>HARPER+</strong><small>COLLEGE FOOTBALL MODEL</small></div>
         </button>
-        <nav aria-label="Main navigation">
-          {nav.map((item, index) => <button key={item.id} data-index={String(index + 1).padStart(2, "0")} className={section === item.id ? "active" : ""} onClick={() => {
-            setSection(item.id);
-            if (item.id === "simulation" && modelSeason === modelSnapshot.season && activeModelSeason > modelSnapshot.season) {
-              setModelSeason(activeModelSeason);
-              setModelWeek(activeModelWeek);
-            }
-          }}>{item.label}</button>)}
+        <button className="mobile-menu-toggle" type="button" aria-expanded={mobileNavOpen} aria-controls="primary-navigation" onClick={() => setMobileNavOpen((open) => !open)}>
+          <span className="mobile-menu-bars" aria-hidden="true"><i /><i /><i /></span>
+          <span><small>NAVIGATE</small><strong>{activeNavLabel}</strong></span>
+        </button>
+        <nav id="primary-navigation" className={mobileNavOpen ? "open" : ""} aria-label="Main navigation">
+          {nav.map((item, index) => <button key={item.id} data-index={String(index + 1).padStart(2, "0")} className={section === item.id ? "active" : ""} onClick={() => navigateTo(item.id)}>{item.label}</button>)}
         </nav>
         <button className={`refresh-button ${refreshState}`} onClick={refresh} disabled={refreshState === "running"}>
           <span>↻</span>{refreshState === "running" ? "CHECKING" : "CHECK DATA"}
