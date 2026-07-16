@@ -1125,3 +1125,16 @@ footer { margin-left:244px; border-color:rgba(59,216,255,.16); background:#03081
   .all137-row .team-mark-sm { width:84px; height:84px; }
   .all137-summary .team-mark-md { width:92px; height:92px; }
 }
+
+/* Harper+ v7.2 — stack Team Lab stat panels before their content can collide. */
+@media (max-width:1480px) {
+  .profile-columns {
+    grid-template-columns:minmax(0,1fr);
+    gap:30px;
+  }
+
+  .team-metric-panel + .team-metric-panel {
+    padding-top:28px;
+    border-top:1px solid rgba(92,190,246,.17);
+  }
+}
