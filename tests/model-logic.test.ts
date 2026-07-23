@@ -6,6 +6,7 @@ import { applyPreseasonRosterAdjustments, buildPregameElo, scheduleCalibrationWe
 import { analyzeMatchupEdges } from "../lib/matchupAnalysis";
 import { buildSeasonSimulation, type SimulationScheduleGame } from "../lib/simulation";
 import { TEAM_STATS_SORT_COLUMNS, defaultTeamStatsSortDirection, sortTeamStatsRows, type TeamStatsSortableRow } from "../lib/teamStatsSort";
+import { buildTeamProjectedSeason } from "../lib/teamProjectedRecords";
 
 function profile(team: string, conference: string, power = 1): RankingProfile {
   return {
@@ -190,4 +191,20 @@ test("Team Stats defaults to best-first sorting for production and opponent allo
   assert.equal(defaultTeamStatsSortDirection("offPatt"), "desc");
   assert.equal(defaultTeamStatsSortDirection("defYppIndex"), "asc");
   assert.equal(defaultTeamStatsSortDirection("defYpcIndex"), "asc");
+});
+
+
+test("team schedules accumulate deterministic projected records and probability-based expected wins", () => {
+  const projection = buildTeamProjectedSeason([
+    { gameId:"1", homeTeam:"Alabama", awayTeam:"Auburn", homeWinProbability:.7, predictedHomeScore:31, predictedAwayScore:20 },
+    { gameId:"2", homeTeam:"Georgia", awayTeam:"Alabama", homeWinProbability:.6, predictedHomeScore:27, predictedAwayScore:24 },
+    { gameId:"3", homeTeam:"LSU", awayTeam:"Alabama", homeWinProbability:.3, predictedHomeScore:21, predictedAwayScore:28 },
+    { gameId:"4", homeTeam:"Alabama", awayTeam:"Tennessee", homeWinProbability:null, predictedHomeScore:null, predictedAwayScore:null },
+  ], "Alabama");
+
+  assert.deepEqual(projection.games.map((game) => game.projectedRecord), ["1-0", "1-1", "2-1", "2-1"]);
+  assert.deepEqual(projection.games.map((game) => game.projectedResult), ["W", "L", "W", "—"]);
+  assert.equal(projection.finalProjectedRecord, "2-1");
+  assert.ok(Math.abs(projection.expectedWins - 1.8) < 1e-9);
+  assert.ok(Math.abs(projection.expectedLosses - 1.2) < 1e-9);
 });

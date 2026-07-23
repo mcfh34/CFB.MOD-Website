@@ -21,6 +21,7 @@ import {
   type TeamStatsSortDirection,
   type TeamStatsSortKey,
 } from "../lib/teamStatsSort";
+import { buildTeamProjectedSeason } from "../lib/teamProjectedRecords";
 
 type Section = "overview" | "rankings" | "simulation" | "matchup" | "all137" | "stats" | "schedule" | "teams" | "methodology";
 
@@ -677,11 +678,12 @@ function SchedulePage({ season, setSeason }: Pick<ModelVintageProps, "season" | 
   const teamOptions = useMemo(() => [...new Set([...teams.map((team) => team.name), ...rows.flatMap((row) => [row.homeTeam, row.awayTeam])])].sort(), [rows]);
   const spread = performance.data?.spread;
   const total = performance.data?.total;
+  const teamProjection = useMemo(() => buildTeamProjectedSeason(activeRows, teamFilter), [activeRows, teamFilter]);
 
   return <section className="page-section schedule-page">
     <div className="section-kicker">EVERY TEAM · EVERY GAME · MODEL VS MARKET</div>
     <div className="section-title-row"><div><h1>Schedule</h1><p>Predictions, final scores and closing-market grades for every FBS game, with a team-by-team schedule view.</p></div><VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} allWeeks /></div>
-    <div className="schedule-filter"><label htmlFor="schedule-team">TEAM SCHEDULE</label><select id="schedule-team" value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}><option value="">All FBS games</option>{teamOptions.map((team) => <option key={team}>{team}</option>)}</select><span>{loading ? "Loading games…" : `${activeRows.length} games shown`}</span></div>
+    <div className="schedule-filter"><label htmlFor="schedule-team">TEAM SCHEDULE</label><select id="schedule-team" value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}><option value="">All FBS games</option>{teamOptions.map((team) => <option key={team}>{team}</option>)}</select><span>{loading ? "Loading games…" : teamFilter && teamProjection.games.length ? `${activeRows.length} games · H+ ${teamProjection.finalProjectedRecord} · ${teamProjection.expectedWins.toFixed(1)} xW` : `${activeRows.length} games shown`}</span></div>
     <div className="schedule-summary">
       <article><span>SEASON ATS · WEEK 5+</span><strong>{performance.loading ? "…" : spread?.accuracy === null || spread?.accuracy === undefined ? "—" : `${(spread.accuracy*100).toFixed(1)}%`}</strong><small>{spread?.graded ?? 0} graded picks · {spread?.wins ?? 0}-{spread?.losses ?? 0}{spread?.pushes ? `-${spread.pushes}P` : ""}</small></article>
       <article><span>SEASON TOTALS · WEEK 5+</span><strong>{performance.loading ? "…" : total?.accuracy === null || total?.accuracy === undefined ? "—" : `${(total.accuracy*100).toFixed(1)}%`}</strong><small>{total?.graded ?? 0} graded picks · {total?.wins ?? 0}-{total?.losses ?? 0}{total?.pushes ? `-${total.pushes}P` : ""}</small></article>
@@ -693,10 +695,11 @@ function SchedulePage({ season, setSeason }: Pick<ModelVintageProps, "season" | 
       {activeRows.map((row) => {
         const perspective = teamFilter ? (row.homeTeam === teamFilter ? `vs ${row.awayTeam}` : `@ ${row.homeTeam}`) : `${row.awayTeam} @ ${row.homeTeam}`;
         const location = row.neutralSite ? "NEUTRAL" : teamFilter ? (row.homeTeam === teamFilter ? "HOME" : "AWAY") : (row.venue || "");
+        const projected = teamFilter ? teamProjection.byGame.get(row.gameId) : undefined;
         return <article className={`schedule-game-entry ${expandedGameId === row.gameId ? "open" : ""}`} key={row.gameId}><div className="schedule-row">
           <div data-label="DATE / PHASE"><strong>{formatGameDate(row.startDate)}</strong><small>{row.seasonType === "postseason" ? `POSTSEASON · W${row.week}` : `REGULAR · W${row.week}`}</small></div>
           <div data-label="MATCHUP" className="schedule-matchup-cell"><span className="schedule-logo-pair"><TeamMark name={row.awayTeam} size="sm" logo={row.awayLogo} /><TeamMark name={row.homeTeam} size="sm" logo={row.homeLogo} /></span><span><strong>{perspective}</strong><small>{location}</small></span></div>
-          <div data-label="H+ MODEL" className="schedule-model-cell"><b>{row.predictedAwayScore === null || row.predictedHomeScore === null ? "—" : `${row.predictedAwayScore.toFixed(0)}–${row.predictedHomeScore.toFixed(0)}`}</b><small>Spread {signed(row.modelHomeSpread)} · Total {row.modelTotal === null ? "—" : row.modelTotal.toFixed(1)}</small><small>{row.homeWinProbability === null ? "MODEL BUILD PENDING" : `${row.homeTeam} ${(row.homeWinProbability * 100).toFixed(0)}% · ${row.predictionSource === "live-profile" ? "LIVE PROFILE" : `FROM WK ${row.generatedFromWeek ?? "—"}`}`}</small></div>
+          <div data-label="H+ MODEL" className="schedule-model-cell"><b>{row.predictedAwayScore === null || row.predictedHomeScore === null ? "—" : `${row.predictedAwayScore.toFixed(0)}–${row.predictedHomeScore.toFixed(0)}`}</b><small>Spread {signed(row.modelHomeSpread)} · Total {row.modelTotal === null ? "—" : row.modelTotal.toFixed(1)}</small><small>{row.homeWinProbability === null ? "MODEL BUILD PENDING" : `${row.homeTeam} ${(row.homeWinProbability * 100).toFixed(0)}% · ${row.predictionSource === "live-profile" ? "LIVE PROFILE" : `FROM WK ${row.generatedFromWeek ?? "—"}`}`}</small>{projected ? <small className={projected.projectedResult === "W" ? "positive" : projected.projectedResult === "L" ? "negative" : ""}>H+ {projected.projectedResult} · PROJ RECORD {projected.projectedRecord} · xW {projected.expectedWins.toFixed(1)}</small> : null}</div>
           <div data-label="FINAL"><b>{row.awayPoints === null || row.homePoints === null ? "—" : `${row.awayPoints}–${row.homePoints}`}</b><small>{row.completed ? "FINAL" : "UPCOMING"}</small></div>
           <div data-label="VEGAS"><span>{row.formattedSpread || (row.vegasSpread === null ? "Spread —" : `${row.homeTeam} ${signed(row.vegasSpread)}`)}</span><small>O/U {row.vegasTotal === null ? "—" : row.vegasTotal.toFixed(1)} · {row.provider || "market"}</small></div>
           <div data-label="MODEL EDGE"><span>Spread {signed(row.spreadEdge)}</span><small>Total {signed(row.totalEdge)}</small>{row.edgeAnalysis ? <button className="schedule-edge-toggle" type="button" aria-expanded={expandedGameId === row.gameId} onClick={() => setExpandedGameId((current) => current === row.gameId ? null : row.gameId)}>{expandedGameId === row.gameId ? "HIDE WHY" : "WHY FAVORED"}</button> : null}</div>
@@ -704,7 +707,7 @@ function SchedulePage({ season, setSeason }: Pick<ModelVintageProps, "season" | 
         </div>{expandedGameId === row.gameId && row.edgeAnalysis ? <EdgeAnalysisCard analysis={row.edgeAnalysis} compact /> : null}</article>;
       })}
     </div>}
-    <p className="all137-disclaimer">Predictions are generated from the prior week’s profile so completed-game results never leak into the forecast. The season ATS, totals and error cards are intentionally graded from Week 5 onward; the schedule table still preserves every game and result.</p>
+    <p className="all137-disclaimer">Predictions are generated from the prior week’s profile so completed-game results never leak into the forecast. When a team is selected, H+ projected record is the cumulative win/loss path from those game-level picks; xW is the cumulative probability-based expected-win total. The season ATS, totals and error cards are intentionally graded from Week 5 onward.</p>
   </section>;
 }
 
