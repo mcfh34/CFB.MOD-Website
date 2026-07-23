@@ -1,0 +1,41 @@
+name: Apply team projected records
+
+on:
+  push:
+    branches:
+      - agent/schedule-projected-records
+    paths:
+      - scripts/apply-team-projected-records.py
+      - .github/workflows/apply-team-projected-records.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply targeted source changes
+        run: python3 scripts/apply-team-projected-records.py
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Run model logic tests
+        run: node --import tsx --test tests/model-logic.test.ts
+      - name: Commit feature changes
+        run: |
+          rm scripts/apply-team-projected-records.py
+          rm .github/workflows/apply-team-projected-records.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/page.tsx lib/teamProjectedRecords.ts tests/model-logic.test.ts scripts/apply-team-projected-records.py .github/workflows/apply-team-projected-records.yml
+          git commit -m "Show projected records on team schedules"
+          git push origin HEAD
