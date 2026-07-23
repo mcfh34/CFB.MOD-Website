@@ -662,9 +662,12 @@ function SchedulePage({ season, setSeason }: Pick<ModelVintageProps, "season" | 
   const [teamFilter, setTeamFilter] = useState("");
   const [expandedGameId, setExpandedGameId] = useState<string | null>(null);
   const [rows, setRows] = useState<ScheduleRow[]>([]);
+  const [projectionRows, setProjectionRows] = useState<ScheduleRow[]>([]);
+  const [projectionLoadedKey, setProjectionLoadedKey] = useState("");
   const [configured, setConfigured] = useState(false);
   const [loadedKey, setLoadedKey] = useState("");
   const requestKey = `${season}:${week}:${teamFilter}`;
+  const projectionRequestKey = `${season}:${teamFilter}`;
   useEffect(() => {
     const controller = new AbortController();
     const params = new URLSearchParams({ view: "schedule", season: String(season), week: String(week) });
@@ -672,18 +675,34 @@ function SchedulePage({ season, setSeason }: Pick<ModelVintageProps, "season" | 
     fetch(`/api/data?${params}`, { signal: controller.signal }).then((response) => readJsonBody<{ rows?: ScheduleRow[]; configured?: boolean }>(response)).then((payload) => { setRows(payload.rows || []); setConfigured(Boolean(payload.configured)); setLoadedKey(requestKey); }).catch((error) => { if (error instanceof Error && error.name !== "AbortError") { setRows([]); setLoadedKey(requestKey); } });
     return () => controller.abort();
   }, [season, week, teamFilter, requestKey]);
+  useEffect(() => {
+    if (!teamFilter) {
+      setProjectionRows([]);
+      setProjectionLoadedKey(projectionRequestKey);
+      return;
+    }
+    const controller = new AbortController();
+    const params = new URLSearchParams({ view:"schedule", season:String(season), week:"0", team:teamFilter });
+    fetch(`/api/data?${params}`, { signal:controller.signal })
+      .then((response) => readJsonBody<{ rows?: ScheduleRow[] }>(response))
+      .then((payload) => { setProjectionRows(payload.rows || []); setProjectionLoadedKey(projectionRequestKey); })
+      .catch((error) => { if (error instanceof Error && error.name !== "AbortError") { setProjectionRows([]); setProjectionLoadedKey(projectionRequestKey); } });
+    return () => controller.abort();
+  }, [season, teamFilter, projectionRequestKey]);
   const loading = loadedKey !== requestKey;
   const activeRows = loading ? [] : rows;
   const performance = useSeasonPerformance(season);
   const teamOptions = useMemo(() => [...new Set([...teams.map((team) => team.name), ...rows.flatMap((row) => [row.homeTeam, row.awayTeam])])].sort(), [rows]);
   const spread = performance.data?.spread;
   const total = performance.data?.total;
-  const teamProjection = useMemo(() => buildTeamProjectedSeason(activeRows, teamFilter), [activeRows, teamFilter]);
+  const projectionLoading = Boolean(teamFilter) && projectionLoadedKey !== projectionRequestKey;
+  const activeProjectionRows = projectionLoading ? [] : projectionRows;
+  const teamProjection = useMemo(() => buildTeamProjectedSeason(activeProjectionRows, teamFilter), [activeProjectionRows, teamFilter]);
 
   return <section className="page-section schedule-page">
     <div className="section-kicker">EVERY TEAM · EVERY GAME · MODEL VS MARKET</div>
     <div className="section-title-row"><div><h1>Schedule</h1><p>Predictions, final scores and closing-market grades for every FBS game, with a team-by-team schedule view.</p></div><VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} allWeeks /></div>
-    <div className="schedule-filter"><label htmlFor="schedule-team">TEAM SCHEDULE</label><select id="schedule-team" value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}><option value="">All FBS games</option>{teamOptions.map((team) => <option key={team}>{team}</option>)}</select><span>{loading ? "Loading games…" : teamFilter && teamProjection.games.length ? `${activeRows.length} games · H+ ${teamProjection.finalProjectedRecord} · ${teamProjection.expectedWins.toFixed(1)} xW` : `${activeRows.length} games shown`}</span></div>
+    <div className="schedule-filter"><label htmlFor="schedule-team">TEAM SCHEDULE</label><select id="schedule-team" value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}><option value="">All FBS games</option>{teamOptions.map((team) => <option key={team}>{team}</option>)}</select><span>{loading || projectionLoading ? "Loading games…" : teamFilter && teamProjection.games.length ? `${activeRows.length} games · H+ ${teamProjection.finalProjectedRecord} · ${teamProjection.expectedWins.toFixed(1)} xW` : `${activeRows.length} games shown`}</span></div>
     <div className="schedule-summary">
       <article><span>SEASON ATS · WEEK 5+</span><strong>{performance.loading ? "…" : spread?.accuracy === null || spread?.accuracy === undefined ? "—" : `${(spread.accuracy*100).toFixed(1)}%`}</strong><small>{spread?.graded ?? 0} graded picks · {spread?.wins ?? 0}-{spread?.losses ?? 0}{spread?.pushes ? `-${spread.pushes}P` : ""}</small></article>
       <article><span>SEASON TOTALS · WEEK 5+</span><strong>{performance.loading ? "…" : total?.accuracy === null || total?.accuracy === undefined ? "—" : `${(total.accuracy*100).toFixed(1)}%`}</strong><small>{total?.graded ?? 0} graded picks · {total?.wins ?? 0}-{total?.losses ?? 0}{total?.pushes ? `-${total.pushes}P` : ""}</small></article>
