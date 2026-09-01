@@ -1,7 +1,15 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { currentCollegeFootballSeason, getBackfillStatus, syncSeason, syncSeasonStep } from "../lib/dataPipeline";
+import { ARCHIVE_REPAIR_COOLDOWN_SECONDS, claimArchiveRepair, currentCollegeFootballSeason, getBackfillStatus, syncArchiveBatch, syncSeason } from "../lib/dataPipeline";
+import {
+  claimPlayerSync,
+  getPlayerArchiveStatus,
+  queueActivePlayerSeasonRefresh,
+  refreshPlayerProductionBaselineIfNeeded,
+  syncPlayerSeasonBatch,
+} from "../lib/playerPipeline";
+import { maintainDepthChartArchive } from "../lib/depthChartArchive";
 
 interface Env {
   ASSETS: Fetcher;
@@ -59,6 +67,9 @@ const worker = {
   },
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil((async () => {
+      // This archive uses official documents rather than the CFBD feed, so it
+      // remains independently maintainable even when CFBD is unavailable.
+      await maintainDepthChartArchive(env.DB).catch(() => null);
       if (!env.CFBD_API_KEY) return;
       const currentSeason = currentCollegeFootballSeason();
       const backfill = await getBackfillStatus(env);
@@ -66,12 +77,27 @@ const worker = {
         // The active season always gets the Monday refresh, independent of the
         // historical archive's state.
         await syncSeason(env, currentSeason, "scheduled");
+        await queueActivePlayerSeasonRefresh(env, currentSeason);
         return;
       }
-      // Weekday repair runs are bounded to one historical vintage. They stop
-      // making CFBD calls automatically once the archive is complete.
-      const historicalSeason = backfill.missing.find((season) => season < currentSeason);
-      if (historicalSeason) await syncSeasonStep(env, historicalSeason, "scheduled");
+      // Each repair run is globally leased and advances a paced batch. This
+      // lets one-time history complete even when the hosting tier skips cron
+      // deliveries, without allowing overlapping CFBD traffic.
+      const repairSeason = backfill.missing[0];
+      if (repairSeason && await claimArchiveRepair(env, ARCHIVE_REPAIR_COOLDOWN_SECONDS)) {
+        await syncArchiveBatch(env, repairSeason, "scheduled");
+        return;
+      }
+      if (!repairSeason) {
+        const playerArchive = await getPlayerArchiveStatus(env);
+        const playerSeason = playerArchive.missing[0];
+        if (playerSeason && await claimPlayerSync(env)) {
+          await syncPlayerSeasonBatch(env, playerSeason).catch(() => null);
+        }
+        // Percentile ratings depend only on completed player seasons. An
+        // unpublished upcoming roster must not block historical normalization.
+        await refreshPlayerProductionBaselineIfNeeded(env.DB).catch(() => null);
+      }
     })());
   },
 };

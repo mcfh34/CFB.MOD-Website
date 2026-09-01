@@ -1,9 +1,16 @@
+import type { MatchupEvidence } from "../lib/matchupModel";
+import type { AdvancedProfile } from "../lib/advancedMetrics";
+
 export type MetricTuple=[number,number,number,number,number];
-export type WeekProfile={o:MetricTuple;d:MetricTuple;rank:number|null};
-export type TeamModel={id:string;name:string;mascot:string;abbr:string;conference:string;color:string;altColor:string;logo?:string;weeks:Record<string,WeekProfile>};
+export type WeekProfile={o:MetricTuple;d:MetricTuple;rank:number|null;evidence?:MatchupEvidence;advanced?:AdvancedProfile|null};
+export type TeamModel={
+  id:string;name:string;mascot:string;abbr:string;conference:string;color:string;altColor:string;logo?:string;
+  rating?:number;baseRating?:number;resumeScore?:number;seasonRecord?:string;nationalChampion?:boolean;finalContext?:boolean;
+  weeks:Record<string,WeekProfile>;
+};
 export const baselines={ypp:5.6,ypa:7.3,ypc:4.4,patt:30.9,ratt:35.8};
 export const scoreCoefficients={intercept:-34.53914677817919,ypc:0.29091543738685766,ypp:6.755053869041706,ypa:0.1829670563928759,ratt:0.44039772133186555,patt:0.1906860818946665};
-export const modelCalibration={opponentAdjustment:0.25,maxOpponentAdjustment:0.52,preseasonEquivalentGames:1,weakSchedulePriorGames:2,earlySeasonPriorGames:0.75,homeFieldAdvantage:1.5,fcsOffenseIndex:0.78,fcsDefenseIndex:1.22,iterations:5,outcomeBlend:0.35,eloK:24,eloPointsPerPoint:25,preseasonEloScale:420,fcsElo:1325} as const;
+export const modelCalibration={opponentAdjustment:0.25,maxOpponentAdjustment:0.52,preseasonEquivalentGames:1,weakSchedulePriorGames:2,earlySeasonPriorGames:0.75,untestedSchedulePriorGames:2,untestedOpponentAdjustment:0.1,homeFieldAdvantage:1.5,fcsOffenseIndex:0.78,fcsDefenseIndex:1.22,iterations:5,outcomeBlend:0.35,matchupEvidenceFloor:0.42,matchupProofTarget:0.55,matchupOutcomeBlendCeiling:0.55,matchupProofMarginWeight:12,eloK:24,eloPointsPerPoint:25,preseasonEloScale:420,fcsElo:1325,fcsProjectionElo:1000} as const;
 export const turnoverCoefficients={intercept:-0.925480476341681,turnovers:-3.82869589069237,takeaways:4.5499694362989};
 export const rankingWeights={modelRank:0.4,strengthOfRecord:1.2,marginOfVictory:0.9,wins:1.6,losses:1.6,strengthOfSchedule:0.3,divisor:6};
 export const modelSnapshot={season:2025,week:16,sourceUpdatedAt:"2026-07-15T14:40:32.598Z",spreadsheetTitle:"CFB MOD 25"};

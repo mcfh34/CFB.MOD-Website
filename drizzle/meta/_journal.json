@@ -22,6 +22,76 @@
       "when": 1784220216845,
       "tag": "0002_fixed_santa_claus",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784308213985,
+      "tag": "0003_spooky_dust",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784313232119,
+      "tag": "0004_thick_meteorite",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784393334767,
+      "tag": "0005_useful_wiccan",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1785166806637,
+      "tag": "0006_light_infant_terrible",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1785245822274,
+      "tag": "0007_gigantic_luminals",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1785255872680,
+      "tag": "0008_chunky_lilandra",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1785439664752,
+      "tag": "0009_next_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1785441696498,
+      "tag": "0010_fresh_clint_barton",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1785443157121,
+      "tag": "0011_cloudy_fabian_cortez",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1785606935161,
+      "tag": "0012_boring_chimera",
+      "breakpoints": true
     }
   ]
 }

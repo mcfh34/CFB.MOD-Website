@@ -14,7 +14,11 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
-  triggers: { crons: ["0 11 * * 1", "0 12 * * 2-6"] },
+  // One archive slice every two minutes remains single-flight through the D1
+  // lease, so CFBD requests never burst even when browser recovery also polls. Once the
+  // archive is complete, the repair invocation performs only a D1 status check
+  // and makes no external API request.
+  triggers: { crons: ["0 11 * * 1", "*/2 * * * *"] },
   d1_databases: d1
     ? [
         {

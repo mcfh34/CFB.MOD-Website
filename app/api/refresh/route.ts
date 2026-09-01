@@ -27,7 +27,11 @@ export async function POST(request: Request) {
     if (recent) return Response.json({ status: "current", message: `Data is already current through ${recent.season} week ${recent.week}. The next automatic check runs Monday morning.`, recent });
     const result = await syncSeason(env, season, "manual");
     const complete = result.stage === "complete";
-    return Response.json({ status: complete ? "complete" : "running", message: complete ? `${season} refreshed: ${result.games} API games and ${result.profiles} weekly team profiles.` : `${season} schedule refreshed; the archive is continuing through ${result.remainingWeeks.length} missing weekly stat slices.`, result });
+    const remainingWeeks = "remainingWeeks" in result ? result.remainingWeeks : [];
+    const runningMessage = result.stage === "passing"
+        ? `${season} completion detail is being hydrated; ${(result.remainingWeeks ?? []).length} weekly slices remain.`
+        : `${season} schedule refreshed; the archive is continuing through ${remainingWeeks.length} missing weekly stat slices.`;
+    return Response.json({ status: complete ? "complete" : "running", message: complete ? `${season} refreshed: ${result.games} API games and ${result.profiles} weekly team profiles.` : runningMessage, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Refresh failed";
     const rateLimited = error instanceof CollegeFootballDataError && error.status === 429;

@@ -1,4 +1,4 @@
-import { CollegeFootballDataError, currentCollegeFootballSeason, getBackfillStatus, syncHistorical, syncSeason, type PipelineEnv } from "../../../lib/dataPipeline";
+import { CollegeFootballDataError, currentCollegeFootballSeason, FIRST_HISTORICAL_SEASON, getBackfillStatus, syncHistorical, syncSeason, type PipelineEnv } from "../../../lib/dataPipeline";
 
 type SyncPayload = { season?: number; fromSeason?: number; toSeason?: number; mode?: "season" | "historical" };
 
@@ -10,7 +10,7 @@ async function runtimeEnv() {
 export async function GET() {
   const env = await runtimeEnv();
   const latestRun = await env.DB.prepare("SELECT season,week,source,status,game_count AS gameCount,detail,created_at AS createdAt FROM refresh_runs ORDER BY id DESC LIMIT 1").first().catch(() => null);
-  return Response.json({ configured: Boolean(env.CFBD_API_KEY), latestRun, automaticSchedule: "Mondays at 11:00 UTC" });
+  return Response.json({ configured: Boolean(env.CFBD_API_KEY), latestRun, automaticSchedule: "Active season Mondays at 11:00 UTC; up to eight paced archive slices per repair trigger" });
 }
 
 export async function POST(request: Request) {
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const payload = (await request.json().catch(() => ({}))) as SyncPayload;
   try {
     if (payload.mode === "historical") {
-      const fromSeason = Math.max(2021, Number(payload.fromSeason) || 2021);
+      const fromSeason = Math.max(FIRST_HISTORICAL_SEASON, Number(payload.fromSeason) || FIRST_HISTORICAL_SEASON);
       const toSeason = Math.min(currentCollegeFootballSeason(), Number(payload.toSeason) || currentCollegeFootballSeason());
       const results = await syncHistorical(env, fromSeason, toSeason);
       const backfill = await getBackfillStatus(env);
