@@ -1,0 +1,109 @@
+/* A single compact table language for the team and player stat databases. */
+.app-page-slot .stats-hub-page { padding-top:12px; }
+.app-page-slot .stats-hub-content > .page-section { padding-top:9px; }
+.app-page-slot .stats-hub-switch { width:min(360px,100%); padding:3px; border-radius:6px; }
+.app-page-slot .stats-hub-switch button { min-height:36px; padding:5px 10px; border-radius:4px; }
+.app-page-slot .stats-hub-switch button span { display:none; }
+.app-page-slot .stats-hub-switch strong { margin:0; font-size:12px; }
+.app-page-slot .stats-page > .section-title-row { margin-bottom:6px!important; padding:3px 0!important; }
+.app-page-slot .stats-page > .section-title-row h1 { font-size:19px!important; }
+.app-page-slot .stats-page .stats-summary { gap:0; margin:0 0 7px; border:1px solid var(--app-line); border-radius:5px; overflow:hidden; }
+.app-page-slot .stats-page .stats-summary article,
+.app-page-slot .stats-page .stats-leader-summary article { min-height:48px; gap:6px; padding:5px 9px; border:0; border-right:1px solid var(--app-line); border-radius:0; background:var(--app-panel); }
+.app-page-slot .stats-page .stats-summary article:last-child { border-right:0; }
+.app-page-slot .stats-page .stats-summary span { font-size:9px; letter-spacing:.05em; }
+.app-page-slot .stats-page .stats-summary strong,
+.app-page-slot .stats-page .stats-leader-summary strong { margin:2px 0 0; font-size:13px; line-height:1.2; }
+.app-page-slot .stats-page .stats-summary small { margin:0; font-size:9px; }
+.app-page-slot .stats-page .stats-leader-summary .team-mark-sm { width:30px; height:30px; flex-basis:30px; }
+.app-page-slot .stats-page .stats-filter-drawer { margin-bottom:6px; border-radius:5px; }
+.app-page-slot .stats-page .stats-filter-drawer > summary { min-height:36px; padding:5px 10px; }
+.app-page-slot .stats-page .stats-filter-drawer > summary > span { flex-direction:row; align-items:center; gap:10px; }
+.app-page-slot .stats-page .stats-filter-drawer > summary small { font-size:9px; }
+.app-page-slot .stats-page .stats-toolbar { margin:0 0 6px; }
+.app-page-slot .stats-page .stats-toolbar-controls { gap:5px; }
+.app-page-slot .stats-page .stat-glossary { margin-bottom:6px; }
+.app-page-slot .stats-page .stats-table-shell { border-radius:5px; background:var(--app-panel); }
+.app-page-slot .stats-page .stats-head,
+.app-page-slot .stats-page .stats-row { column-gap:0; padding:0 7px; }
+.app-page-slot .stats-page .stats-head { min-height:38px; }
+.app-page-slot .stats-page .stats-row { min-height:42px; margin:0; border-top:1px solid var(--app-line); border-radius:0; }
+.app-page-slot .stats-page .stats-row:nth-child(odd) { background:color-mix(in srgb,var(--app-panel-soft) 45%,var(--app-panel)); }
+.app-page-slot .stats-page .stats-row:hover { background:var(--app-panel-soft); }
+.app-page-slot .stats-page .stats-head-cell { min-height:38px; gap:2px; padding:2px 4px; }
+.app-page-slot .stats-page .stats-head-cell button { min-height:34px; font-size:9px!important; }
+.app-page-slot .stats-page .stats-head-cell button span { white-space:normal!important; overflow-wrap:anywhere; }
+.app-page-slot .stats-page .stats-head-cell > .stat-help { width:17px; min-width:17px; height:17px; min-height:17px; }
+.app-page-slot .stats-page .stats-row > div:first-child { gap:7px; padding:0 5px; }
+.app-page-slot .stats-page .stats-row .team-mark-sm { width:29px; height:29px; flex:0 0 29px; }
+.app-page-slot .stats-page .stats-row > div:first-child > span { gap:1px; }
+.app-page-slot .stats-page .stats-row > div:first-child strong,
+.app-page-slot .stats-page .player-stats-player strong { font-size:11px!important; line-height:1.2!important; }
+.app-page-slot .stats-page .stats-row > div:first-child small,
+.app-page-slot .stats-page .player-stats-player small { margin:0; font-size:9px!important; line-height:1.2!important; }
+.app-page-slot .stats-page .stats-value { padding:2px 4px; font-size:11px!important; font-variant-numeric:tabular-nums; }
+.app-page-slot .stats-page .stats-value-rank { color:var(--app-ink-soft); font-size:11px; font-weight:850; line-height:1.1; }
+.app-page-slot .stats-page .stats-value.active-value .stats-value-rank { color:var(--app-ink); font-size:13px; font-weight:950; }
+.app-page-slot .stats-page .player-stats-row > .player-stats-player { grid-template-columns:60px 36px minmax(0,1fr); gap:5px; }
+.app-page-slot .stats-page .player-stats-ranks { grid-template-columns:20px minmax(0,1fr); gap:3px; }
+.app-page-slot .stats-page .player-stats-ranks > b { font-size:12px; }
+.app-page-slot .stats-page .player-stats-ranks small { font-size:9px!important; }
+.app-page-slot .stats-page .player-stats-jersey-card { width:34px; height:33px; border-radius:4px; box-shadow:none; }
+.app-page-slot .stats-page .player-stats-jersey { width:29px; height:28px; }
+.app-page-slot .stats-page .player-stats-jersey > span { font-size:10px; margin-top:5px; }
+.app-page-slot .stats-page .player-stats-value { justify-content:center; font-size:13px!important; }
+.app-page-slot .player-stats-page .player-stats-metrics { display:contents; }
+.app-page-slot .player-stats-page .player-stats-value .stats-value-line { flex-wrap:nowrap; }
+.app-page-slot .player-stats-page .player-stats-toolbar { padding:6px!important; }
+.app-page-slot .player-stats-page .player-stats-toolbar .stats-toolbar-controls {
+  flex:1 1 100%; width:100%; min-width:0; max-width:none;
+  grid-template-columns:76px 78px minmax(125px,1fr) minmax(135px,1fr) minmax(140px,1fr) minmax(150px,1fr);
+  gap:6px;
+}
+.app-page-slot .player-stats-page .stats-summary article { justify-content:center; }
+.app-page-slot .player-ratings-provisional {
+  margin:6px 0; padding:7px 10px; border-left:2px solid var(--app-warning);
+  background:var(--app-panel); color:var(--app-ink-soft); font-size:11px; line-height:1.35;
+}
+
+@media (max-width:900px) {
+  .app-page-slot .stats-page .stats-table-shell,
+  .app-page-slot .stats-page .player-stats-table-shell {
+    overflow-x:auto!important; overflow-y:hidden!important; border:1px solid var(--app-line); border-radius:5px;
+    -webkit-overflow-scrolling:touch; scroll-snap-type:none;
+  }
+  .app-page-slot .stats-page .stats-head { display:grid!important; }
+  .app-page-slot .stats-page .stats-row { min-width:var(--stats-min-width)!important; display:grid!important; grid-template-columns:var(--stats-grid)!important; gap:0; padding:0 7px; border:0; border-top:1px solid var(--app-line); }
+  .app-page-slot .stats-page .stats-row > div:first-child { position:sticky; left:0; z-index:2; min-height:42px; padding:0 5px; background:var(--app-panel); box-shadow:6px 0 10px rgba(0,0,0,.12); }
+  .app-page-slot .stats-page .stats-row .team-mark-sm { width:26px; height:26px; flex-basis:26px; }
+  .app-page-slot .stats-page .stats-row .stats-metrics { display:contents!important; border:0; background:transparent; }
+  .app-page-slot .stats-page .stats-row .stats-value { min-height:42px; display:flex; flex-direction:row; padding:2px 4px; border:0; background:transparent; }
+  .app-page-slot .stats-page .stats-row .stats-value::before { content:none; }
+  .app-page-slot .stats-page .stats-head > :first-child { position:sticky; left:0; z-index:3; background:var(--app-panel-soft); box-shadow:6px 0 10px rgba(0,0,0,.12); }
+  .app-page-slot .stats-page .player-stats-row > .player-stats-player { grid-template-columns:60px 34px minmax(0,1fr); padding:0 5px; }
+  .app-page-slot .stats-page .stats-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-page-slot .stats-page .stats-summary article { border-bottom:1px solid var(--app-line); }
+  .app-page-slot .stats-page .stats-summary article:nth-child(2n) { border-right:0; }
+  .app-page-slot .stats-page .stats-filter-drawer > summary small { white-space:normal; }
+  .app-page-slot .player-stats-page .player-stats-toolbar .stats-toolbar-controls {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;
+  }
+  .app-page-slot .player-stats-page .player-stats-toolbar .stats-toolbar-controls > label:last-child {
+    grid-column:1/-1;
+  }
+  .app-page-slot .player-stats-page .player-stats-toolbar input,
+  .app-page-slot .player-stats-page .player-stats-toolbar select { min-height:36px!important; }
+}
+@media (max-width:480px) {
+  .app-page-slot .stats-page .stats-summary article { min-height:42px; }
+  .app-page-slot .stats-page .stats-filter-drawer > summary > span { flex-direction:column; align-items:flex-start; gap:2px; }
+  .app-page-slot .player-stats-page .player-stats-toolbar .stats-toolbar-controls { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-page-slot .player-stats-page .player-stats-row > .player-stats-player { grid-template-columns:50px 32px minmax(0,1fr); gap:3px; }
+  .app-page-slot .player-stats-page :is(.player-stats-head,.player-stats-row) {
+    min-width:var(--stats-min-width)!important;
+    grid-template-columns:var(--stats-grid)!important;
+  }
+  .app-page-slot .player-stats-page .player-stats-ranks { grid-template-columns:17px minmax(0,1fr); gap:1px; }
+  .app-page-slot .player-stats-page .player-stats-jersey-card { width:30px; height:30px; }
+  .app-page-slot .player-stats-page .player-stats-jersey { width:26px; height:26px; }
+}

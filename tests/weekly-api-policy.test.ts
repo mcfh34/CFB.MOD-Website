@@ -21,3 +21,4 @@ test('hard weekly cap and first failure stop subsequent external requests',async
  await assert.rejects(cachedApiRequest(new URL('https://example.com/over'),async()=>++calls));});assert.equal(calls,WEEKLY_API_LIMIT);
  await withApiPolicy(db,true,async()=>{await assert.rejects(cachedApiRequest(new URL('https://example.com/fail'),async()=>{throw Object.assign(Error('429'),{status:429});}));await assert.rejects(cachedApiRequest(new URL('https://example.com/again'),async()=>++calls));});assert.equal(calls,WEEKLY_API_LIMIT);
 });
+test('sequential duplicate feeds reuse persisted data within a run',async()=>{const db=database();let calls=0;const url=new URL('https://example.com/stats?year=2026');await withApiPolicy(db,true,async()=>{await cachedApiRequest(url,async()=>{calls++;return [1];});assert.deepEqual(await cachedApiRequest(url,async()=>{calls++;return [2];}),[1]);});assert.equal(calls,1);});

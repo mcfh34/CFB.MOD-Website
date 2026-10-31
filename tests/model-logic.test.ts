@@ -2,15 +2,22 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { buildBcsRankings, finalMatchupRating, type RankingGame, type RankingProfile } from "../lib/rankings";
-import { applyPreseasonRosterAdjustments, ARCHIVE_BATCH_MAX_SLICES, ARCHIVE_BATCH_PAUSE_MS, ARCHIVE_REPAIR_COOLDOWN_SECONDS, buildPregameElo, claimArchiveRepair, FIRST_HISTORICAL_SEASON, jsonRowBatches, normalizeAdvancedStats, normalizePreseasonInputs, normalizeStats, project, scheduleCalibrationWeights, upsertJsonRows, weeklySourceCoverageComplete, type NormalizedGame, type PipelineEnv, type PreseasonInput, type Profile } from "../lib/dataPipeline";
+import { rankOffenseAndDefense } from "../lib/unitRankings";
+import { averageMarginVsPregame, datedPregameScores } from "../lib/teamSchedulePerformance";
+import { applyPreseasonRosterAdjustments, ARCHIVE_BATCH_MAX_SLICES, ARCHIVE_BATCH_PAUSE_MS, ARCHIVE_REPAIR_COOLDOWN_SECONDS, neutralSeasonProfiles, buildPregameElo, buildSeasonArtifacts, claimArchiveRepair, FIRST_HISTORICAL_SEASON, jsonRowBatches, latestProfile as latestModelProfile, normalizeAdvancedStats, normalizePreseasonInputs, normalizeStats, project, scheduleCalibrationWeights, shouldRefreshActiveSeason, upsertJsonRows, weeklySourceCoverageComplete, type NormalizedGame, type NormalizedStat, type PipelineEnv, type PreseasonInput, type Profile } from "../lib/dataPipeline";
+
 import { advancedMetricIndex, advancedMetricKeys, derivePassingEfficiency, emptyAdvancedMetricValues, projectAdvancedSide, type AdvancedMetricValues, type AdvancedProfile } from "../lib/advancedMetrics";
 import { buildWeeklyAdvancedProfiles, type AdvancedBaseStatRow, type AdvancedGameComponentRow } from "../lib/advancedProfileBuilder";
 import { analyzeMatchupEdges } from "../lib/matchupAnalysis";
 import { matchupScoreCard, projectMatchupEngine } from "../lib/matchupEngine";
-import { buildMatchupEvidence, projectCalibratedMatchup, validateMatchupProfile } from "../lib/matchupModel";
-import { applySimulationGameOverride, buildSeasonSimulation, compactSeasonSimulationForClient, projectSeasonMatchup, projectedFinalRankingScore, realisticScenarioScore, resolveConferenceStandings, type SimulationScheduleGame } from "../lib/simulation";
+import { buildMatchupEvidence, earlySeasonDominanceMargin, fcsResultAdjustment, powerFourFcsMarginFloor, projectCalibratedMatchup, validateMatchupProfile } from "../lib/matchupModel";
+import { seasonSnapshotRankings, applySimulationGameOverride, buildSeasonSimulation, compactSeasonSimulationForClient, projectSeasonMatchup, projectedFinalRankingScore, realisticScenarioScore, resolveConferenceStandings, type SimulationScheduleGame } from "../lib/simulation";
 import { buildPossessionScoreReceipt, estimatePoints, scoringModelFeatures } from "../lib/scoringModel";
-import { TEAM_STATS_ADVANCED_METRICS, TEAM_STATS_SORT_COLUMNS, defaultTeamStatsSortDirection, formatTeamStatsValue, sortTeamStatsRows, teamStatsColumns, type TeamStatsSortableRow } from "../lib/teamStatsSort";
+import { stalledDriveTurnoverExposure } from "../lib/predictiveSignals";
+import { pregameMatchupStats } from "../lib/pregameMatchupStats";
+import { matchupTests } from "../lib/matchupTests";
+import { TEAM_STATS_ADVANCED_METRICS, TEAM_STATS_SORT_COLUMNS, defaultTeamStatsSortDirection, formatTeamStatsValue, sortTeamStatsRows, teamStatsColumnRanks, teamStatsColumns, type TeamStatsSortableRow } from "../lib/teamStatsSort";
+
 import { evaluateMarketProjection } from "../lib/marketModel";
 import { modelSpreadRead, modelTotalRead, officialAtsSetRead } from "../lib/gameMarketSummary";
 import { isStoredMarketLineQuarantined, selectMarketLineCandidate, wilsonConfidenceInterval, type MarketLineCandidate } from "../lib/marketLineQuality";
@@ -23,7 +30,7 @@ import { buildTacticalPlan } from "../lib/tacticalPlan";
 import { buildPlayDiagram, defenseFormations, offenseFormations } from "../lib/playDiagram";
 import { buildSideGamePlan } from "../lib/matchupIntelligence";
 import { assessOffensiveViability, deriveViabilityCalibration, discoverViabilityThreshold, historicalViabilityCalibration } from "../lib/offensiveViability";
-import { compareScheduleRows, matchesSchedulePickFilter, type ScheduleFilterRow } from "../lib/scheduleFilters";
+import { compareScheduleRows, matchesSchedulePickFilter, scoreboardDay, type ScheduleFilterRow } from "../lib/scheduleFilters";
 import { scheduleGameLabel } from "../lib/scheduleLabels";
 import { driveLogoCoverage, resolveTeamLogoAsset, teamLogoAssets } from "../lib/teamLogoAssets";
 import { calculateScheduleFilterMetrics } from "../lib/scheduleMetrics";
@@ -42,6 +49,8 @@ import { buildMatchupContext, matchupProfileSimilarity, type MatchupContextGameR
 import { buildMatchupFieldMap, buildPffFieldTendency } from "../lib/matchupFieldMap";
 import { conferenceChampionshipGameIds } from "../lib/gamePhases";
 import { buildWinConditionAnalysis, evaluateWinConditionScenario, type WinConditionHistoricalSample } from "../lib/winConditions";
+import { buildWeeklyGameRead, orderWeeklyStories, weeklyGameAnalysis, weeklyStoryHeadline, type WeeklyProjectedRank, type WeeklyReviewGame } from "../lib/weeklyReview";
+import { applyPlayFeedSackAdjustments, buildPlayByPlayDrives, buildSackAccounting, normalizePlayByPlay, sackAdjustmentsFromPlayFeed, sackYardsFromPlay } from "../lib/playByPlay";
 import {
   buildLegacyPreseasonProfiles,
   buildPreseasonStateTransition,
@@ -64,6 +73,100 @@ function profile(team: string, conference: string, power = 1): RankingProfile {
     defYpcIndex: 2 - power,
   };
 }
+
+test("unit ranks favor opponent-relative evidence, split run/pass, and exclude unplayed teams",()=>{
+  const make=(team:string,gamesPlayed:number,oi:number,passOi:number,rushOi:number,di:number,passDi:number,rushDi:number,raw:number,allowed:number)=>({
+    team,gamesPlayed,offYppIndex:oi,offYpaIndex:passOi,offYpcIndex:rushOi,
+    defYppIndex:di,defYpaIndex:passDi,defYpcIndex:rushDi,
+    offYpp:raw,offYpa:raw,offYpc:raw,defYpp:allowed,defYpa:allowed,defYpc:allowed,
+  });
+  const ranks=rankOffenseAndDefense([
+    make("Adjusted",3,1.4,1.5,.8,.7,.65,1.1,5,4.5),
+    make("Raw",3,1,1,1,.95,.95,.95,8,3.3),
+    make("Weak",3,.8,.7,1.3,1.2,1.25,.7,4,5.5),
+    make("Unplayed",0,2,2,2,.5,.5,.5,10,2),
+  ]);
+  assert.equal(ranks.get("Adjusted")?.offenseRank,1);
+  assert.equal(ranks.get("Adjusted")?.passOffenseRank,1);
+  assert.equal(ranks.get("Weak")?.rushOffenseRank,1);
+  assert.equal(ranks.get("Adjusted")?.defenseRank,1);
+  assert.equal(ranks.get("Weak")?.rushDefenseRank,1);
+  assert.equal(ranks.get("Unplayed")?.offenseRank,null);
+  assert.equal(ranks.get("Unplayed")?.passDefenseRank,null);
+});
+
+test("team performance measures actual margin over the dated pregame margin only",()=>{
+  const receipt={completed:true,week:5,generatedFromWeek:4,predictedHomeScore:31,predictedAwayScore:24};
+  assert.deepEqual(datedPregameScores(receipt),{home:31,away:24});
+  assert.equal(datedPregameScores({...receipt,generatedFromWeek:5}),null);
+  assert.equal(datedPregameScores({...receipt,generatedFromWeek:null}),null);
+  const completed=(homeTeam:string,awayTeam:string,homePoints:number,awayPoints:number,pregameHomeScore:number|null,pregameAwayScore:number|null)=>({homeTeam,awayTeam,homePoints,awayPoints,pregameHomeScore,pregameAwayScore,completed:true});
+  const summary=averageMarginVsPregame("Alabama",[
+    completed("Alabama","Team A",35,20,28,24), // +11 over the expected margin
+    completed("Team B","Alabama",17,14,21,20), // -2 from Alabama's perspective
+    completed("Alabama","Team C",42,10,null,null),
+    completed("Alabama","FCS Team",70,0,40,0),
+    {homeTeam:"Alabama",awayTeam:"Team D",homePoints:null,awayPoints:null,pregameHomeScore:30,pregameAwayScore:20,completed:false},
+  ],new Set(["Alabama","Team A","Team B","Team C","Team D"]));
+  assert.deepEqual(summary,{games:2,pointsPerGame:4.5});
+  assert.deepEqual(averageMarginVsPregame("Alabama",[completed("FCS Team","Alabama",0,70,0,40)],new Set(["Alabama"])),{games:0,pointsPerGame:null});
+});
+
+test("published depth chart estimates cannot change a production score",()=>{
+  const baseline:Profile={season:2026,week:1,team:"Test U",gamesPlayed:1,off:[6,7,4,32,36],def:[5,6,4,30,34],oi:[1.05,1.1,.95,1,1],di:[.9,.9,1.1,1,1]};
+  const depth={offense:{overall:.3,passing:.3,rushing:.3,uncertainty:1},defense:{overall:.3,passing:.3,rushing:.3,uncertainty:1},quarterbacks:[{player:"A",probability:.5,passingLogDelta:.2},{player:"B",probability:.5,passingLogDelta:-.2}]} as unknown as NonNullable<Profile["roster"]>;
+  const plain=project(baseline,baseline,false,1500,1500);
+  const withDepth=project({...baseline,roster:depth},{...baseline,roster:depth},false,1500,1500);
+  assert.equal(withDepth.homeScore,plain.homeScore);
+  assert.equal(withDepth.awayScore,plain.awayScore);
+  assert.deepEqual(withDepth.quarterbackScenarios,plain.quarterbackScenarios);
+  assert.deepEqual(latestModelProfile([{...baseline,week:0},{...baseline,roster:depth,rosterTimeline:[depth]}],baseline.team,1)?.oi,baseline.oi);
+});
+test("stalled drives increase turnover exposure only when passing escape and protection fail",()=>{
+  const base={baselineYardsPerPlay:5.6,passAttempts:35,rushAttempts:32};
+  const balanced=stalledDriveTurnoverExposure({...base,yardsPerPlay:5.9,standardDownSuccess:.48,passingDownSuccess:.39,passSuccess:.48,havocAllowed:.14});
+  const stalled=stalledDriveTurnoverExposure({...base,yardsPerPlay:4.1,standardDownSuccess:.32,passingDownSuccess:.22,passSuccess:.28,havocAllowed:.29});
+  const passEscape=stalledDriveTurnoverExposure({...base,yardsPerPlay:4.1,standardDownSuccess:.32,passingDownSuccess:.22,passSuccess:.52,havocAllowed:.14});
+  assert.equal(balanced,0);
+  assert.ok(stalled>passEscape&&passEscape>balanced);
+  assert.ok(stalled<=.65);
+});
+
+test("pregame matchup compares rushing and passing to prior opponents without postgame leakage",()=>{
+  const profile=(team:string,offRush:number,defRush:number,offPass:number,defPass:number):Profile=>({
+    team,season:2026,week:3,gamesPlayed:3,
+    off:[6,offPass,offRush,30,35],def:[5,defPass,defRush,30,35],
+    oi:[1,offPass/7,offRush/4.4,1,1],di:[1,defPass/7,defRush/4.4,1,1],
+  });
+  const home=profile("Home",5.1,3.5,8.4,6.4),away=profile("Away",4.2,4.8,7.2,8.2);
+  const other=profile("Other",4.5,4,7.7,7.2);
+  const snapshot=pregameMatchupStats(home,away,[home,away,other],{ypc:4.7,ypa:8.1,ratt:35,patt:30},{ypc:3.8,ypa:6.8,ratt:34,patt:31});
+  assert.equal(snapshot.home.rushing.average,5.1);
+  assert.equal(snapshot.home.rushing.rank,1);
+  assert.equal(snapshot.home.rushing.opponentAllowedRank,3);
+  assert.equal(snapshot.home.rushing.expectedYards,4.7*35);
+  assert.ok(snapshot.home.passing.forcedPercent!>100);
+  const noGames={...home,gamesPlayed:0};
+  assert.equal(pregameMatchupStats(noGames,away,[noGames,away,other],{ypc:4.7,ypa:8.1,ratt:35,patt:30},{ypc:3.8,ypa:6.8,ratt:34,patt:31}).home.rushing.average,null);
+});
+
+test("untested defense names the missing opponent challenge before the game",()=>{
+  const names=["Georgia","Weak A","Weak B","Oklahoma"];
+  const profiles=new Map(names.map(name=>[name,{team:name,season:2026,week:3,gamesPlayed:3,
+    off:[5,7,4,30,30],def:[5,7,4,30,30],
+    oi:[1,name==="Oklahoma"?1.15:.87,1,1,1],di:[1,.95,1,1,1]} as Profile]));
+  const game=(id:string,week:number,home:string,away:string,completed:boolean):NormalizedGame=>({id,week,season:2026,seasonType:"regular",startDate:null,
+    completed,neutralSite:false,conferenceGame:false,venue:null,homeTeam:home,awayTeam:away,homeConference:null,awayConference:null,homePoints:null,awayPoints:null});
+  const history=[game("one",1,"Georgia","Weak A",true),game("two",2,"Weak B","Georgia",true),game("target",4,"Georgia","Oklahoma",false)];
+  const lookup=(name:string,week:number)=>week>=3?profiles.get(name)??null:null;
+  const flags=matchupTests(history[2],history,lookup,3);
+  assert.deepEqual(flags.find(flag=>flag.team==="Georgia"&&flag.area==="pass defense"),{
+    team:"Georgia",area:"pass defense",priorOpponents:2,credibleTests:0,opponent:"Oklahoma",upcomingChallengePercent:115,ownIndexPercent:95,
+  });
+  assert.equal(matchupTests(history[2],history,lookup,2).find(flag=>flag.team==="Georgia"&&flag.area==="pass defense")?.priorOpponents,0);
+  profiles.get("Weak A")!.oi[1]=1.1;
+  assert.equal(matchupTests(history[2],history,lookup,3).find(flag=>flag.team==="Georgia"&&flag.area==="pass defense")?.credibleTests,1);
+});
 
 test("sparse opening-week updates retain the complete preseason team field",()=>{
   const preseason=Array.from({length:138},(_,index)=>({
@@ -172,10 +275,37 @@ test("matchup context measures opponent-relative effects and finds the closest p
   assert.equal(context.home.expectation.aboveExpected,1);
   assert.equal(context.home.record,"1–0");
   assert.equal(context.home.expectation.sample,1);
+  const withFcs=buildMatchupContext({season:2025,requestedWeek:10,effectiveWeek:10,homeTeam:"Alpha",awayTeam:"Beta",profiles,games:[...games,
+    game({gameId:"fcs",week:2,homeTeam:"Alpha",awayTeam:"FCS",team:"Alpha",opponent:"FCS",points:70,predictedHomeScore:40,predictedAwayScore:0}),
+    game({gameId:"fcs",week:2,homeTeam:"Alpha",awayTeam:"FCS",team:"FCS",opponent:"Alpha",points:0,predictedHomeScore:40,predictedAwayScore:0}),
+  ]});
+  assert.equal(withFcs.home.expectation.sample,1);
+  assert.equal(withFcs.home.expectation.averageMarginDelta,11);
   assert.equal(context.home.analogs.find((lane)=>lane.id==="rushOffense")?.candidates[0]?.opponent,"Gamma");
   assert.ok(matchupProfileSimilarity(profiles[1],profiles[2],"rushOffense")>matchupProfileSimilarity(profiles[1],profiles[3],"rushOffense"));
   const finalContext=buildMatchupContext({season:2025,requestedWeek:16,effectiveWeek:16,homeTeam:"Alpha",awayTeam:"Beta",profiles,games});
   assert.equal(finalContext.home.record,"2–0");
+});
+
+test("comparable opponents retain five alternatives and incomplete profiles without future games",()=>{
+  const profile=(team:string,index=1):MatchupContextProfile=>({team,offYpaIndex:index,offYpcIndex:index,defYpaIndex:index,defYpcIndex:index});
+  const profiles=[profile("Alpha"),profile("Target"),...Array.from({length:5},(_,index)=>profile(`Opponent ${index+1}`,1+index*.05))];
+  const games:MatchupContextGameRow[]=Array.from({length:7},(_,index)=>{
+    const week=index+1,opponent=`Opponent ${week}`;
+    const base={gameId:`g${week}`,week,homeTeam:"Alpha",awayTeam:opponent,yardsPerPlay:6,yardsPerPass:8,yardsPerRush:4,passAttempts:30,rushAttempts:30};
+    return [{...base,team:"Alpha",opponent,points:28},{...base,team:opponent,opponent:"Alpha",points:14}];
+  }).flat();
+  const context=buildMatchupContext({season:2025,requestedWeek:6,effectiveWeek:6,homeTeam:"Alpha",awayTeam:"Target",profiles,games});
+  for(const lane of context.home.analogs){
+    assert.equal(lane.candidates.length,6);
+    assert.equal(lane.candidates[0].opponent,"Opponent 1");
+    assert.equal(lane.candidates.slice(1).length,5);
+    assert.equal(lane.candidates.at(-1)?.opponent,"Opponent 6");
+    assert.equal(lane.candidates.at(-1)?.similarity,null);
+    assert.ok(!lane.candidates.some((candidate)=>candidate.week>6));
+    const scored=lane.candidates.filter((candidate)=>candidate.similarity!==null);
+    assert.ok(scored.every((candidate,index)=>index===0||candidate.similarity!<=scored[index-1].similarity!));
+  }
 });
 
 test("field play art uses PFF location and OL evidence only when supplied",()=>{
@@ -491,7 +621,7 @@ test("state-transition preseason keeps the prior final team as the primary ancho
   const nextPower=Math.log(next[0].oi[0])-Math.log(next[0].di[0]);
   const legacyPower=Math.log(legacy[0].oi[0])-Math.log(legacy[0].di[0]);
   assert.ok(Math.abs(priorPower-nextPower)<Math.abs(priorPower-legacyPower));
-  assert.ok((next[0].preseasonElo??0)>1650,"stable elite final Elo should persist without being rebuilt from the regressed profile");
+  assert.ok((next[0].preseasonElo??0)>(next[1].preseasonElo??0),"stable elite history should retain an advantage without borrowing offensive continuity for defense");
 });
 
 test("program stability distinguishes an established elite from a one-year breakout",()=>{
@@ -1185,6 +1315,74 @@ test("team box-score normalization preserves completions and attempts", () => {
   assert.equal(rows.find((row) => row.team === "Beta")?.passAttempts, 29);
 });
 
+test("team box-score normalization charges sacks to passing instead of rushing", () => {
+  const games: NormalizedGame[] = [{
+    id:"sack-1",season:2026,week:2,seasonType:"regular",startDate:"2026-09-12T00:00:00Z",completed:true,neutralSite:false,conferenceGame:true,venue:null,
+    homeTeam:"Alpha",homeConference:"Test",homePoints:24,awayTeam:"Beta",awayConference:"Test",awayPoints:17,
+  }];
+  const rows=normalizeStats([{id:"sack-1",teams:[
+    {school:"Alpha",homeAway:"home",points:24,stats:[{category:"completionAttempts",stat:"18-30"},{category:"netPassingYards",stat:"250"},{category:"rushingAttempts",stat:"40"},{category:"rushingYards",stat:"160"},{category:"totalYards",stat:"410"},{category:"sacks",stat:"2-12"}]},
+    {school:"Beta",homeAway:"away",points:17,stats:[{category:"completionAttempts",stat:"15-28"},{category:"netPassingYards",stat:"200"},{category:"rushingAttempts",stat:"34"},{category:"rushingYards",stat:"120"},{category:"totalYards",stat:"320"},{category:"sacks",stat:"3-21"}]},
+  ]}],games,2026);
+  const alpha=rows.find((row)=>row.team==="Alpha")!;
+  const beta=rows.find((row)=>row.team==="Beta")!;
+  assert.deepEqual({passYards:alpha.passYards,rushYards:alpha.rushYards,rushAttempts:alpha.rushAttempts,sacksAllowed:alpha.sacksAllowed,sackYardsLost:alpha.sackYardsLost,totalYards:alpha.totalYards},{passYards:229,rushYards:181,rushAttempts:37,sacksAllowed:3,sackYardsLost:21,totalYards:410});
+  assert.equal(alpha.yardsPerPass,229/33);
+  assert.equal(alpha.yardsPerRush,181/37);
+  assert.equal(alpha.passYards+alpha.rushYards,alpha.totalYards);
+  assert.deepEqual({passYards:beta.passYards,rushYards:beta.rushYards,rushAttempts:beta.rushAttempts,sacksAllowed:beta.sacksAllowed,sackYardsLost:beta.sackYardsLost,totalYards:beta.totalYards},{passYards:188,rushYards:132,rushAttempts:32,sacksAllowed:2,sackYardsLost:12,totalYards:320});
+});
+
+test("play-by-play itemizes sack yards and reconciles NCAA stats to Harper+ stats",()=>{
+  const game={gameId:"401000001",homeTeam:"Alpha",awayTeam:"Beta"};
+  const plays=normalizePlayByPlay([
+    {id:"40100000130",gameId:401000001,driveId:"d2",driveNumber:2,playNumber:1,offense:"Beta",defense:"Alpha",home:"Alpha",away:"Beta",offenseScore:0,defenseScore:14,period:2,clock:{minutes:14,seconds:8},down:2,distance:7,yardsGained:-6,playType:"Sack",playText:"Quarterback sacked for a loss of 6 yards"},
+    {id:"40100000110",gameId:401000001,driveId:"d1",driveNumber:1,playNumber:1,offense:"Alpha",defense:"Beta",home:"Alpha",away:"Beta",offenseScore:0,defenseScore:0,period:1,clock:{minutes:15,seconds:0},down:1,distance:10,yardsGained:12,playType:"Pass Reception",playText:"Complete for 12 yards"},
+    {id:"40100000120",gameId:401000001,driveId:"d1",driveNumber:1,playNumber:2,offense:"Alpha",defense:"Beta",home:"Alpha",away:"Beta",offenseScore:0,defenseScore:0,period:1,clock:{minutes:14,seconds:20},down:1,distance:10,yardsGained:-8,playType:"Sack",playText:"Quarterback sacked for 8 yards loss"},
+    {id:"40100000125",gameId:401000001,driveId:"d1",driveNumber:1,playNumber:3,offense:"Alpha",defense:"Beta",home:"Alpha",away:"Beta",offenseScore:7,defenseScore:0,period:1,clock:{minutes:13,seconds:40},down:2,distance:18,yardsGained:24,scoring:true,playType:"Passing Touchdown",playText:"Touchdown Alpha"},
+    {id:"other-game",gameId:401000009,driveId:"x",offense:"Other",defense:"Beta",period:1,clock:{minutes:1,seconds:0},yardsGained:-20,playType:"Sack",playText:"Sacked"},
+  ],game);
+
+  assert.deepEqual(plays.map((play)=>play.id),["40100000110","40100000120","40100000125","40100000130"]);
+  assert.deepEqual({isSack:plays[1].isSack,sackYards:plays[1].sackYards,homeScore:plays[2].homeScore,awayScore:plays[2].awayScore},{isSack:true,sackYards:8,homeScore:7,awayScore:0});
+  assert.equal(sackYardsFromPlay(null,"QB sacked for a loss of 11 yards"),11);
+  const drives=buildPlayByPlayDrives(plays);
+  assert.equal(drives.length,2);
+  assert.deepEqual({result:drives[0].result,playCount:drives[0].playCount,yards:drives[0].yards},{result:"TOUCHDOWN",playCount:3,yards:28});
+
+  const accounting=buildSackAccounting([
+    {team:"Beta",passYards:194,passAttempts:28,rushYards:126,rushAttempts:31,sacksAllowed:1,sackYardsLost:6},
+    {team:"Alpha",passYards:250,passAttempts:30,rushYards:160,rushAttempts:39,sacksAllowed:1,sackYardsLost:0},
+  ],plays);
+  assert.deepEqual(accounting[0],{
+    team:"Beta",sacksAllowed:1,sackYards:6,officialRushingYards:120,officialRushingAttempts:32,officialPassingYards:200,officialPassAttempts:28,
+    harperRushingYards:126,harperRushingAttempts:31,harperNetPassingYards:194,harperDropbacks:29,source:"play-by-play",
+  });
+  assert.deepEqual(accounting[1],{
+    team:"Alpha",sacksAllowed:1,sackYards:8,officialRushingYards:160,officialRushingAttempts:40,officialPassingYards:250,officialPassAttempts:30,
+    harperRushingYards:168,harperRushingAttempts:39,harperNetPassingYards:242,harperDropbacks:31,source:"play-by-play",
+  });
+  assert.equal(accounting[1].officialRushingYards!+accounting[1].officialPassingYards!,accounting[1].harperRushingYards!+accounting[1].harperNetPassingYards!);
+
+  const adjustments=sackAdjustmentsFromPlayFeed([
+    {gameId:401000001,offense:"Alpha",yardsGained:-8,playType:"Sack",playText:"Sacked for 8 yards loss"},
+    {gameId:401000001,offense:"Alpha",yardsGained:-5,playType:"Sack",playText:"Sacked for 5 yards loss"},
+    {gameId:401000001,offense:"Alpha",yardsGained:-9,playType:"Sack",playText:"Sacked, but penalty accepted — no play"},
+    {gameId:401000001,offense:"Beta",yardsGained:4,playType:"Rush",playText:"Rush for four"},
+  ]);
+  assert.deepEqual(adjustments,[{gameId:"401000001",team:"Alpha",sacks:2,yards:13}]);
+  const [adjusted]=applyPlayFeedSackAdjustments([{
+    gameId:"401000001",team:"Alpha",totalYards:410,passYards:250,passAttempts:30,yardsPerPass:250/31,
+    rushYards:160,rushAttempts:39,yardsPerRush:160/39,yardsPerPlay:410/70,sacksAllowed:1,sackYardsLost:0,sackAdjustmentVersion:0,
+  }],[
+    {gameId:401000001,offense:"Alpha",yardsGained:-8,playType:"Sack",playText:"Sacked for 8 yards loss"},
+    {gameId:401000001,offense:"Alpha",yardsGained:-5,playType:"Sack",playText:"Sacked for 5 yards loss"},
+  ]);
+  assert.deepEqual({passYards:adjusted.passYards,rushYards:adjusted.rushYards,rushAttempts:adjusted.rushAttempts,sacksAllowed:adjusted.sacksAllowed,sackYardsLost:adjusted.sackYardsLost,sackAdjustmentVersion:adjusted.sackAdjustmentVersion},
+    {passYards:237,rushYards:173,rushAttempts:38,sacksAllowed:2,sackYardsLost:13,sackAdjustmentVersion:0});
+  assert.equal(adjusted.totalYards,410);
+});
+
 test("postseason team box scores use the same complete stat profile", () => {
   const games: NormalizedGame[] = [{
     id:"playoff-1",season:2018,week:1,seasonType:"postseason",startDate:"2018-12-29T00:00:00Z",completed:true,neutralSite:true,conferenceGame:false,venue:"Orange Bowl",
@@ -1303,6 +1501,75 @@ test("missing advanced data leaves the established matchup projection unchanged"
   assert.equal(base.homeStats.advanced,null);
   assert.equal(base.homeStats.ypc,explicitMissing.homeStats.ypc);
   assert.equal(base.homeStats.ypa,explicitMissing.homeStats.ypa);
+});
+
+test("sack-adjusted YPA and YPC reach the possession score when advanced profiles exist", () => {
+  const advanced = advancedProfile({}, {});
+  const opponentAdvanced = advancedProfile({}, {});
+  const opponent = { offense:[1,1,1,1,1] as [number,number,number,number,number], defense:[1,1,1,1,1] as [number,number,number,number,number], advanced:opponentAdvanced };
+  const low = projectCalibratedMatchup({ offense:[1,.78,.78,1,1], defense:[1,1,1,1,1], advanced }, opponent, true);
+  const high = projectCalibratedMatchup({ offense:[1,1.18,1.18,1,1], defense:[1,1,1,1,1], advanced:advancedProfile({}, {}) }, opponent, true);
+  assert.ok(high.homeStats.ypa > low.homeStats.ypa);
+  assert.ok(high.homeStats.ypc > low.homeStats.ypc);
+  assert.ok(high.homeStats.advanced?.overall.yardsPerPlay! > low.homeStats.advanced?.overall.yardsPerPlay!);
+  assert.ok(high.homeStats.scoreReceipt.rawExpectedPoints > low.homeStats.scoreReceipt.rawExpectedPoints);
+  assert.ok(high.homeScore > low.homeScore);
+});
+
+test("moving sack losses from rushing to passing changes the possession forecast without changing total offense", () => {
+  const advanced = advancedProfile({}, {});
+  const projection = projectAdvancedSide(advanced, advanced, 4.4, 7.3, 4.4, 7.3)!;
+  const viability = assessOffensiveViability(projection);
+  const ncaaAccounting = buildPossessionScoreReceipt(projection, advanced, 12, viability, 27, {
+    ypa: 250 / 30, ypc: 160 / 40, baselineYpa: 7.3, baselineYpc: 4.4,
+  });
+  const harperAccounting = buildPossessionScoreReceipt(projection, advanced, 12, viability, 27, {
+    ypa: 229 / 33, ypc: 181 / 37, baselineYpa: 7.3, baselineYpc: 4.4,
+  });
+
+  assert.equal(250 + 160, 229 + 181);
+  assert.ok(harperAccounting.features.protection < ncaaAccounting.features.protection);
+  assert.ok(harperAccounting.features.runPassBalance > ncaaAccounting.features.runPassBalance);
+  assert.ok(harperAccounting.rawExpectedPoints < ncaaAccounting.rawExpectedPoints);
+
+  const opponent = { offense:[1,1,1,1,1] as const, defense:[1,1,1,1,1] as const };
+  const boxProfile = (sacks:number,sackYards:number) => ({
+    offense:[410/70/5.6,((250-sackYards)/(30+sacks))/7.3,((160+sackYards)/(40-sacks))/4.4,(30+sacks)/30.9,(40-sacks)/35.8] as const,
+    defense:[1,1,1,1,1] as const,
+  });
+  const withoutSackTransfer = projectCalibratedMatchup(boxProfile(0,0), opponent, true);
+  const withSackTransfer = projectCalibratedMatchup(boxProfile(6,42), opponent, true);
+  assert.ok(withSackTransfer.homeScore < withoutSackTransfer.homeScore);
+  assert.notEqual(Math.round(withSackTransfer.homeScore), Math.round(withoutSackTransfer.homeScore));
+});
+
+test("historical predictions ignore results and stats from later weeks", () => {
+  const game = (id:string,week:number,completed:boolean,homePoints:number|null,awayPoints:number|null):NormalizedGame => ({
+    id,season:2025,week,seasonType:"regular",startDate:`2025-09-${String(6+week*7).padStart(2,"0")}T18:00:00Z`,completed,neutralSite:true,conferenceGame:false,venue:null,
+    homeTeam:"Alpha",homeConference:"SEC",homePoints,awayTeam:"Beta",awayConference:"ACC",awayPoints,
+  });
+  const games=[game("week-1",1,true,24,14),game("week-2",2,true,27,20),game("week-3",3,true,31,10)];
+  const stat = (gameId:string,week:number,team:string,opponent:string,points:number,totalYards:number):NormalizedStat => ({
+    gameId,season:2025,week,team,opponent,homeAway:team==="Alpha"?"home":"away",points,totalYards,yardsPerPlay:totalYards/60,passYards:totalYards*.55,passAttempts:30,passCompletions:18,yardsPerPass:totalYards*.55/30,rushYards:totalYards*.45,rushAttempts:30,yardsPerRush:totalYards*.45/30,turnovers:0,sacksAllowed:0,sackYardsLost:0,sackAdjustmentVersion:1,
+  });
+  const stats=[
+    stat("week-1",1,"Alpha","Beta",24,420),stat("week-1",1,"Beta","Alpha",14,300),
+    stat("week-2",2,"Alpha","Beta",27,450),stat("week-2",2,"Beta","Alpha",20,380),
+    stat("week-3",3,"Alpha","Beta",31,520),stat("week-3",3,"Beta","Alpha",10,220),
+  ];
+  const mutatedGames=games.map((row)=>row.id==="week-3"?{...row,homePoints:3,awayPoints:55}:row);
+  const mutatedStats=stats.map((row)=>row.gameId==="week-3"?{...row,points:row.team==="Alpha"?3:55,totalYards:row.team==="Alpha"?180:560}:row);
+  const build=(sourceGames:NormalizedGame[],sourceStats:typeof stats)=>buildSeasonArtifacts(sourceGames,sourceStats,[],[],2025,new Set(["Alpha","Beta"]),[]).predictions.find((row)=>row.gameId==="week-2");
+  const original=build(games,stats);
+  const afterFutureChange=build(mutatedGames,mutatedStats);
+  assert.ok(original && afterFutureChange);
+  assert.equal(original.generatedFromWeek,1);
+  assert.ok(original.forecast.conferenceMargin>0);
+  assert.equal(build([...games].reverse(),stats)?.forecast.conferenceMargin,original.forecast.conferenceMargin);
+  assert.deepEqual(
+    [afterFutureChange.homeScore,afterFutureChange.awayScore,afterFutureChange.homeWinProbability,afterFutureChange.modelHomeSpread,afterFutureChange.modelTotal],
+    [original.homeScore,original.awayScore,original.homeWinProbability,original.modelHomeSpread,original.modelTotal],
+  );
 });
 
 test("unavailable air-yards and YAC tracking fields are never fabricated", () => {
@@ -1458,6 +1725,21 @@ test("cross-era postseason résumé breaks an otherwise close statistical matchu
   assert.ok(standings[0]?.averageMargin>1);
 });
 
+test("large cross-era fields retain 2026 rushing sustainability and persistent turnover exposure", () => {
+  const base:RoundRobinProfile[] = Array.from({length:221},(_,index)=>({
+    id:`2026:Team ${index}`,team:`Team ${index}`,season:2026,week:4,
+    offense:[1,1,1,1,1],defense:[1,1,1,1,1],
+  }));
+  const baseline=buildRoundRobinStandings(base).find(row=>row.profile.id===base[0].id)!;
+  const adjusted=advancedProfile({},{});
+  adjusted.rushingPersonnel={rbCarries:100,rbYpc:5.6,qbCarries:25,qbYpc:2.4,teamYpc:4,rbShare:.7};
+  adjusted.turnoverProfile={games:5,lostPerGame:.3,forcedPerGame:2.4,lostVariance:.4};
+  const withEvidence=buildRoundRobinStandings([{...base[0],advanced:adjusted},...base.slice(1)])
+    .find(row=>row.profile.id===base[0].id)!;
+  assert.ok(withEvidence.averageMargin>baseline.averageMargin);
+  assert.ok(withEvidence.expectedWins>baseline.expectedWins);
+});
+
 test("selective low-volume passing is less repeatable than full-volume YPA", () => {
   const lowVolume = validateMatchupProfile({offense:[1.05,1.4,1.02,.52,1.3],defense:[1,1,1,1,1]});
   const fullVolume = validateMatchupProfile({offense:[1.05,1.4,1.02,1,1],defense:[1,1,1,1,1]});
@@ -1574,6 +1856,74 @@ test("matchup evidence stays conservative for a mature but weak schedule", () =>
   assert.ok(weak.reliability < 0.65, `weak schedule reliability should stay below 65%, got ${weak.reliability}`);
   assert.ok(proven.reliability > 0.85, `proven schedule reliability should exceed 85%, got ${proven.reliability}`);
   assert.ok(proven.scheduleStrength > weak.scheduleStrength);
+});
+
+test("decisive early scoring form survives schedule shrinkage and fades by Week 5", () => {
+  const earlyEvidence=buildMatchupEvidence([0.12,0.42],[0.12,0.42],2);
+  const matureEvidence=buildMatchupEvidence([0.4,0.5,0.6,0.7,0.8],[0.5,0.7],5);
+  const dominant=advancedProfile({pointsPerGame:2.35},{pointsPerGame:.42});
+  const ordinary=advancedProfile({pointsPerGame:.78},{pointsPerGame:1.05});
+  const early=earlySeasonDominanceMargin(
+    {offense:[1.2,1.15,1.25,1,1],defense:[.75,.8,.7,1,1],evidence:earlyEvidence,advanced:dominant},
+    {offense:[.94,.94,.92,1,1],defense:[1.02,1.08,.9,1,1],evidence:earlyEvidence,advanced:ordinary},
+  );
+  const mature=earlySeasonDominanceMargin(
+    {offense:[1.2,1.15,1.25,1,1],defense:[.75,.8,.7,1,1],evidence:matureEvidence,advanced:dominant},
+    {offense:[.94,.94,.92,1,1],defense:[1.02,1.08,.9,1,1],evidence:matureEvidence,advanced:ordinary},
+  );
+  assert.equal(early,24);
+  assert.equal(mature,0);
+});
+
+test("Power 4 teams receive a rating-scaled FCS margin floor", () => {
+  assert.equal(powerFourFcsMarginFloor(1450),24);
+  assert.equal(powerFourFcsMarginFloor(1500),27);
+  assert.equal(powerFourFcsMarginFloor(1700),40);
+  const projection=projectCalibratedMatchup(
+    {offense:[1.05,1.05,1.05,1,1],defense:[.95,.95,.95,1,1]},
+    {offense:[.78,.78,.78,1,1],defense:[1.22,1.22,1.22,1,1]},
+    false,1500,1000,true,{homeIsPower4:true,awayIsFcs:true},
+  );
+  assert.ok(projection.margin>=27);
+});
+
+test("FCS results cap blowout credit and penalize close games asymmetrically", () => {
+  assert.equal(fcsResultAdjustment(100,40),2);
+  assert.equal(fcsResultAdjustment(40,40),0);
+  assert.ok(Math.abs(fcsResultAdjustment(15,40)+13.75)<1e-9);
+  assert.equal(fcsResultAdjustment(3,40),-14);
+});
+
+test("prior FCS performance changes the next FCS projection without exporting huge blowouts", () => {
+  const baseTeam={offense:[1.15,1.15,1.15,1,1],defense:[.85,.85,.85,1,1]};
+  const dominantEvidence=buildMatchupEvidence([.05],[.05],1,{fcsResults:[{actualMargin:100,expectedMargin:40}]});
+  const closeEvidence=buildMatchupEvidence([.05],[.05],1,{fcsResults:[{actualMargin:15,expectedMargin:40}]});
+  const opponent={offense:[.78,.78,.78,1,1],defense:[1.22,1.22,1.22,1,1]};
+  const dominant=projectCalibratedMatchup(
+    {...baseTeam,evidence:dominantEvidence},opponent,false,1700,1000,true,{homeIsPower4:true,awayIsFcs:true},
+  );
+  const close=projectCalibratedMatchup(
+    {...baseTeam,evidence:closeEvidence},opponent,false,1700,1000,true,{homeIsPower4:true,awayIsFcs:true},
+  );
+  assert.equal(dominant.subdivisionFloor,42);
+  assert.equal(close.subdivisionFloor,26.25);
+  assert.ok(dominant.margin-close.margin<=16,"a 100-point FCS win must not create uncapped future credit");
+});
+
+test("early form separates FBS scoring from capped FCS blowout evidence", () => {
+  const evidence=buildMatchupEvidence([.05,.45],[.05,.45],2,{
+    fbsMargins:[50],
+    fcsResults:[{actualMargin:100,expectedMargin:40}],
+  });
+  const onlyFcs=buildMatchupEvidence([.05],[.05],1,{
+    fcsResults:[{actualMargin:100,expectedMargin:40}],
+  });
+  const profile=advancedProfile({pointsPerGame:3},{pointsPerGame:.25});
+  const opponent={offense:[1,1,1,1,1],defense:[1,1,1,1,1]};
+  const mixed=earlySeasonDominanceMargin({offense:[1,1,1,1,1],defense:[1,1,1,1,1],evidence,advanced:profile},opponent);
+  const fcsOnly=earlySeasonDominanceMargin({offense:[1,1,1,1,1],defense:[1,1,1,1,1],evidence:onlyFcs,advanced:profile},opponent);
+  assert.ok(mixed>15,"the decisive FBS result should survive early-season shrinkage");
+  assert.ok(fcsOnly<3,"the huge FCS win should contribute only a capped confirmation signal");
 });
 
 test("weak-schedule proof also regresses favorable advanced component percentages", () => {
@@ -2411,6 +2761,24 @@ test("Team Stats defaults to best-first sorting for production and opponent allo
   assert.equal(defaultTeamStatsSortDirection("defYpcIndex"), "asc");
 });
 
+test("Team Stats ranks every value against the complete field with ties and missing values", () => {
+  const base = { gamesPlayed:3, offYpa:8, offYpc:5, offPatt:30, offRatt:35, defYpaIndex:.9, defYpcIndex:.9 };
+  const rows:TeamStatsSortableRow[] = [
+    { team:"Alpha", ...base, offYpp:8.844, defYppIndex:.63 },
+    { team:"Beta", ...base, offYpp:8.841, defYppIndex:.75 },
+    { team:"Gamma", ...base, gamesPlayed:2, offYpp:7, defYppIndex:1.2 },
+    { team:"Delta", ...base, gamesPlayed:2, offYpp:Number.NaN, defYppIndex:.8 },
+  ];
+  const ranks = teamStatsColumnRanks(rows, teamStatsColumns("core", "offense-index"));
+  assert.equal(ranks.get("offYpp")?.get("Alpha"), 1);
+  assert.equal(ranks.get("offYpp")?.get("Beta"), 1, "values displayed identically share a rank");
+  assert.equal(ranks.get("offYpp")?.get("Gamma"), 3);
+  assert.equal(ranks.get("offYpp")?.get("Delta"), undefined);
+  assert.equal(ranks.get("defYppIndex")?.get("Alpha"), 1, "lower defensive allowance ranks first");
+  assert.equal(ranks.get("gamesPlayed")?.get("Alpha"), 1);
+  assert.equal(ranks.get("gamesPlayed")?.get("Gamma"), 3);
+});
+
 test("Team Stats exposes every advanced metric in raw and adjusted offense and defense views", () => {
   assert.deepEqual(
     [...new Set(TEAM_STATS_ADVANCED_METRICS.map((metric) => metric.key))].sort(),
@@ -2616,9 +2984,15 @@ test("Schedule week sorting keeps bowl week numbers after the regular season and
   ]);
 });
 
+test("Scores groups by the displayed Central Time day before kickoff window", () => {
+  assert.equal(scoreboardDay("2026-09-25T03:30:00Z"), "2026-09-24");
+  assert.equal(scoreboardDay("2026-09-25T17:00:00Z"), "2026-09-25");
+  assert.equal(scoreboardDay(undefined), "9999-99-99");
+});
+
 test("schedule cards distinguish title week, bowls, and every CFP round",()=>{
   assert.equal(scheduleGameLabel({season:2025,week:15,seasonType:"regular",homeTeam:"Indiana",awayTeam:"Ohio State"}),"CC");
-  assert.equal(scheduleGameLabel({season:2025,week:15,seasonType:"regular",homeTeam:"Army",awayTeam:"Navy"}),"W15");
+  assert.equal(scheduleGameLabel({season:2025,week:15,seasonType:"regular",homeTeam:"Army",awayTeam:"Navy"}),"CC");
   assert.equal(scheduleGameLabel({season:2025,week:1,seasonType:"postseason",startDate:"2025-12-19T20:00:00Z",homeTeam:"Oregon",awayTeam:"Tulane"}),"CFP R1");
   assert.equal(scheduleGameLabel({season:2025,week:2,seasonType:"postseason",startDate:"2026-01-01T20:00:00Z",homeTeam:"Indiana",awayTeam:"Oklahoma"}),"CFP QF");
   assert.equal(scheduleGameLabel({season:2025,week:3,seasonType:"postseason",startDate:"2026-01-09T20:00:00Z",homeTeam:"Indiana",awayTeam:"Oregon"}),"CFP SF");
@@ -2685,9 +3059,20 @@ test("Schedule records use actual finals and the chronological Matchup Engine pa
   ];
   const timeline = buildScheduleRecordTimeline(games,new Set(["Alabama","Florida State","Vanderbilt","Georgia"]));
 
-  assert.deepEqual(timeline.get("week-1"),{homeRecordAfter:"1–0",awayRecordAfter:"0–1",recordStatus:"actual"});
-  assert.deepEqual(timeline.get("week-2"),{homeRecordAfter:"0–1",awayRecordAfter:"2–0",recordStatus:"projected"});
-  assert.deepEqual(timeline.get("week-3"),{homeRecordAfter:"2–1",awayRecordAfter:"1–0",recordStatus:"projected"});
+  assert.deepEqual(timeline.get("week-1"),{homeRecordAfter:"1–0",awayRecordAfter:"0–1",homeStreakAfter:1,awayStreakAfter:-1,recordStatus:"actual"});
+  assert.deepEqual(timeline.get("week-2"),{homeRecordAfter:"0–1",awayRecordAfter:"2–0",homeStreakAfter:null,awayStreakAfter:null,recordStatus:"projected"});
+  assert.deepEqual(timeline.get("week-3"),{homeRecordAfter:"2–1",awayRecordAfter:"1–0",homeStreakAfter:null,awayStreakAfter:null,recordStatus:"projected"});
+});
+
+test("Schedule records carry consecutive actual wins and losses into the weekly review",()=>{
+  const games:ScheduleRecordGame[]=[
+    {gameId:"one",week:1,startDate:"2026-09-01T00:00:00Z",completed:true,homeTeam:"Alpha",homePoints:24,awayTeam:"Beta",awayPoints:17},
+    {gameId:"two",week:2,startDate:"2026-09-08T00:00:00Z",completed:true,homeTeam:"Beta",homePoints:10,awayTeam:"Alpha",awayPoints:28},
+    {gameId:"three",week:3,startDate:"2026-09-15T00:00:00Z",completed:true,homeTeam:"Alpha",homePoints:31,awayTeam:"Beta",awayPoints:14},
+  ];
+  const timeline=buildScheduleRecordTimeline(games);
+  assert.equal(timeline.get("three")?.homeStreakAfter,3);
+  assert.equal(timeline.get("three")?.awayStreakAfter,-3);
 });
 
 test("team identity converts volume and efficiency into football language", () => {
@@ -2832,4 +3217,154 @@ test("H+ Win Conditions share one calibrated baseline while keeping paths, fragi
   const favorable=evaluateWinConditionScenario(analysis,{[scoring.key]:Math.min(scoring.maximum,scoring.baseline+scoring.standardDeviation)});
   assert.ok(favorable.homeScore>reset.homeScore);
   assert.ok(favorable.homeWinProbability>reset.homeWinProbability);
+});
+
+test("weekly review leads with final Season Sim importance before a low-impact model upset",()=>{
+  const ranks=new Map<string,WeeklyProjectedRank>([
+    ["LSU",{team:"LSU",rank:4,projectedRecord:"11-2"}],
+    ["Clemson",{team:"Clemson",rank:8,projectedRecord:"10-3"}],
+    ["Michigan State",{team:"Michigan State",rank:43,projectedRecord:"7-5"}],
+    ["Western Michigan",{team:"Western Michigan",rank:78,projectedRecord:"6-6"}],
+  ]);
+  const game=(gameId:string,homeTeam:string,awayTeam:string,homePoints:number,awayPoints:number,homeWinProbability:number):WeeklyReviewGame=>({
+    gameId,season:2026,week:1,completed:true,homeTeam,awayTeam,homePoints,awayPoints,homeWinProbability,
+    predictedHomeScore:null,predictedAwayScore:null,
+  });
+  const lsuClemson=buildWeeklyGameRead(game("lsu-clemson","Clemson","LSU",24,27,.54),ranks)!;
+  const michiganState=buildWeeklyGameRead(game("msu-wmu","Michigan State","Western Michigan",24,21,.68),ranks)!;
+
+  assert.ok(lsuClemson.storyScore>michiganState.storyScore);
+  assert.equal(lsuClemson.winnerRank,4);
+  assert.equal(lsuClemson.loserRank,8);
+});
+
+test("weekly review explains matchup-specific basic and advanced deciding factors",()=>{
+  const advanced=(values:Partial<NonNullable<WeeklyReviewGame["homeActualAdvanced"]>>):NonNullable<WeeklyReviewGame["homeActualAdvanced"]>=>({
+    successRate:null,explosiveness:null,ppa:null,pointsPerDrive:null,playsPerDrive:null,thirdDownSuccessRate:null,redZoneEfficiency:null,
+    havocRate:null,lineYards:null,secondLevelYards:null,openFieldYards:null,stuffRate:null,powerSuccess:null,rushingSuccessRate:null,
+    rushingExplosiveness:null,rushingPpa:null,completionRate:null,yardsPerCompletion:null,passingSuccessRate:null,passingExplosiveness:null,
+    passingPpa:null,standardDownSuccessRate:null,passingDownSuccessRate:null,...values,
+  });
+  const stats=(values:Partial<NonNullable<WeeklyReviewGame["homeActualStats"]>>):NonNullable<WeeklyReviewGame["homeActualStats"]>=>({
+    totalYards:null,yardsPerPlay:null,passYards:null,passAttempts:null,passCompletions:null,yardsPerPass:null,rushYards:null,rushAttempts:null,yardsPerRush:null,turnovers:null,...values,
+  });
+  const ranks=new Map<string,WeeklyProjectedRank>([["Alabama",{team:"Alabama",rank:3}],["Georgia",{team:"Georgia",rank:6}]]);
+  const read=buildWeeklyGameRead({
+    gameId:"advanced-recap",season:2026,week:4,completed:true,homeTeam:"Alabama",awayTeam:"Georgia",homePoints:34,awayPoints:20,
+    homeWinProbability:.52,predictedHomeScore:null,predictedAwayScore:null,
+    homeActualStats:stats({totalYards:430,yardsPerPlay:6.7,passYards:210,yardsPerPass:8,rushYards:220,yardsPerRush:5.5,turnovers:0}),
+    awayActualStats:stats({totalYards:270,yardsPerPlay:4.4,passYards:190,yardsPerPass:6.2,rushYards:80,yardsPerRush:2.5,turnovers:3}),
+    homeActualAdvanced:advanced({passingPpa:.28,rushingSuccessRate:.53,lineYards:3.7}),
+    awayActualAdvanced:advanced({passingPpa:-.1,rushingSuccessRate:.31,lineYards:2.5}),
+  },ranks)!;
+  const analysis=weeklyGameAnalysis(read);
+
+  assert.match(analysis,/3 turnovers handed Alabama 3 extra possessions/i);
+  assert.match(analysis,/turnover-free football/i);
+  assert.doesNotMatch(analysis,/only 0 times/i);
+  assert.match(analysis,/per carry/i);
+  assert.doesNotMatch(analysis,/Alabama won 34-20/);
+  assert.doesNotMatch(analysis,/line yards per rush/);
+  assert.doesNotMatch(analysis,/edge in yards per play/i);
+});
+
+test("weekly review connects real streaks and rank movement to each result",()=>{
+  const current=new Map<string,WeeklyProjectedRank>([["Alabama",{team:"Alabama",rank:9}],["Georgia",{team:"Georgia",rank:17}]]);
+  const previous=new Map<string,WeeklyProjectedRank>([["Alabama",{team:"Alabama",rank:15}],["Georgia",{team:"Georgia",rank:8}]]);
+  const read=buildWeeklyGameRead({
+    gameId:"streak-rank",season:2026,week:7,completed:true,homeTeam:"Alabama",awayTeam:"Georgia",homePoints:31,awayPoints:20,
+    homeWinProbability:.48,predictedHomeScore:null,predictedAwayScore:null,homeStreakAfter:4,awayStreakAfter:-3,
+  },current,previous)!;
+  const analysis=weeklyGameAnalysis(read);
+  assert.match(analysis,/4 straight wins/i);
+  assert.match(analysis,/3rd consecutive loss/i);
+  assert.match(analysis,/top 12/i);
+  assert.match(analysis,/#8 to #17/i);
+});
+
+test("weekly AP poll order supersedes H+ story score without future-week leakage",()=>{
+  const games=[["Michigan State","Toledo"],["Michigan","Western Michigan"],["LSU","Clemson"]].map(([homeTeam,awayTeam],index)=>buildWeeklyGameRead({gameId:String(index),season:2026,week:1,completed:true,homeTeam,awayTeam,homePoints:30,awayPoints:20,homeWinProbability:.6,predictedHomeScore:null,predictedAwayScore:null},new Map())!);
+  games[0].storyScore=10000;
+  games[1].winnerApRank=5;
+  games[2].winnerApRank=3;
+  games[2].loserApRank=7;
+  const ordered=orderWeeklyStories(games);
+  assert.equal(ordered[0].game.awayTeam,"Clemson");
+  assert.equal(ordered[1].game.homeTeam,"Michigan");
+  assert.equal(buildWeeklyGameRead({...games[0].game,season:2024,seasonType:"postseason"},new Map()),null);
+  assert.ok(buildWeeklyGameRead({...games[0].game,season:2024,seasonType:"regular"},new Map()));
+});
+
+test("weekly upset language varies deterministically by game",()=>{
+  const ranks=new Map<string,WeeklyProjectedRank>([["Favorite",{team:"Favorite",rank:5}],["Underdog",{team:"Underdog",rank:42}]]);
+  const headlines=Array.from({length:8},(_,index)=>weeklyStoryHeadline(buildWeeklyGameRead({
+    gameId:`upset-${index}`,season:2026,week:3,completed:true,homeTeam:"Favorite",awayTeam:"Underdog",homePoints:20,awayPoints:24,
+    homeWinProbability:.8,predictedHomeScore:null,predictedAwayScore:null,
+  },ranks)!));
+  assert.ok(new Set(headlines).size>=3);
+  assert.match(headlines.join(" | "),/knocks off|stuns|springs the upset|shocks|surprises/i);
+  assert.equal(headlines[0],weeklyStoryHeadline(buildWeeklyGameRead({
+    gameId:"upset-0",season:2026,week:3,completed:true,homeTeam:"Favorite",awayTeam:"Underdog",homePoints:20,awayPoints:24,
+    homeWinProbability:.8,predictedHomeScore:null,predictedAwayScore:null,
+  },ranks)!));
+});
+
+test("active-season freshness retries stale incomplete finals without hammering the feed",()=>{
+  const now=new Date("2026-09-08T18:00:00.000Z");
+  assert.equal(shouldRefreshActiveSeason({incompletePastGames:0,lastCompleteAt:"2026-09-01T00:00:00.000Z",now}),false);
+  assert.equal(shouldRefreshActiveSeason({incompletePastGames:2,lastCompleteAt:"2026-09-08T15:00:00.000Z",now}),false);
+  assert.equal(shouldRefreshActiveSeason({incompletePastGames:2,lastCompleteAt:"2026-09-08T11:59:59.000Z",now}),true);
+  assert.equal(shouldRefreshActiveSeason({incompletePastGames:1,lastCompleteAt:null,now}),true);
+});
+
+
+test("three games of current production outweigh the largest roster-adjusted preseason prior",()=>{
+  for(const games of [3,4,6,10]){
+    const prior=scheduleCalibrationWeights(games,0,0).priorGames*1.35;
+    assert.ok(games/(games+prior)>=0.62);
+  }
+});
+
+test("upcoming scores reproduce the season record path without future-result leakage",()=>{
+  const profile=(team:string):RankingProfile=>({team,conference:"Independent",offYppIndex:1,offYpaIndex:1,offYpcIndex:1,offPattIndex:1,offRattIndex:1,defYppIndex:1,defYpaIndex:1,defYpcIndex:1,defPattIndex:1,defRattIndex:1});
+  const profiles=[profile("Alpha"),profile("Beta")];
+  const game:SimulationScheduleGame={gameId:"future",week:4,startDate:null,seasonType:"regular",completed:false,neutralSite:false,conferenceGame:false,homeTeam:"Alpha",awayTeam:"Beta",homeConference:"Independent",awayConference:"Independent",homePoints:null,awayPoints:null};
+  const ranks=seasonSnapshotRankings([game],profiles,3);
+  const pick=projectSeasonMatchup(profiles[0],profiles[1],ranks.find(r=>r.team==="Alpha"),ranks.find(r=>r.team==="Beta"),true,false);
+  const sim=buildSeasonSimulation(2026,3,3,[game],profiles);
+  const alpha=sim.rankings.find(r=>r.team==="Alpha")!;
+  assert.equal(alpha.schedule[0].homeScore,pick.firstScore);
+  assert.equal(alpha.schedule[0].awayScore,pick.secondScore);
+  assert.equal(alpha.regularSeasonRecord,pick.firstScore>pick.secondScore?"1–0":"0–1");
+  const futureFinal={...game,completed:true,homePoints:0,awayPoints:100};
+  assert.deepEqual(seasonSnapshotRankings([futureFinal],profiles,3),ranks);
+  const earlier=buildSeasonSimulation(2026,3,3,[futureFinal],profiles);
+  assert.equal(earlier.rankings.find(r=>r.team==="Alpha")!.schedule[0].homeScore,pick.firstScore);
+  const baseline=pick.rawProjection;
+  const offense=projectSeasonMatchup({...profiles[0],offYpaIndex:1.2,offYpcIndex:1.2},profiles[1],ranks[0],ranks[1],true,false).rawProjection;
+  const defense=projectSeasonMatchup(profiles[0],{...profiles[1],defYpaIndex:.8,defYpcIndex:.8},ranks[0],ranks[1],true,false).rawProjection;
+  assert.ok(offense.homeStats.ypa>baseline.homeStats.ypa);
+  assert.ok(offense.homeStats.ypc>baseline.homeStats.ypc);
+  assert.ok(offense.homeScore>baseline.homeScore);
+  assert.ok(defense.homeStats.ypa<baseline.homeStats.ypa);
+  assert.ok(defense.homeStats.ypc<baseline.homeStats.ypc);
+  assert.ok(defense.homeScore<baseline.homeScore);
+});
+
+
+test("2026 drops all preseason influence at Week 4 while Weeks 1–3 and other seasons retain it",()=>{
+  const eligible=new Set(["Alpha","Beta"]);
+  const run=(season:number,priorStrength:number)=>{
+    const games:NormalizedGame[]=Array.from({length:4},(_,i)=>({id:`game-${i+1}`,season,week:i+1,seasonType:"regular",startDate:null,completed:i<3,neutralSite:true,conferenceGame:false,venue:null,homeTeam:"Alpha",awayTeam:"Beta",homeConference:"Test",awayConference:"Test",homePoints:i<3?28:null,awayPoints:i<3?21:null}));
+    const stats:NormalizedStat[]=games.filter(g=>g.completed).flatMap(g=>["Alpha","Beta"].map((team):NormalizedStat=>({gameId:g.id,season,week:g.week,team,opponent:team==="Alpha"?"Beta":"Alpha",homeAway:team==="Alpha"?"home":"away",points:team==="Alpha"?28:21,totalYards:400,yardsPerPlay:400/60,passYards:250,passAttempts:30,passCompletions:20,yardsPerPass:250/30,rushYards:150,rushAttempts:30,yardsPerRush:5,turnovers:1,sacksAllowed:0,sackYardsLost:0,sackAdjustmentVersion:1})));
+    const priors=neutralSeasonProfiles(season,eligible).map((p):Profile=>p.team==="Alpha"?{...p,oi:[priorStrength,priorStrength,priorStrength,1,1],preseasonElo:1500+300*(priorStrength-1),advanced:advancedProfile({lineYards:priorStrength,pointsPerGame:priorStrength},{lineYards:1,pointsPerGame:1})}:p);
+    const advanced=normalizeAdvancedStats(stats.map(row=>({gameId:row.gameId,team:row.team,opponent:row.opponent,offense:{lineYards:3,plays:60,drives:12},defense:{lineYards:3,plays:60,drives:12}})),games,season);
+    return buildSeasonArtifacts(games,stats,advanced,[],season,eligible,priors);
+  };
+  const low=run(2026,.7),high=run(2026,1.4);
+  for(const week of [1,2,3])assert.notDeepEqual(low.predictions.find(p=>p.week===week),high.predictions.find(p=>p.week===week));
+  assert.deepEqual(low.profiles.filter(p=>p.week===3),high.profiles.filter(p=>p.week===3));
+  assert.deepEqual(low.advancedProfiles.filter(p=>p.week===3),high.advancedProfiles.filter(p=>p.week===3));
+  assert.deepEqual(low.predictions.find(p=>p.week===4),high.predictions.find(p=>p.week===4));
+  assert.notDeepEqual(run(2025,.7).predictions.find(p=>p.week===4),run(2025,1.4).predictions.find(p=>p.week===4));
 });

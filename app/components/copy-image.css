@@ -1,0 +1,7 @@
+.copy-image-control{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:Consolas,monospace}
+.copy-image-control button{padding:8px 12px;border:1px solid var(--app-border,#6f746f);border-radius:5px;background:var(--app-panel,#151714);color:var(--app-ink,#f4f3e9);font:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.copy-image-control button:disabled{opacity:.55;cursor:default}
+.copy-image-status{font-size:11px;max-width:300px}
+.copy-image-status:empty{display:none}
+.weekly-mini-spider .copy-image-control{justify-content:center}
+.weekly-mini-spider .copy-image-control button{padding:3px 5px;font-size:8px}

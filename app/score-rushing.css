@@ -1,0 +1,846 @@
+/* Dense Scores layout and shared, keyboard-accessible team links. */
+a[data-team-link] { cursor:pointer; text-decoration:none; color:inherit; pointer-events:auto!important; }
+a[data-team-link]:focus-visible { outline:2px solid var(--app-ink,#fff); outline-offset:3px; }
+a[data-team-link]:hover { filter:brightness(1.12); }
+.team-action { position:relative; }
+.team-action>.team-action-target { position:absolute!important; inset:0; width:100%; height:100%; margin:0; padding:0; border:0; background:transparent; cursor:pointer; z-index:1; }
+.team-action a[data-team-link] { position:relative; z-index:2; }
+.team-action:focus-within { outline:2px solid var(--app-ink); outline-offset:2px; }
+a.team-logo, a.season-team-mark { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; }
+a.team-logo>img, a.season-team-mark>img, a.midfield-logo>img { display:block; width:100%; height:100%; object-fit:contain; }
+a.depth-field-watermark>img { width:100%; height:100%; object-fit:contain; }
+.team-page-tabs { flex-wrap:wrap; }
+.rushing-panel { padding:16px; color:var(--app-ink); }
+.rushing-panel h2 { margin:0 0 6px; font-size:22px; }
+.rushing-panel h3 { margin:0 0 12px; font-size:17px; }
+.rushing-panel h4 { margin:0 0 10px; font-size:15px; }
+.rushing-panel p { font-size:14px; line-height:1.5; }
+.rushing-panel .rushing-note { color:var(--app-muted); font-size:13px; line-height:1.5; }
+.rushing-controls { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }
+.rushing-controls label { display:grid; gap:6px; flex:1 1 180px; font-size:14px; }
+.rushing-controls select { width:100%; min-height:44px; padding:8px; border:1px solid var(--app-line-strong); background:var(--app-panel); color:var(--app-ink); font-size:16px; }
+.rushing-record { padding:16px 0; border-top:1px solid var(--app-line); }
+.rushing-units { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.rushing-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin:0 0 14px; }
+.rushing-metrics>div { padding:8px; background:var(--app-panel); border:1px solid var(--app-line); }
+.rushing-metrics dt { font-size:12px; color:var(--app-muted); line-height:1.4; }
+.rushing-metrics dd { margin:5px 0 0; font-size:16px; font-variant-numeric:tabular-nums; }
+.rushing-table-wrap { overflow-x:auto; }
+.rushing-table-wrap table { width:100%; border-collapse:collapse; font-size:13px; }
+.rushing-table-wrap :is(th,td) { padding:8px; border-bottom:1px solid var(--app-line); text-align:right; white-space:nowrap; }
+.rushing-table-wrap th:first-child { text-align:left; }
+.rushing-table-wrap caption { padding:8px 0; text-align:left; font-size:14px; }
+.rushing-panel>button { min-height:44px; padding:10px 16px; border:1px solid var(--app-line-strong); color:var(--app-ink); background:var(--app-panel); cursor:pointer; }
+@media(max-width:640px) { .rushing-units { grid-template-columns:1fr; } .rushing-panel { padding:12px; } }
+.app-theme-toggle { border-color:transparent!important; }
+.app-theme-toggle:hover,.app-theme-toggle:focus-visible { border-color:transparent!important; }
+html[data-theme="light"] .app-theme-toggle { border-color:transparent!important; }
+
+/* Compact five-column college-football matchup ledger. */
+.app-page-slot > .schedule-page.scores {
+  width:min(calc(100% - 28px),1320px)!important;
+  max-width:1320px!important;
+  margin-left:14px!important;
+  margin-right:auto!important;
+  padding-top:12px;
+}
+.app-page-slot .schedule-page.scores > .section-kicker { margin-bottom:3px; font-size:11px; }
+.app-page-slot .schedule-page.scores > .section-title-row { align-items:center; margin-bottom:7px; }
+.app-page-slot .schedule-page.scores > .section-title-row h1 { font-size:18px; line-height:1; }
+.app-page-slot .schedule-page.scores > .section-title-row h1::after { display:none!important; content:none!important; }
+.app-page-slot .schedule-page.scores > .section-title-row p { max-width:520px; color:var(--app-muted); font-size:12px; }
+.app-page-slot .schedule-page.scores .scores-rankings-tabs { margin-left:auto; }
+.app-page-slot .schedule-page.scores .scores-rankings-tabs button { min-height:30px; padding:5px 10px; font-size:11px; }
+
+.app-page-slot .schedule-page.scores .scores-toolbar-shell {
+  position:relative;
+  z-index:6;
+  width:max-content;
+  max-width:100%;
+}
+.app-page-slot .schedule-page.scores .scores-compact-toolbar {
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:5px;
+  width:max-content;
+  max-width:100%;
+  margin:0 0 10px;
+}
+.app-page-slot .schedule-page.scores .scores-week-label {
+  margin-right:1px;
+  color:var(--app-muted);
+  font:600 11px/1 var(--font-geist-sans);
+}
+.app-page-slot .schedule-page.scores :is(.scores-week-select,.scores-season-select) {
+  appearance:auto!important;
+  -webkit-appearance:menulist!important;
+  box-sizing:border-box!important;
+  min-height:30px;
+  height:30px;
+  padding:0 18px 0 7px!important;
+  text-indent:0!important;
+  border:1px solid var(--app-line);
+  border-radius:6px;
+  background-color:var(--app-panel);
+  color:var(--app-ink-soft);
+  font-family:var(--font-geist-sans)!important;
+  font-size:12px!important;
+  font-weight:650!important;
+  line-height:normal!important;
+}
+.app-page-slot .schedule-page.scores .scores-week-select { width:52px!important; min-width:52px!important; }
+.app-page-slot .schedule-page.scores .scores-season-select { width:78px!important; min-width:78px!important; }
+.app-page-slot .schedule-page.scores :is(.scores-week-select,.scores-season-select):focus-visible {
+  outline:2px solid var(--app-ink);
+  outline-offset:2px;
+}
+.app-page-slot .schedule-page.scores .scores-compact-toolbar .schedule-filter-toggle {
+  position:relative;
+  min-width:30px;
+  width:30px;
+  min-height:30px;
+  display:flex;
+  grid-template-columns:1fr!important;
+  grid-template-rows:1fr!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:5px;
+  border:1px solid var(--app-line);
+  border-radius:6px;
+  background:var(--app-panel);
+  color:var(--app-ink-soft);
+}
+.app-page-slot .schedule-page.scores .scores-compact-toolbar .schedule-filter-toggle:hover,
+.app-page-slot .schedule-page.scores .scores-compact-toolbar .schedule-filter-toggle[aria-expanded="true"] { border-color:var(--app-line-strong); background:var(--app-panel-soft); }
+.app-page-slot .schedule-page.scores .scores-compact-toolbar .schedule-filter-toggle svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round; }
+.app-page-slot .schedule-page.scores .scores-compact-toolbar .schedule-filter-toggle svg { display:block; margin:auto; }
+.app-page-slot .schedule-page.scores .scores-compact-toolbar .schedule-filter-toggle b {
+  position:absolute;
+  top:-5px;
+  right:-5px;
+  min-width:15px;
+  height:15px;
+  display:grid;
+  place-items:center;
+  padding:0 3px;
+  border-radius:999px;
+  background:var(--app-positive);
+  color:#07130b;
+  font:800 10px/1 var(--font-geist-mono);
+}
+.app-page-slot .schedule-page.scores .schedule-filter-panel { display:none; }
+.app-page-slot .schedule-page.scores .schedule-filter-panel.open {
+  position:absolute;
+  top:36px;
+  left:0;
+  width:min(310px,calc(100vw - 36px));
+  display:block;
+  margin:0;
+  z-index:30;
+}
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter {
+  max-width:none;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+  padding:12px;
+  border:1px solid var(--app-line-strong);
+  border-radius:8px;
+  background:var(--app-panel);
+  box-shadow:0 14px 36px rgba(0,0,0,.38);
+}
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter header {
+  grid-column:1/-1;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter header div { display:grid; gap:3px; }
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter header strong { font:800 12px/1 var(--font-geist-sans); }
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter header small { color:var(--app-muted); font-size:11px; }
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter header button {
+  width:24px;
+  height:24px;
+  border:1px solid var(--app-line);
+  border-radius:5px;
+  background:transparent;
+  color:var(--app-muted);
+  font:500 18px/1 var(--font-geist-sans);
+  cursor:pointer;
+}
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter-control { min-width:0; }
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter-control label { font-size:10px; }
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter-control select { min-height:32px; padding:5px 7px; font-size:12px; }
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter-status { display:none; }
+.app-page-slot .schedule-page.scores .schedule-filter-panel .schedule-filter-done { min-height:34px; font-size:11px; }
+
+.app-page-slot .schedule-page.scores .score-window-board {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),400px));
+  align-items:start;
+  gap:8px;
+}
+.app-page-slot .schedule-page.scores .score-calendar-day + .score-calendar-day { margin-top:22px; }
+.app-page-slot .schedule-page.scores .score-calendar-day > h2 {
+  margin:0 0 10px;
+  padding:0 0 7px;
+  border-bottom:1px solid var(--app-line);
+  color:var(--app-ink);
+  font:750 15px/1.3 var(--font-geist-sans);
+}
+.app-page-slot .schedule-page.scores .mobile-score-day + .mobile-score-day { margin-top:0; }
+.app-page-slot .schedule-page.scores .score-window-column {
+  min-width:0;
+  padding:7px;
+  border-radius:8px;
+  background:var(--app-panel-inset);
+}
+.app-page-slot .schedule-page.scores .mobile-score-day > h2 {
+  width:100%;
+  display:flex;
+  justify-content:flex-start;
+  gap:8px;
+  margin:0 0 7px;
+  padding:2px 1px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--app-ink-soft);
+  font:750 10px/1.1 var(--font-geist-sans);
+  letter-spacing:.015em;
+}
+.app-page-slot .schedule-page.scores .mobile-score-day > div {
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-auto-flow:row!important;
+  gap:8px;
+}
+.app-page-slot .schedule-page.scores .mobile-game-card-shell { min-width:0; border-radius:8px; }
+.app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card,
+.app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card:hover,
+.app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card:focus-visible,
+.app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card.loss,
+.app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card.loss:hover,
+.app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card.loss:focus-visible {
+  overflow:hidden;
+  border:1px solid rgba(157,190,165,.25)!important;
+  border-radius:8px;
+  background:#111714!important;
+  background-image:none!important;
+  box-shadow:0 4px 14px rgba(0,0,0,.18)!important;
+}
+.app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card:hover,
+.app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card:focus-visible { border-color:rgba(175,211,183,.48)!important; }
+.app-page-slot .schedule-page.scores .score-card-head {
+  min-height:28px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:5px 8px 3px;
+  background:transparent;
+}
+.app-page-slot .schedule-page.scores .score-card-head > span { min-width:0; display:flex; align-items:center; gap:5px; }
+.app-page-slot .schedule-page.scores .score-card-head i { width:6px; height:6px; flex:0 0 6px; border-radius:50%; background:var(--app-faint); }
+.app-page-slot .schedule-page.scores .score-card-head strong { overflow:hidden; color:var(--app-ink-soft); font:650 9px/1 var(--font-geist-sans); text-overflow:ellipsis; white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-card-head small { flex:0 0 auto; color:var(--app-faint); font:650 9px/1 var(--font-geist-sans); }
+.app-page-slot .schedule-page.scores .score-card-ledger-head {
+  min-width:0;
+  display:grid;
+  grid-template-columns:46px minmax(70px,1fr) 34px 46px 50px;
+  align-items:center;
+  gap:4px;
+  margin:0 5px;
+  padding:6px 0 4px;
+  border:1px solid rgba(227,239,227,.16);
+  border-bottom:0;
+  border-radius:7px 7px 0 0;
+}
+.app-page-slot .schedule-page.scores .score-card-ledger-head strong { grid-column:1/3; padding-left:7px; color:var(--app-muted); font:500 9px/1 var(--font-geist-sans); }
+.app-page-slot .schedule-page.scores .score-card-ledger-head small { color:var(--app-muted); font:600 8px/1 var(--font-geist-sans); text-align:center; }
+.app-page-slot .schedule-page.scores .score-card-teams { padding:0; }
+.app-page-slot .schedule-page.scores .score-card-team {
+  min-width:0;
+  min-height:42px;
+  display:grid;
+  grid-template-columns:46px minmax(70px,1fr) 34px 46px 50px;
+  align-items:center;
+  gap:4px;
+  margin:0 5px;
+  padding:3px 0;
+  border-left:1px solid rgba(227,239,227,.16);
+  border-right:1px solid rgba(227,239,227,.16);
+}
+.app-page-slot .schedule-page.scores .score-card-team + .score-card-team {
+  border-top:1px solid rgba(227,239,227,.08);
+  border-bottom:1px solid rgba(227,239,227,.16);
+  border-radius:0 0 7px 7px;
+}
+.app-page-slot .schedule-page.scores .score-card-team .team-mark-sm {
+  width:34px!important;
+  height:34px!important;
+  flex-basis:34px!important;
+  justify-self:center;
+  margin:0!important;
+}
+.app-page-slot .schedule-page.scores .score-card-logo {
+  position:relative;
+  display:grid;
+  align-items:center;
+  justify-items:end;
+  width:100%;
+  min-width:0;
+  height:40px;
+}
+.app-page-slot .schedule-page.scores .score-card-logo > .team-mark { justify-self:end; }
+.app-page-slot .schedule-page.scores .score-card-logo-rank {
+  position:absolute;
+  top:1px;
+  left:2px;
+  z-index:1;
+  color:var(--app-ink);
+  font:800 10px/1 var(--font-geist-mono);
+  font-style:normal;
+  white-space:nowrap;
+}
+.app-page-slot .schedule-page.scores .score-card-team-copy {
+  width:100%;
+  min-width:0;
+  justify-self:stretch;
+  padding:0 1px 0 3px;
+}
+.app-page-slot .schedule-page.scores .score-card-team .mobile-game-team-title { flex-wrap:nowrap; gap:4px; }
+.app-page-slot .schedule-page.scores .score-card-team .mobile-game-team-title strong {
+  min-width:0;
+  overflow:hidden;
+  font-size:10px!important;
+  line-height:1.12;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.app-page-slot .schedule-page.scores .score-card-team .mobile-game-team-rank { flex:0 0 auto; font-size:8px; }
+.app-page-slot .schedule-page.scores .score-card-team > .score-card-team-copy > small {
+  margin-top:2px;
+  overflow:hidden;
+  font-size:8px!important;
+  line-height:1.15;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.app-page-slot .schedule-page.scores .score-card-value {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  overflow:hidden;
+  text-align:center;
+  font-variant-numeric:tabular-nums;
+}
+.app-page-slot .schedule-page.scores .score-card-value b { max-width:100%; overflow:hidden; color:var(--app-ink-soft); font:700 10px/1 var(--font-geist-sans); text-overflow:ellipsis; white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-card-value small { color:var(--app-faint); font:550 8px/1 var(--font-geist-sans); white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-card-score b { font-size:14px; }
+.app-page-slot .schedule-page.scores .score-card-team.loser .score-card-score b { color:var(--app-faint); }
+.app-page-slot .schedule-page.scores .score-card-team.winner .score-card-score b { color:var(--app-ink); }
+.app-page-slot .schedule-page.scores .score-card-model { align-self:stretch; margin:0 3px 0 0; border-radius:6px; background:rgba(255,255,255,.035); }
+.app-page-slot .schedule-page.scores .score-card-value.spread b { color:#a7dcb6; }
+.app-page-slot .schedule-page.scores .score-card-stat-ledger {
+  display:block;
+  margin:6px 5px 5px;
+  padding:5px 7px 3px;
+  border:1px solid var(--app-line);
+  border-radius:6px;
+  background:var(--app-panel-raised);
+  color:var(--app-ink-soft);
+  font:600 10px/1.2 var(--font-geist-sans);
+  font-variant-numeric:tabular-nums;
+}
+.app-page-slot .schedule-page.scores :is(.score-card-stat-labels,.score-card-stat-line) {
+  display:grid;
+  grid-template-columns:minmax(42px,.9fr) repeat(3,minmax(52px,1fr));
+  align-items:center;
+  gap:2px;
+  padding:4px 0;
+  text-align:center;
+}
+.app-page-slot .schedule-page.scores .score-card-stat-labels { color:var(--app-muted);font-size:9px;letter-spacing:.03em; }
+.app-page-slot .schedule-page.scores .score-card-stat-line + .score-card-stat-line { border-top:1px solid var(--app-line); }
+.app-page-slot .schedule-page.scores :is(.score-card-stat-labels,.score-card-stat-line) > :first-child { overflow:hidden;text-align:left;text-overflow:ellipsis;white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-card-stat-line > strong { color:var(--app-ink-soft);font-size:10px; }
+.app-page-slot .schedule-page.scores .score-card-stat-cell { min-width:0;display:grid;gap:2px;padding:2px 4px;border-left:1px solid var(--app-line);font-variant-numeric:tabular-nums; }
+.app-page-slot .schedule-page.scores :is(.score-card-stat-actual,.score-card-stat-projected) { display:flex;align-items:baseline;justify-content:space-between;gap:3px;white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-card-stat-cell small { color:var(--app-muted);font:700 8px/1 var(--font-geist-sans); }
+.app-page-slot .schedule-page.scores .score-card-stat-cell b { color:var(--app-ink);font:750 11px/1.1 var(--font-geist-sans); }
+.app-page-slot .schedule-page.scores .score-card-stat-projected b { color:var(--app-muted);font-weight:650; }
+.app-page-slot .schedule-page.scores .score-card-stat-projected:only-child b { color:var(--app-ink); }
+.app-page-slot .schedule-page.scores .score-play-by-play {
+  position:relative;
+  margin-top:14px;
+  overflow:hidden;
+  border:1px solid var(--app-line-strong);
+  border-radius:10px;
+  background:var(--app-panel-raised);
+  box-shadow:0 10px 28px rgba(0,0,0,.16);
+}
+.app-page-slot .schedule-page.scores .score-play-by-play::before {
+  position:absolute;
+  inset:0 auto 0 0;
+  width:4px;
+  background:var(--app-positive);
+  content:"";
+  pointer-events:none;
+}
+.app-page-slot .schedule-page.scores .score-play-by-play.open {
+  border-color:color-mix(in srgb,var(--app-positive) 45%,var(--app-line-strong));
+}
+.app-page-slot .schedule-page.scores .score-play-by-play.unavailable::before {
+  background:var(--app-faint);
+  overflow:hidden;
+}
+.app-page-slot .schedule-page.scores .score-pbp-toggle {
+  width:100%;
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:11px 15px 11px 19px;
+  border:0;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--app-positive) 7%,var(--app-panel-raised)),var(--app-panel-raised) 46%);
+  color:var(--app-ink-soft);
+  text-align:left;
+  cursor:pointer;
+}
+.app-page-slot .schedule-page.scores .score-pbp-toggle:hover,
+.app-page-slot .schedule-page.scores .score-pbp-toggle:focus-visible,
+.app-page-slot .schedule-page.scores .score-play-by-play.open .score-pbp-toggle { background:var(--app-panel-soft); }
+.app-page-slot .schedule-page.scores .score-pbp-toggle:focus-visible { position:relative; z-index:1; outline:2px solid var(--app-positive); outline-offset:-2px; }
+.app-page-slot .schedule-page.scores .score-pbp-toggle:disabled { cursor:not-allowed; opacity:.55; }
+.app-page-slot .schedule-page.scores .score-pbp-toggle > span { min-width:0; display:grid; grid-template-columns:auto 1fr; align-items:baseline; gap:4px 12px; }
+.app-page-slot .schedule-page.scores .score-pbp-toggle b { color:var(--app-ink); font:850 15px/1 var(--font-geist-sans); letter-spacing:.015em; }
+.app-page-slot .schedule-page.scores .score-pbp-toggle small { grid-column:1/-1; color:var(--app-positive); font:850 9px/1 var(--font-geist-mono); letter-spacing:.12em; }
+.app-page-slot .schedule-page.scores .score-pbp-toggle em { min-width:0; overflow:hidden; color:var(--app-muted); font:650 11px/1.2 var(--font-geist-sans); font-style:normal; text-overflow:ellipsis; white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-pbp-toggle > i { width:29px; height:29px; flex:0 0 29px; display:grid; place-items:center; border:1px solid var(--app-line-strong); border-radius:50%; color:var(--app-positive); font:700 21px/1 var(--font-geist-sans); font-style:normal; }
+.app-page-slot .schedule-page.scores .score-pbp-body { padding:12px; border-top:1px solid var(--app-line); background:var(--app-panel-inset); }
+.app-page-slot .schedule-page.scores .score-pbp-status { margin:0; padding:18px; color:var(--app-muted); font-size:13px; line-height:1.45; }
+.app-page-slot .schedule-page.scores .score-pbp-status.error { color:var(--app-negative); }
+.app-page-slot .schedule-page.scores .score-pbp-overview {
+  display:flex;
+  align-items:stretch;
+  justify-content:space-between;
+  gap:18px;
+  padding:15px 16px;
+  border:1px solid var(--app-line);
+  border-radius:9px;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--app-positive) 8%,var(--app-panel)),var(--app-panel) 58%);
+}
+.app-page-slot .schedule-page.scores .score-pbp-overview > div { min-width:0; }
+.app-page-slot .schedule-page.scores .score-pbp-overview > div > small { display:block; margin-bottom:6px; color:var(--app-positive); font:850 9px/1 var(--font-geist-mono); letter-spacing:.12em; }
+.app-page-slot .schedule-page.scores .score-pbp-overview > div > strong { color:var(--app-ink); font:900 21px/1 var(--font-geist-sans); letter-spacing:.015em; }
+.app-page-slot .schedule-page.scores .score-pbp-overview > div > strong i { margin:0 5px; color:var(--app-faint); font:650 12px/1 var(--font-geist-sans); font-style:normal; text-transform:uppercase; }
+.app-page-slot .schedule-page.scores .score-pbp-overview p { max-width:610px; margin:7px 0 0; color:var(--app-muted); font-size:12px; line-height:1.42; }
+.app-page-slot .schedule-page.scores .score-pbp-overview dl { flex:0 0 auto; display:grid; grid-template-columns:repeat(3,minmax(58px,1fr)); gap:6px; margin:0; }
+.app-page-slot .schedule-page.scores .score-pbp-overview dl > div { min-width:58px; display:grid; align-content:center; gap:5px; padding:8px 10px; border:1px solid var(--app-line); border-radius:7px; background:var(--app-panel-inset); text-align:center; }
+.app-page-slot .schedule-page.scores .score-pbp-overview dt { color:var(--app-faint); font:800 8px/1 var(--font-geist-mono); letter-spacing:.09em; }
+.app-page-slot .schedule-page.scores .score-pbp-overview dd { margin:0; color:var(--app-ink); font:900 17px/1 var(--font-geist-mono); }
+.app-page-slot .schedule-page.scores .score-pbp-accounting { margin-top:10px; overflow:hidden; border:1px solid var(--app-line); border-radius:9px; background:var(--app-panel); }
+.app-page-slot .schedule-page.scores .score-pbp-accounting > header {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  border-bottom:1px solid var(--app-line);
+}
+.app-page-slot .schedule-page.scores .score-pbp-accounting > header > div { min-width:0; display:grid; gap:5px; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting > header b { color:var(--app-ink); font:850 11px/1 var(--font-geist-sans); letter-spacing:.055em; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting > header small { color:var(--app-muted); font-size:11px; line-height:1.35; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting > header > span { flex:0 0 auto; padding:5px 7px; border:1px solid color-mix(in srgb,var(--app-negative) 55%,var(--app-line)); border-radius:999px; color:var(--app-negative); font:850 8px/1 var(--font-geist-mono); letter-spacing:.08em; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; background:var(--app-line); }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card { min-width:0; padding:13px 14px 11px; background:var(--app-panel-raised); }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card > header { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card > header > span { min-width:0; display:grid; gap:3px; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card > header small { color:var(--app-faint); font:800 8px/1 var(--font-geist-mono); letter-spacing:.1em; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card > header strong { overflow:hidden; color:var(--app-ink); font:900 16px/1 var(--font-geist-sans); text-overflow:ellipsis; white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card > header > b { flex:0 0 auto; color:var(--app-negative); font:850 9px/1 var(--font-geist-mono); }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card > header > b i { margin:0 3px; color:var(--app-faint); font-style:normal; }
+.app-page-slot .schedule-page.scores .score-pbp-transfer { display:grid; gap:6px; margin:11px 0 10px; }
+.app-page-slot .schedule-page.scores .score-pbp-transfer-line { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr); align-items:stretch; gap:6px; }
+.app-page-slot .schedule-page.scores .score-pbp-transfer-line > span { min-width:0; display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:4px 8px; padding:8px; border:1px solid var(--app-line); border-radius:6px; background:var(--app-panel-inset); }
+.app-page-slot .schedule-page.scores .score-pbp-transfer-line > span small { overflow:hidden; color:var(--app-faint); font:800 7px/1 var(--font-geist-mono); letter-spacing:.06em; text-overflow:ellipsis; white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-pbp-transfer-line > span strong { color:var(--app-ink); font:900 14px/1 var(--font-geist-mono); }
+.app-page-slot .schedule-page.scores .score-pbp-transfer-line > span em { grid-column:1/-1; color:var(--app-muted); font:600 9px/1.2 var(--font-geist-sans); font-style:normal; }
+.app-page-slot .schedule-page.scores .score-pbp-transfer-line > i { display:grid; place-content:center; gap:3px; border-radius:6px; background:color-mix(in srgb,var(--app-negative) 9%,var(--app-panel-inset)); color:var(--app-negative); font-style:normal; text-align:center; }
+.app-page-slot .schedule-page.scores .score-pbp-transfer-line > i b { font:850 9px/1 var(--font-geist-mono); }
+.app-page-slot .schedule-page.scores .score-pbp-transfer-line > i small { color:var(--app-muted); font:750 7px/1 var(--font-geist-mono); letter-spacing:.055em; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card > footer { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--app-muted); font-size:10px; line-height:1.35; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card > footer span { min-width:0; }
+.app-page-slot .schedule-page.scores .score-pbp-accounting-card > footer small { flex:0 0 auto; color:var(--app-faint); font:750 7px/1 var(--font-geist-mono); letter-spacing:.04em; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-log { margin-top:10px; overflow:hidden; border:1px solid var(--app-line); border-radius:9px; background:var(--app-panel); }
+.app-page-slot .schedule-page.scores .score-pbp-drive-log > header { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid var(--app-line); }
+.app-page-slot .schedule-page.scores .score-pbp-drive-log > header > div { display:grid; gap:4px; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-log > header small { color:var(--app-positive); font:800 8px/1 var(--font-geist-mono); letter-spacing:.1em; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-log > header b { color:var(--app-ink); font:900 14px/1 var(--font-geist-sans); }
+.app-page-slot .schedule-page.scores .score-pbp-drive-log > header > span { color:var(--app-muted); font-size:11px; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-log > div { max-height:660px; padding:8px; overflow-y:auto; overscroll-behavior:contain; }
+.app-page-slot .schedule-page.scores .score-pbp-drive { overflow:hidden; border:1px solid var(--app-line); border-radius:7px; background:var(--app-panel-raised); }
+.app-page-slot .schedule-page.scores .score-pbp-drive + .score-pbp-drive { margin-top:7px; }
+.app-page-slot .schedule-page.scores .score-pbp-drive > summary { min-height:55px; display:grid; grid-template-columns:43px minmax(0,1fr) minmax(115px,auto) 20px; align-items:center; gap:10px; padding:8px 11px; background:var(--app-panel-soft); color:var(--app-ink-soft); cursor:pointer; list-style:none; }
+.app-page-slot .schedule-page.scores .score-pbp-drive > summary::-webkit-details-marker { display:none; }
+.app-page-slot .schedule-page.scores .score-pbp-drive > summary:focus-visible { outline:2px solid var(--app-positive); outline-offset:-2px; }
+.app-page-slot .schedule-page.scores .score-pbp-drive[open] > summary { border-bottom:1px solid var(--app-line); }
+.app-page-slot .schedule-page.scores .score-pbp-drive-number { display:grid; align-content:center; align-self:stretch; border-right:1px solid var(--app-line); }
+.app-page-slot .schedule-page.scores .score-pbp-drive-number small { color:var(--app-faint); font:750 7px/1 var(--font-geist-mono); letter-spacing:.08em; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-number strong { margin-top:4px; color:var(--app-ink); font:900 16px/1 var(--font-geist-mono); }
+.app-page-slot .schedule-page.scores .score-pbp-drive-team { min-width:0; display:grid; gap:5px; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-team strong { overflow:hidden; color:var(--app-ink); font:900 13px/1 var(--font-geist-sans); text-overflow:ellipsis; white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-team small { color:var(--app-muted); font:650 10px/1.15 var(--font-geist-sans); white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-result { min-width:0; display:grid; gap:5px; text-align:right; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-result b { overflow:hidden; color:var(--app-positive); font:850 10px/1 var(--font-geist-mono); text-overflow:ellipsis; white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-result small { color:var(--app-muted); font:700 9px/1 var(--font-geist-mono); white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-pbp-drive-chevron { color:var(--app-positive); font:700 23px/1 var(--font-geist-sans); font-style:normal; transform:rotate(0deg); transition:transform .16s ease; }
+.app-page-slot .schedule-page.scores .score-pbp-drive[open] .score-pbp-drive-chevron { transform:rotate(90deg); }
+.app-page-slot .schedule-page.scores .score-pbp-plays { display:grid; gap:0; margin:0; padding:0; list-style:none; }
+.app-page-slot .schedule-page.scores .score-pbp-play { min-width:0; padding:11px 13px; background:var(--app-panel); }
+.app-page-slot .schedule-page.scores .score-pbp-play + .score-pbp-play { border-top:1px solid var(--app-line); }
+.app-page-slot .schedule-page.scores .score-pbp-play.sack { box-shadow:inset 4px 0 0 var(--app-negative); background:color-mix(in srgb,var(--app-negative) 8%,var(--app-panel)); }
+.app-page-slot .schedule-page.scores .score-pbp-play.scoring { box-shadow:inset 3px 0 0 var(--app-positive); }
+.app-page-slot .schedule-page.scores .score-pbp-play.sack.scoring { box-shadow:inset 3px 0 0 var(--app-negative),inset 6px 0 0 var(--app-positive); }
+.app-page-slot .schedule-page.scores .score-pbp-play > header { display:grid; grid-template-columns:90px minmax(0,1fr) 68px; align-items:center; gap:8px; }
+.app-page-slot .schedule-page.scores .score-pbp-play > header span { color:var(--app-faint); font:750 9px/1 var(--font-geist-mono); }
+.app-page-slot .schedule-page.scores .score-pbp-play > header span b { color:var(--app-ink-soft); font-weight:850; }
+.app-page-slot .schedule-page.scores .score-pbp-play > header strong { color:var(--app-ink-soft); font:800 9px/1 var(--font-geist-mono); }
+.app-page-slot .schedule-page.scores .score-pbp-play > header i { color:var(--app-muted); font:800 9px/1 var(--font-geist-mono); font-style:normal; text-align:right; }
+.app-page-slot .schedule-page.scores .score-pbp-play > p { margin:8px 0; color:var(--app-ink); font-size:13px; line-height:1.42; }
+.app-page-slot .schedule-page.scores .score-pbp-play > footer { display:flex; align-items:center; flex-wrap:wrap; gap:6px; min-width:0; }
+.app-page-slot .schedule-page.scores .score-pbp-play > footer span { min-width:0; overflow:hidden; color:var(--app-muted); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.app-page-slot .schedule-page.scores .score-pbp-play > footer b { flex:0 0 auto; padding:3px 6px; border:1px solid currentColor; border-radius:999px; color:var(--app-negative); font:850 7px/1 var(--font-geist-mono); letter-spacing:.025em; }
+.app-page-slot .schedule-page.scores .score-pbp-play.scoring > footer b:last-of-type { color:var(--app-positive); }
+.app-page-slot .schedule-page.scores .score-pbp-play > footer small { flex:0 0 auto; margin-left:auto; color:var(--app-faint); font:750 8px/1 var(--font-geist-mono); }
+.app-page-slot .schedule-page.scores .score-pbp-note { margin:10px 2px 1px; color:var(--app-muted); font-size:10px; line-height:1.4; }
+.app-page-slot .schedule-page.scores .score-wc-toggle { min-height:25px; padding:4px 7px; }
+.app-page-slot .schedule-page.scores .score-wc-toggle b { font-size:8px; }
+.app-page-slot .schedule-page.scores .score-wc-toggle small { display:none; }
+
+html[data-theme="light"] .app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card,
+html[data-theme="light"] .app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card:hover,
+html[data-theme="light"] .app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card:focus-visible,
+html[data-theme="light"] .app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card.loss {
+  border-color:var(--app-line-strong)!important;
+  background:var(--app-panel)!important;
+  box-shadow:none!important;
+}
+html[data-theme="light"] .app-page-slot .schedule-page.scores :is(.score-card-ledger-head,.score-card-team) { border-color:var(--app-line); }
+html[data-theme="light"] .app-page-slot .schedule-page.scores .score-card-team + .score-card-team { border-color:var(--app-line); }
+html[data-theme="light"] .app-page-slot .schedule-page.scores .score-card-model { background:rgba(24,23,19,.045); }
+html[data-theme="light"] .app-page-slot .schedule-page.scores .score-card-value.spread b { color:#1e6637!important; }
+html[data-theme="light"] .app-page-slot .schedule-page.scores :is(.score-play-by-play,.score-pbp-toggle,.score-pbp-accounting,.score-pbp-accounting-card,.score-pbp-drive-log,.score-pbp-drive,.score-pbp-play) { background:var(--app-panel); }
+html[data-theme="light"] .app-page-slot .schedule-page.scores :is(.score-pbp-toggle:hover,.score-pbp-toggle:focus-visible,.score-play-by-play.open .score-pbp-toggle,.score-pbp-drive > summary) { background:var(--app-panel-soft); }
+
+@media(max-width:1020px) {
+  .app-page-slot .schedule-page.scores .mobile-score-day > div { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:720px) {
+  .app-page-slot > .schedule-page.scores { width:calc(100% - 12px)!important; max-width:440px!important; margin-left:auto!important; margin-right:auto!important; padding-top:8px; }
+  .app-page-slot .schedule-page.scores > .section-title-row { align-items:stretch; }
+  .app-page-slot .schedule-page.scores .scores-rankings-tabs { margin-left:0; }
+  .app-page-slot .schedule-page.scores .score-window-board { width:100%; grid-template-columns:minmax(0,1fr); }
+  .app-page-slot .schedule-page.scores .score-window-column { width:100%; padding:4px; }
+  .app-page-slot .schedule-page.scores .mobile-game-card-shell,
+  .app-page-slot .schedule-page.scores .mobile-game-card.schedule-field-card { width:100%; }
+  .app-page-slot .schedule-page.scores .scores-compact-toolbar { align-items:center; flex-wrap:wrap; gap:6px; }
+  .app-page-slot .schedule-page.scores .schedule-filter-panel.open { left:0; }
+  .app-page-slot .schedule-page.scores .score-pbp-body { padding:8px; }
+  .app-page-slot .schedule-page.scores .score-pbp-overview { display:grid; gap:12px; padding:13px; }
+  .app-page-slot .schedule-page.scores .score-pbp-overview dl { width:100%; }
+  .app-page-slot .schedule-page.scores .score-pbp-accounting-grid { grid-template-columns:minmax(0,1fr); }
+  .app-page-slot .schedule-page.scores .score-pbp-accounting-card { padding:12px; }
+  .app-page-slot .schedule-page.scores .score-pbp-drive > summary { grid-template-columns:38px minmax(0,1fr) 17px; gap:8px; }
+  .app-page-slot .schedule-page.scores .score-pbp-drive-result { grid-column:2; display:flex; align-items:baseline; justify-content:space-between; gap:8px; text-align:left; }
+  .app-page-slot .schedule-page.scores .score-pbp-drive-chevron { grid-column:3; grid-row:1/3; }
+  .app-page-slot .schedule-page.scores .score-pbp-play > header { grid-template-columns:76px minmax(0,1fr) 60px; }
+}
+@media(max-width:400px) {
+  .app-page-slot .schedule-page.scores .score-card-ledger-head,
+  .app-page-slot .schedule-page.scores .score-card-team { grid-template-columns:44px minmax(64px,1fr) 32px 44px 48px; gap:3px; }
+  .app-page-slot .schedule-page.scores .score-card-team .team-mark-sm { width:32px!important; height:32px!important; flex-basis:32px!important; }
+  .app-page-slot .schedule-page.scores .score-card-team .mobile-game-team-title strong { font-size:9px!important; }
+  .app-page-slot .schedule-page.scores .score-card-value b { font-size:9px; }
+  .app-page-slot .schedule-page.scores .score-card-score b { font-size:13px; }
+  .app-page-slot .schedule-page.scores .score-pbp-toggle { padding-right:11px; padding-left:15px; }
+  .app-page-slot .schedule-page.scores .score-pbp-toggle em { font-size:10px; }
+  .app-page-slot .schedule-page.scores .score-pbp-overview > div > strong { font-size:18px; }
+  .app-page-slot .schedule-page.scores .score-pbp-transfer-line { grid-template-columns:minmax(0,1fr) 78px minmax(0,1fr); gap:4px; }
+  .app-page-slot .schedule-page.scores .score-pbp-transfer-line > span { display:grid; grid-template-columns:1fr; gap:4px; padding:7px 6px; }
+  .app-page-slot .schedule-page.scores .score-pbp-transfer-line > span em { grid-column:1; font-size:8px; }
+  .app-page-slot .schedule-page.scores .score-pbp-accounting > header > span,
+  .app-page-slot .schedule-page.scores .score-pbp-accounting-card > footer small { display:none; }
+}
+
+/* Game-detail drive console. Kept outside the Scores-card scope because the
+   detail route replaces the schedule container after a game is opened. */
+.app-page-slot .game-detail-page .score-play-by-play{margin-top:18px;overflow:hidden;border:1px solid var(--app-line-strong);border-radius:14px;background:var(--app-panel-raised);box-shadow:0 18px 45px rgba(0,0,0,.18)}
+.app-page-slot .game-detail-page .score-pbp-toggle{width:100%;min-height:76px;display:grid;grid-template-columns:48px minmax(0,1fr) 24px;align-items:center;gap:14px;padding:13px 18px;border:0;background:linear-gradient(110deg,color-mix(in srgb,var(--app-positive) 13%,var(--app-panel-raised)),var(--app-panel-raised) 48%);color:var(--app-ink);text-align:left;cursor:pointer}
+.app-page-slot .game-detail-page .score-pbp-toggle:focus-visible{outline:2px solid var(--app-positive);outline-offset:-3px}.app-page-slot .game-detail-page .score-pbp-toggle:disabled{cursor:not-allowed;opacity:.58}
+.app-page-slot .game-detail-page .score-pbp-toggle-icon{width:46px;height:46px;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--app-positive) 45%,var(--app-line));border-radius:10px;background:color-mix(in srgb,var(--app-positive) 10%,var(--app-panel-inset));color:var(--app-positive)}
+.app-page-slot .game-detail-page .score-pbp-toggle-icon svg{width:23px;height:23px}.app-page-slot .game-detail-page .score-pbp-toggle>span:nth-child(2){min-width:0;display:grid;gap:4px}.app-page-slot .game-detail-page .score-pbp-toggle small{color:var(--app-positive);font:850 10px/1 var(--font-geist-mono);letter-spacing:.13em}.app-page-slot .game-detail-page .score-pbp-toggle b{font:900 18px/1.1 var(--font-geist-sans);letter-spacing:.025em}.app-page-slot .game-detail-page .score-pbp-toggle em{overflow:hidden;color:var(--app-muted);font:650 13px/1.25 var(--font-geist-sans);font-style:normal;text-overflow:ellipsis;white-space:nowrap}.app-page-slot .game-detail-page .score-pbp-toggle-chevron{width:21px;height:21px;color:var(--app-positive);transition:transform .18s ease}.app-page-slot .game-detail-page .score-play-by-play.open .score-pbp-toggle-chevron{transform:rotate(180deg)}
+.app-page-slot .game-detail-page .score-pbp-body{padding:14px;border-top:1px solid var(--app-line);background:var(--app-panel-inset)}
+.app-page-slot .game-detail-page .score-pbp-overview{display:flex;align-items:stretch;justify-content:space-between;gap:18px;padding:16px;border:1px solid var(--app-line);border-radius:10px;background:linear-gradient(135deg,color-mix(in srgb,var(--app-positive) 8%,var(--app-panel)),var(--app-panel) 62%)}.app-page-slot .game-detail-page .score-pbp-overview>div{min-width:0}.app-page-slot .game-detail-page .score-pbp-overview>div>small{display:block;margin-bottom:7px;color:var(--app-positive);font:850 10px/1 var(--font-geist-mono);letter-spacing:.12em}.app-page-slot .game-detail-page .score-pbp-overview strong{color:var(--app-ink);font:900 22px/1 var(--font-geist-sans)}.app-page-slot .game-detail-page .score-pbp-overview strong i{margin:0 6px;color:var(--app-faint);font:700 12px/1 var(--font-geist-sans);font-style:normal;text-transform:uppercase}.app-page-slot .game-detail-page .score-pbp-overview p{max-width:660px;margin:8px 0 0;color:var(--app-muted);font-size:14px;line-height:1.45}.app-page-slot .game-detail-page .score-pbp-overview dl{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,minmax(65px,1fr));gap:7px;margin:0}.app-page-slot .game-detail-page .score-pbp-overview dl>div{display:grid;align-content:center;gap:6px;padding:9px;border:1px solid var(--app-line);border-radius:8px;background:var(--app-panel-inset);text-align:center}.app-page-slot .game-detail-page .score-pbp-overview dt{color:var(--app-faint);font:800 9px/1 var(--font-geist-mono);letter-spacing:.1em}.app-page-slot .game-detail-page .score-pbp-overview dd{margin:0;color:var(--app-ink);font:900 18px/1 var(--font-geist-mono)}
+.app-page-slot .game-detail-page .score-pbp-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}.app-page-slot .game-detail-page .score-pbp-tabs button{min-height:58px;display:flex;align-items:center;gap:10px;padding:10px 13px;border:1px solid var(--app-line);border-radius:9px;background:var(--app-panel);color:var(--app-muted);text-align:left;cursor:pointer}.app-page-slot .game-detail-page .score-pbp-tabs button[aria-selected="true"]{border-color:color-mix(in srgb,var(--app-positive) 55%,var(--app-line));background:color-mix(in srgb,var(--app-positive) 10%,var(--app-panel));color:var(--app-positive);box-shadow:inset 0 -3px 0 var(--app-positive)}.app-page-slot .game-detail-page .score-pbp-tabs svg{width:20px;height:20px;flex:0 0 auto}.app-page-slot .game-detail-page .score-pbp-tabs span{display:grid;gap:4px}.app-page-slot .game-detail-page .score-pbp-tabs b{color:var(--app-ink);font:850 12px/1 var(--font-geist-sans);letter-spacing:.05em}.app-page-slot .game-detail-page .score-pbp-tabs small{font-size:12px}
+.app-page-slot .game-detail-page .score-pbp-workspace{display:grid;grid-template-columns:minmax(235px,285px) minmax(0,1fr);gap:10px}.app-page-slot .game-detail-page .score-pbp-drive-browser,.app-page-slot .game-detail-page .score-pbp-drive-console,.app-page-slot .game-detail-page .score-pbp-accounting{overflow:hidden;border:1px solid var(--app-line);border-radius:10px;background:var(--app-panel)}.app-page-slot .game-detail-page .score-pbp-drive-browser>header{display:flex;align-items:end;justify-content:space-between;gap:8px;padding:12px 13px;border-bottom:1px solid var(--app-line)}.app-page-slot .game-detail-page .score-pbp-drive-browser>header div{display:grid;gap:4px}.app-page-slot .game-detail-page .score-pbp-drive-browser>header small{color:var(--app-positive);font:800 9px/1 var(--font-geist-mono);letter-spacing:.1em}.app-page-slot .game-detail-page .score-pbp-drive-browser>header strong{font:900 14px/1 var(--font-geist-sans)}.app-page-slot .game-detail-page .score-pbp-drive-browser>header>span{color:var(--app-muted);font-size:11px}.app-page-slot .game-detail-page .score-pbp-quarter-filter{display:flex;gap:5px;padding:9px;border-bottom:1px solid var(--app-line);overflow-x:auto}.app-page-slot .game-detail-page .score-pbp-quarter-filter button{min-width:38px;padding:6px 7px;border:1px solid var(--app-line);border-radius:999px;background:var(--app-panel-inset);color:var(--app-muted);font:800 9px/1 var(--font-geist-mono);cursor:pointer}.app-page-slot .game-detail-page .score-pbp-quarter-filter button[aria-pressed="true"]{border-color:var(--app-positive);background:var(--app-positive);color:var(--app-panel-inset)}.app-page-slot .game-detail-page .score-pbp-drive-grid{max-height:585px;display:grid;gap:6px;padding:8px;overflow-y:auto}.app-page-slot .game-detail-page .score-pbp-drive-tile{position:relative;width:100%;display:grid;gap:6px;padding:11px 10px 10px 14px;border:1px solid var(--app-line);border-radius:8px;background:var(--app-panel-raised);color:var(--app-ink);text-align:left;cursor:pointer}.app-page-slot .game-detail-page .score-pbp-drive-tile::before{position:absolute;inset:0 auto 0 0;width:4px;border-radius:8px 0 0 8px;background:var(--app-faint);content:""}.app-page-slot .game-detail-page .score-pbp-drive-tile[data-tone="score"]::before{background:var(--app-positive)}.app-page-slot .game-detail-page .score-pbp-drive-tile[data-tone="turnover"]::before{background:var(--app-negative)}.app-page-slot .game-detail-page .score-pbp-drive-tile[data-tone="punt"]::before{background:#bd8a3c}.app-page-slot .game-detail-page .score-pbp-drive-tile[aria-pressed="true"]{border-color:var(--app-positive);background:color-mix(in srgb,var(--app-positive) 9%,var(--app-panel-raised));box-shadow:0 0 0 1px color-mix(in srgb,var(--app-positive) 35%,transparent)}.app-page-slot .game-detail-page .score-pbp-drive-tile>span{display:flex;align-items:center;justify-content:space-between;gap:8px}.app-page-slot .game-detail-page .score-pbp-drive-tile>span small{color:var(--app-faint);font:800 8px/1 var(--font-geist-mono);letter-spacing:.08em}.app-page-slot .game-detail-page .score-pbp-drive-tile>span strong{font:900 12px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-drive-tile>b{overflow:hidden;font:850 13px/1.15 var(--font-geist-sans);text-overflow:ellipsis;white-space:nowrap}.app-page-slot .game-detail-page .score-pbp-drive-tile>small,.app-page-slot .game-detail-page .score-pbp-drive-tile>em{color:var(--app-muted);font-size:11px;font-style:normal}
+.app-page-slot .game-detail-page .score-pbp-drive-console>header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:15px 17px;border-bottom:1px solid var(--app-line);background:var(--app-panel-soft)}.app-page-slot .game-detail-page .score-pbp-drive-console>header>div{min-width:0}.app-page-slot .game-detail-page .score-pbp-drive-console>header small{color:var(--app-positive);font:800 9px/1 var(--font-geist-mono);letter-spacing:.1em}.app-page-slot .game-detail-page .score-pbp-drive-console h3{margin:7px 0 5px;color:var(--app-ink);font:900 22px/1.05 var(--font-geist-sans)}.app-page-slot .game-detail-page .score-pbp-drive-console header p{margin:0;color:var(--app-muted);font-size:13px}.app-page-slot .game-detail-page .score-pbp-drive-console dl{display:grid;grid-template-columns:repeat(3,minmax(58px,1fr));gap:6px;margin:0}.app-page-slot .game-detail-page .score-pbp-drive-console dl div{display:grid;gap:5px;padding:8px;border:1px solid var(--app-line);border-radius:7px;background:var(--app-panel-inset);text-align:center}.app-page-slot .game-detail-page .score-pbp-drive-console dt{color:var(--app-faint);font:800 8px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-drive-console dd{margin:0;color:var(--app-ink);font:850 11px/1.2 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-plays{max-height:585px;padding:8px 12px 8px 8px;overflow-y:auto}.app-page-slot .game-detail-page .score-pbp-play{position:relative;display:grid;grid-template-columns:34px minmax(0,1fr);gap:8px;padding:9px 0;background:transparent}.app-page-slot .game-detail-page .score-pbp-play-index{position:relative;display:grid;justify-items:center}.app-page-slot .game-detail-page .score-pbp-play-index b{z-index:1;width:27px;height:27px;display:grid;place-items:center;border:1px solid var(--app-line-strong);border-radius:50%;background:var(--app-panel-soft);color:var(--app-ink);font:850 9px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-play-index i{position:absolute;top:27px;bottom:-18px;width:1px;background:var(--app-line)}.app-page-slot .game-detail-page .score-pbp-play:last-child .score-pbp-play-index i{display:none}.app-page-slot .game-detail-page .score-pbp-play-content{min-width:0;padding:11px 13px;border:1px solid var(--app-line);border-radius:8px;background:var(--app-panel-raised)}.app-page-slot .game-detail-page .score-pbp-play.sack .score-pbp-play-content{border-color:color-mix(in srgb,var(--app-negative) 55%,var(--app-line));box-shadow:inset 4px 0 0 var(--app-negative)}.app-page-slot .game-detail-page .score-pbp-play.scoring .score-pbp-play-content{box-shadow:inset 4px 0 0 var(--app-positive)}.app-page-slot .game-detail-page .score-pbp-play-content>header{display:grid;grid-template-columns:110px minmax(0,1fr) 60px;align-items:center;gap:8px}.app-page-slot .game-detail-page .score-pbp-play-content>header span{display:flex;align-items:center;gap:5px;color:var(--app-faint);font:750 10px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-play-content>header svg{width:13px;height:13px}.app-page-slot .game-detail-page .score-pbp-play-content>header strong{color:var(--app-ink-soft);font:800 10px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-play-content>header i{color:var(--app-muted);font:800 10px/1 var(--font-geist-mono);font-style:normal;text-align:right}.app-page-slot .game-detail-page .score-pbp-play-content>p{margin:9px 0;color:var(--app-ink);font-size:14px;line-height:1.45}.app-page-slot .game-detail-page .score-pbp-play-content>footer{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.app-page-slot .game-detail-page .score-pbp-play-content>footer span{color:var(--app-muted);font-size:11px}.app-page-slot .game-detail-page .score-pbp-play-content>footer b{padding:4px 6px;border:1px solid currentColor;border-radius:999px;font:850 8px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-play-content .sack-tag{color:var(--app-negative)}.app-page-slot .game-detail-page .score-pbp-play-content .score-tag{color:var(--app-positive)}.app-page-slot .game-detail-page .score-pbp-play-content>footer small{margin-left:auto;color:var(--app-faint);font:750 9px/1 var(--font-geist-mono)}
+.app-page-slot .game-detail-page .score-pbp-accounting>header{display:flex;align-items:start;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--app-line)}.app-page-slot .game-detail-page .score-pbp-accounting>header div{display:grid;gap:5px}.app-page-slot .game-detail-page .score-pbp-accounting>header b{font:850 12px/1 var(--font-geist-sans);letter-spacing:.06em}.app-page-slot .game-detail-page .score-pbp-accounting>header small{color:var(--app-muted);font-size:13px}.app-page-slot .game-detail-page .score-pbp-accounting>header>span{padding:5px 8px;border:1px solid var(--app-negative);border-radius:999px;color:var(--app-negative);font:850 9px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-accounting-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--app-line)}.app-page-slot .game-detail-page .score-pbp-accounting-card{padding:14px;background:var(--app-panel-raised)}
+.app-page-slot .game-detail-page .score-pbp-accounting-card>header{display:flex;align-items:center;justify-content:space-between;gap:10px}.app-page-slot .game-detail-page .score-pbp-accounting-card>header>span{min-width:0;display:grid;gap:4px}.app-page-slot .game-detail-page .score-pbp-accounting-card>header small{color:var(--app-faint);font:800 8px/1 var(--font-geist-mono);letter-spacing:.1em}.app-page-slot .game-detail-page .score-pbp-accounting-card>header strong{font:900 16px/1 var(--font-geist-sans)}.app-page-slot .game-detail-page .score-pbp-accounting-card>header>b{color:var(--app-negative);font:850 9px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-accounting-card>header i{color:var(--app-faint);font-style:normal}.app-page-slot .game-detail-page .score-pbp-transfer{display:grid;gap:7px;margin:12px 0}.app-page-slot .game-detail-page .score-pbp-transfer-line{display:grid;grid-template-columns:minmax(0,1fr) 96px minmax(0,1fr);align-items:stretch;gap:7px}.app-page-slot .game-detail-page .score-pbp-transfer-line>span{min-width:0;display:grid;grid-template-columns:1fr auto;gap:5px 8px;padding:9px;border:1px solid var(--app-line);border-radius:7px;background:var(--app-panel-inset)}.app-page-slot .game-detail-page .score-pbp-transfer-line>span small{overflow:hidden;color:var(--app-faint);font:800 8px/1 var(--font-geist-mono);text-overflow:ellipsis;white-space:nowrap}.app-page-slot .game-detail-page .score-pbp-transfer-line>span strong{font:900 15px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-transfer-line>span em{grid-column:1/-1;color:var(--app-muted);font-size:11px;font-style:normal}.app-page-slot .game-detail-page .score-pbp-transfer-line>i{display:grid;place-content:center;gap:4px;border-radius:7px;background:color-mix(in srgb,var(--app-negative) 10%,var(--app-panel-inset));color:var(--app-negative);font-style:normal;text-align:center}.app-page-slot .game-detail-page .score-pbp-transfer-line>i svg{width:18px;height:18px;margin:auto}.app-page-slot .game-detail-page .score-pbp-transfer-line>i b{font:850 8px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-transfer-line>i small{color:var(--app-muted);font:750 7px/1 var(--font-geist-mono)}.app-page-slot .game-detail-page .score-pbp-accounting-card>footer{display:flex;justify-content:space-between;gap:10px;color:var(--app-muted);font-size:11px}.app-page-slot .game-detail-page .score-pbp-accounting-card>footer small{color:var(--app-faint);font:750 8px/1 var(--font-geist-mono)}
+.app-page-slot .game-detail-page .score-pbp-loading{display:grid;gap:9px;padding:20px}.app-page-slot .game-detail-page .score-pbp-loading span{height:54px;border-radius:8px;background:linear-gradient(90deg,var(--app-panel) 25%,var(--app-panel-soft) 50%,var(--app-panel) 75%);background-size:200% 100%;animation:score-pbp-shimmer 1.2s linear infinite}.app-page-slot .game-detail-page .score-pbp-loading span:first-child{height:92px}.app-page-slot .game-detail-page .score-pbp-status{margin:0;padding:24px;color:var(--app-muted);font-size:14px}.app-page-slot .game-detail-page .score-pbp-drive-empty{display:grid;place-items:center;min-height:240px;border:1px solid var(--app-line);border-radius:10px;color:var(--app-muted)}
+@keyframes score-pbp-shimmer{to{background-position:-200% 0}}
+
+@media(max-width:760px){.app-page-slot .game-detail-page .score-pbp-body{padding:8px}.app-page-slot .game-detail-page .score-pbp-overview{display:grid}.app-page-slot .game-detail-page .score-pbp-overview dl{width:100%}.app-page-slot .game-detail-page .score-pbp-workspace{grid-template-columns:minmax(0,1fr)}.app-page-slot .game-detail-page .score-pbp-drive-grid{max-height:300px}.app-page-slot .game-detail-page .score-pbp-drive-console>header{display:grid}.app-page-slot .game-detail-page .score-pbp-drive-console dl{width:100%}.app-page-slot .game-detail-page .score-pbp-plays{max-height:none}.app-page-slot .game-detail-page .score-pbp-accounting-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){.app-page-slot .game-detail-page .score-pbp-toggle{grid-template-columns:40px minmax(0,1fr) 20px;padding:11px;gap:10px}.app-page-slot .game-detail-page .score-pbp-toggle-icon{width:38px;height:38px}.app-page-slot .game-detail-page .score-pbp-toggle b{font-size:15px}.app-page-slot .game-detail-page .score-pbp-tabs small{display:none}.app-page-slot .game-detail-page .score-pbp-play-content>header{grid-template-columns:94px minmax(0,1fr) 50px}.app-page-slot .game-detail-page .score-pbp-play-content>footer small{width:100%;margin-left:0}.app-page-slot .game-detail-page .score-pbp-transfer-line{grid-template-columns:minmax(0,1fr)}.app-page-slot .game-detail-page .score-pbp-transfer-line>i{min-height:42px}}
+
+html[data-theme="light"] .app-page-slot .schedule-page.scores > .section-title-row {
+  padding:0!important;
+  border:0!important;
+}
+
+/* Simplified drive flow: one selector strip, one active drive, one optional
+   sack-accounting disclosure. */
+.app-page-slot .game-detail-page .score-pbp-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:10px}
+.app-page-slot .game-detail-page .score-pbp-drive-browser{overflow:visible}
+.app-page-slot .game-detail-page .score-pbp-drive-browser>header{align-items:center}
+.app-page-slot .game-detail-page .score-pbp-quarter-filter{padding:8px 12px}
+.app-page-slot .game-detail-page .score-pbp-drive-grid{max-height:300px;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:10px}
+.app-page-slot .game-detail-page .score-pbp-drive-tile{grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:70px;padding:9px 11px 9px 14px}
+.app-page-slot .game-detail-page .score-pbp-drive-tile>span{display:grid;min-width:0}
+.app-page-slot .game-detail-page .score-pbp-drive-logo{width:38px;height:38px;place-items:center!important;border:1px solid var(--app-line);border-radius:50%;background:var(--app-panel-inset)}
+.app-page-slot .game-detail-page .score-pbp-drive-logo img{width:31px;height:31px;display:block;object-fit:contain}
+.app-page-slot .game-detail-page .score-pbp-drive-logo b{font:900 10px/1 var(--font-geist-mono)}
+.app-page-slot .game-detail-page .score-pbp-drive-copy{gap:4px!important}
+.app-page-slot .game-detail-page .score-pbp-drive-copy small{color:var(--app-faint);font:800 8px/1 var(--font-geist-mono);letter-spacing:.07em}
+.app-page-slot .game-detail-page .score-pbp-drive-copy strong{overflow:hidden;color:var(--app-ink);font:900 12px/1.15 var(--font-geist-sans);text-overflow:ellipsis;white-space:nowrap}
+.app-page-slot .game-detail-page .score-pbp-drive-copy em{color:var(--app-muted);font-size:10px;font-style:normal}
+.app-page-slot .game-detail-page .score-pbp-drive-score{color:var(--app-muted);font:800 9px/1.2 var(--font-geist-mono);text-align:right;white-space:nowrap}
+.app-page-slot .game-detail-page .score-pbp-drive-console>header{padding:12px 15px}
+.app-page-slot .game-detail-page .score-pbp-drive-console h3{font-size:18px}
+.app-page-slot .game-detail-page .score-pbp-plays{max-height:520px}
+.app-page-slot .game-detail-page .score-pbp-accounting-disclosure{margin-top:10px;overflow:hidden;border:1px solid var(--app-line);border-radius:10px;background:var(--app-panel)}
+.app-page-slot .game-detail-page .score-pbp-accounting-disclosure>summary{min-height:54px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;color:var(--app-ink);cursor:pointer;list-style:none}
+.app-page-slot .game-detail-page .score-pbp-accounting-disclosure>summary::-webkit-details-marker{display:none}
+.app-page-slot .game-detail-page .score-pbp-accounting-disclosure>summary span{display:grid;gap:4px}
+.app-page-slot .game-detail-page .score-pbp-accounting-disclosure>summary b{font:900 11px/1 var(--font-geist-sans);letter-spacing:.06em}
+.app-page-slot .game-detail-page .score-pbp-accounting-disclosure>summary small{color:var(--app-muted);font-size:11px}
+.app-page-slot .game-detail-page .score-pbp-accounting-disclosure>summary svg{width:18px;height:18px;color:var(--app-positive);transition:transform .16s ease}
+.app-page-slot .game-detail-page .score-pbp-accounting-disclosure[open]>summary svg{transform:rotate(180deg)}
+.app-page-slot .game-detail-page .score-pbp-accounting-disclosure .score-pbp-accounting{border-width:1px 0 0;border-radius:0}
+@media(max-width:760px){.app-page-slot .game-detail-page .score-pbp-drive-grid{grid-template-columns:minmax(0,1fr);max-height:320px}.app-page-slot .game-detail-page .score-pbp-drive-tile{grid-template-columns:40px minmax(0,1fr) auto}.app-page-slot .game-detail-page .score-pbp-overview p{display:none}}
+@media(max-width:430px){.app-page-slot .game-detail-page .score-pbp-drive-score{display:none}.app-page-slot .game-detail-page .score-pbp-drive-tile{grid-template-columns:40px minmax(0,1fr)}.app-page-slot .game-detail-page .score-pbp-overview{padding:11px}.app-page-slot .game-detail-page .score-pbp-overview dl{gap:4px}.app-page-slot .game-detail-page .score-pbp-overview dl>div{padding:7px}}
+
+/* Each possession opens in place, with no separate console or nested scroll. */
+.app-page-slot .game-detail-page .score-pbp-drive-list{display:grid;gap:10px;padding:12px}
+.app-page-slot .game-detail-page .score-pbp-drive{min-width:0;overflow:hidden;border:1px solid var(--app-line);border-radius:10px;background:var(--app-panel)}
+.app-page-slot .game-detail-page .score-pbp-drive .score-pbp-drive-tile{grid-template-columns:44px minmax(0,1fr) auto 20px;border:0;border-radius:0;min-height:84px;padding:14px;gap:12px}
+.app-page-slot .game-detail-page .score-pbp-drive-copy strong{white-space:normal;font-size:14px;line-height:1.35}
+.app-page-slot .game-detail-page .score-pbp-drive-copy small{font-size:10px;line-height:1.3}
+.app-page-slot .game-detail-page .score-pbp-drive-copy em{font-size:12px}
+.app-page-slot .game-detail-page .score-pbp-drive-score{font-size:12px;line-height:1.5}
+.app-page-slot .game-detail-page .score-pbp-drive-chevron{width:18px;height:18px;color:var(--app-muted);transition:transform .15s}
+.app-page-slot .game-detail-page .score-pbp-drive-tile[aria-expanded="true"]{background:color-mix(in srgb,var(--app-positive) 8%,var(--app-panel))}
+.app-page-slot .game-detail-page .score-pbp-drive-tile[aria-expanded="true"] .score-pbp-drive-chevron{transform:rotate(180deg)}
+.app-page-slot .game-detail-page .score-pbp-drive-tile:focus-visible{outline:2px solid var(--app-positive);outline-offset:-3px}
+.app-page-slot .game-detail-page .score-pbp-inline-plays{padding:8px 16px;border-top:1px solid var(--app-line);background:var(--app-panel-inset)}
+.app-page-slot .game-detail-page .score-pbp-inline-plays .score-pbp-play{padding:14px 0}
+.app-page-slot .game-detail-page .score-pbp-inline-plays .score-pbp-play-content p{font-size:14px;line-height:1.6}
+@media(max-width:600px){
+ .app-page-slot .game-detail-page .score-pbp-drive-list{padding:7px;gap:8px}
+ .app-page-slot .game-detail-page .score-pbp-drive .score-pbp-drive-tile{grid-template-columns:36px minmax(0,1fr) 18px;gap:8px;padding:12px}
+ .app-page-slot .game-detail-page .score-pbp-drive-score{grid-column:2;grid-row:2;text-align:left;white-space:normal}
+ .app-page-slot .game-detail-page .score-pbp-drive-chevron{grid-column:3;grid-row:1}
+ .app-page-slot .game-detail-page .score-pbp-inline-plays{padding:6px 10px}
+ .app-page-slot .game-detail-page .score-pbp-inline-plays .score-pbp-play-content>header{display:flex;flex-wrap:wrap;gap:8px}
+}
+
+/* Pregame unit matchup, scoped to the opened game's Basic stats. */
+.app-page-slot .game-detail-page .game-matchup-stats{margin:16px 0;border:1px solid var(--app-line-strong);border-radius:10px;background:var(--app-panel);color:var(--app-ink);overflow:hidden}
+.app-page-slot .game-detail-page .game-matchup-stats>header{display:flex;align-items:end;justify-content:space-between;gap:18px;padding:16px;border-bottom:1px solid var(--app-line)}
+.app-page-slot .game-detail-page .game-matchup-stats>header small{color:var(--app-positive);font:750 11px/1.3 var(--font-geist-sans);letter-spacing:.07em}
+.app-page-slot .game-detail-page .game-matchup-stats h2{margin:4px 0 0;font:800 20px/1.15 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-stats>header p{max-width:450px;margin:0;color:var(--app-muted);font:500 12px/1.4 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-sides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--app-line)}
+.app-page-slot .game-detail-page .game-matchup-sides>article{min-width:0;padding:14px;background:var(--app-panel)}
+.app-page-slot .game-detail-page .game-matchup-sides h3{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;margin:0 0 12px;font:800 16px/1.3 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-sides h3 small{color:var(--app-muted);font-size:12px;font-weight:500}
+.app-page-slot .game-detail-page .game-matchup-lane{padding:10px 0;border-top:1px solid var(--app-line)}
+.app-page-slot .game-detail-page .game-matchup-lane h4{margin:0 0 9px;color:var(--app-ink-soft);font:800 12px/1 var(--font-geist-sans);text-transform:uppercase;letter-spacing:.09em}
+.app-page-slot .game-detail-page .game-matchup-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.app-page-slot .game-detail-page .game-matchup-values>span{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:5px;padding:10px 7px;border:1px solid var(--app-line);border-radius:6px;background:var(--app-panel-raised);text-align:center;font-variant-numeric:tabular-nums}
+.app-page-slot .game-detail-page .game-matchup-values small{color:var(--app-muted);font:700 10px/1.2 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-values strong{color:var(--app-ink);font:750 13px/1.2 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-values em{color:var(--app-positive);font:650 12px/1.2 var(--font-geist-sans);font-style:normal}
+.app-page-slot .game-detail-page .game-matchup-percent-graphic{display:grid;gap:7px;margin-top:9px;padding:11px 12px;border:1px solid var(--app-line);border-radius:7px;background:var(--app-panel-raised);font-variant-numeric:tabular-nums}
+.app-page-slot .game-detail-page .game-matchup-percent{--matchup-tone:var(--app-muted);display:grid;gap:6px;min-width:0}
+.app-page-slot .game-detail-page .game-matchup-percent.strong{--matchup-tone:var(--app-positive)}
+.app-page-slot .game-detail-page .game-matchup-percent.weak{--matchup-tone:var(--app-negative)}
+.app-page-slot .game-detail-page .game-matchup-percent-label{min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 6px;font:600 12px/1.3 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-percent-label b{flex:1 1 auto;overflow-wrap:anywhere;color:var(--app-ink-soft);font-weight:700}
+.app-page-slot .game-detail-page .game-matchup-percent-label strong{color:var(--matchup-tone);font-size:18px;line-height:1}
+.app-page-slot .game-detail-page .game-matchup-percent-label em{color:var(--matchup-tone);font:650 11px/1.2 var(--font-geist-sans);font-style:normal;text-transform:uppercase}
+.app-page-slot .game-detail-page .game-matchup-percent-track{position:relative;display:block;height:8px;border-radius:7px;background:var(--app-line-strong)}
+.app-page-slot .game-detail-page .game-matchup-percent-track i{position:absolute;display:block;font-style:normal}
+.app-page-slot .game-detail-page .game-matchup-percent-baseline{z-index:1;top:-3px;bottom:-3px;left:50%;width:2px;background:var(--app-ink-soft)}
+.app-page-slot .game-detail-page .game-matchup-percent-fill{top:0;bottom:0;background:var(--matchup-tone)}
+.app-page-slot .game-detail-page .game-matchup-percent-marker{z-index:2;top:50%;width:12px;height:12px;border:2px solid var(--app-panel-raised);border-radius:50%;background:var(--matchup-tone);transform:translate(-50%,-50%);box-shadow:0 0 0 1px var(--matchup-tone)}
+.app-page-slot .game-detail-page .game-matchup-percent.unknown .game-matchup-percent-marker{display:none}
+.app-page-slot .game-detail-page .game-matchup-percent-scale{display:flex;justify-content:space-between;gap:5px;color:var(--app-muted);font:600 10px/1.1 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-percent-scale b{font-size:10px;text-align:center}
+.app-page-slot .game-detail-page .game-matchup-definition{margin:0;padding:11px 16px;border-top:1px solid var(--app-line);color:var(--app-muted);font:500 11px/1.4 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-tests{margin:16px 0;padding:15px;border:1px solid var(--app-line-strong);border-radius:10px;background:var(--app-panel);color:var(--app-ink)}
+.app-page-slot .game-detail-page .game-matchup-tests header small{color:var(--app-positive);font:750 11px/1.3 var(--font-geist-sans);letter-spacing:.06em}
+.app-page-slot .game-detail-page .game-matchup-tests h2{margin:4px 0 12px;font:800 19px/1.2 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-tests>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.app-page-slot .game-detail-page .game-matchup-tests article{min-width:0;display:grid;gap:5px;padding:11px;border:1px solid var(--app-line);border-radius:6px;background:var(--app-panel-raised);font:500 13px/1.35 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-tests article strong{font-size:15px;text-transform:capitalize}
+.app-page-slot .game-detail-page .game-matchup-tests article small,.app-page-slot .game-detail-page .game-matchup-tests>p{color:var(--app-muted);font:500 12px/1.4 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-tests>p{margin:11px 0 0}
+@media(max-width:650px){.app-page-slot .game-detail-page .game-matchup-tests>div{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:880px){.app-page-slot .game-detail-page .game-matchup-sides{grid-template-columns:minmax(0,1fr)}.app-page-slot .game-detail-page .game-matchup-stats>header{display:block}.app-page-slot .game-detail-page .game-matchup-stats>header p{margin-top:8px}}
+@media(max-width:410px){.app-page-slot .game-detail-page .game-matchup-sides>article{padding:10px}.app-page-slot .game-detail-page .game-matchup-values{gap:3px}.app-page-slot .game-detail-page .game-matchup-values>span{padding:8px 4px}.app-page-slot .game-detail-page .game-matchup-values strong{font-size:12px}}
+
+/* Dense game view: one score strip, one unit comparison, and the existing stat table. */
+.app-page-slot .game-detail-page .game-detail-scoreboard{min-height:0;grid-template-columns:minmax(0,1fr) minmax(160px,.7fr) minmax(0,1fr);gap:10px;padding:14px 20px;background:var(--app-panel)}
+.app-page-slot .game-detail-page .game-detail-scoreboard .team-mark-lg{width:96px;height:96px}
+.app-page-slot .game-detail-page .game-detail-logo{position:relative;display:grid;align-items:center;justify-items:end;width:112px;max-width:100%;height:104px}
+.app-page-slot .game-detail-page .game-detail-logo-rank{position:absolute;top:2px;left:0;color:var(--app-ink);font:800 14px/1 var(--font-geist-mono);font-style:normal;white-space:nowrap}
+.app-page-slot .game-detail-page .game-detail-scoreboard > div > strong{margin-top:4px;font-size:15px;white-space:normal;line-height:1.15}
+.app-page-slot .game-detail-page .game-detail-scoreboard > div > small{margin-top:2px!important}
+.app-page-slot .game-detail-page .game-detail-scoreboard > span{gap:5px}
+.app-page-slot .game-detail-page .game-detail-scoreboard > span b{font-size:36px}
+.app-page-slot .game-detail-page .game-detail-scoreboard > span em{max-width:110px;color:var(--app-muted);font-size:10px;line-height:1.25;white-space:normal}
+.app-page-slot .game-detail-page .game-team-site-label{margin-bottom:3px;padding:2px 5px}
+.app-page-slot .game-detail-page .game-detail-meta{grid-template-columns:1.2fr 1.2fr .8fr;margin-top:6px}
+.app-page-slot .game-detail-page .game-detail-meta > span,.app-page-slot .game-detail-page .game-detail-meta > span:last-child{min-height:37px;display:flex;padding:7px 10px;font-size:12px;line-height:1.25}
+.app-page-slot .game-detail-page .game-detail-meta b{margin-bottom:3px}
+.app-page-slot .game-detail-page .game-detail-market{margin-top:6px}
+.app-page-slot .game-detail-page .game-detail-market > span{min-height:39px;gap:3px;padding:6px 10px}
+.app-page-slot .game-detail-page .game-detail-market strong{font-size:12px}
+.app-page-slot .game-detail-page .game-model-audit{margin-top:6px}
+.app-page-slot .game-detail-page .game-model-audit > span{min-height:32px;gap:3px;padding:5px 10px}
+.app-page-slot .game-detail-page .score-explanation{margin-top:7px}
+.app-page-slot .game-detail-page .score-explanation{padding:9px 12px;font-size:12px;line-height:1.35}
+.app-page-slot .game-detail-page .score-explanation summary{font-size:14px}
+.app-page-slot .game-detail-page .score-explanation p{margin:6px 0}
+.app-page-slot .game-detail-page .score-explanation caption{padding:4px 0}
+.app-page-slot .game-detail-page .score-explanation table{font-size:12px}
+.app-page-slot .game-detail-page .score-explanation :is(th,td){padding:5px 7px}
+.app-page-slot .game-detail-page .game-detail-tabs{margin-top:8px}
+.app-page-slot .game-detail-page .game-matchup-stats{margin:8px 0;border-radius:9px}
+.app-page-slot .game-detail-page .game-matchup-stats>header{padding:9px 13px}
+.app-page-slot .game-detail-page .game-matchup-stats h2{margin-top:2px;font-size:18px}
+.app-page-slot .game-detail-page .game-matchup-sides>article{padding:10px 12px;background:var(--app-panel)}
+.app-page-slot .game-detail-page .game-matchup-sides h3{margin-bottom:6px;font-size:15px}
+.app-page-slot .game-detail-page .game-matchup-lane{padding:8px 0}
+.app-page-slot .game-detail-page .game-matchup-lane h4{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:5px;margin:0 0 6px;font-size:12px}
+.app-page-slot .game-detail-page .game-matchup-lane h4 span{color:var(--app-ink);font:600 12px/1.2 var(--font-geist-sans);letter-spacing:0;text-transform:none}
+.app-page-slot .game-detail-page .game-matchup-lane h4 b{font-weight:800}
+.app-page-slot .game-detail-page .game-matchup-compact-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.app-page-slot .game-detail-page .game-matchup-compact-pair>div{min-width:0;display:grid;align-content:start;gap:3px;padding:6px 8px;border:1px solid var(--app-line);border-radius:6px;background:var(--app-panel-raised);font-variant-numeric:tabular-nums}
+.app-page-slot .game-detail-page .game-matchup-compact-pair>div>small{overflow:hidden;color:var(--app-muted);font:700 11px/1.2 var(--font-geist-sans);text-overflow:ellipsis;white-space:nowrap}
+.app-page-slot .game-detail-page .game-matchup-compact-pair>div>strong{color:var(--app-ink);font:750 14px/1.1 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-percent{gap:3px}
+.app-page-slot .game-detail-page .game-matchup-percent-label{gap:3px;font-size:11px}
+.app-page-slot .game-detail-page .game-matchup-percent-label b{flex:0 1 auto;font-size:11px}
+.app-page-slot .game-detail-page .game-matchup-percent-label strong{font-size:16px}
+.app-page-slot .game-detail-page .game-matchup-percent-label em{font-size:10px}
+.app-page-slot .game-detail-page .game-matchup-percent-track{height:5px}
+.app-page-slot .game-detail-page .game-matchup-percent-baseline{top:-2px;bottom:-2px}
+.app-page-slot .game-detail-page .game-matchup-percent-marker{width:9px;height:9px}
+.app-page-slot .game-detail-page .game-matchup-compact-pair>div>span:last-child{margin-top:2px;color:var(--app-muted);font:700 11px/1.2 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-matchup-compact-pair>div>span.untested{color:var(--app-negative)}
+.app-page-slot .game-detail-page .game-matchup-compact-pair>div>span.tested{color:var(--app-positive)}
+.app-page-slot .game-detail-page .game-detail-stats{margin-top:8px}
+@media(max-width:880px){.app-page-slot .game-detail-page .game-matchup-sides{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:660px){
+  .app-page-slot .game-detail-page .game-detail-scoreboard{grid-template-columns:minmax(0,1fr) minmax(115px,.85fr) minmax(0,1fr);gap:3px;padding:10px 7px}
+  .app-page-slot .game-detail-page .game-detail-scoreboard .team-mark-lg{width:64px;height:64px}
+  .app-page-slot .game-detail-page .game-detail-logo{width:80px;height:72px}
+  .app-page-slot .game-detail-page .game-detail-logo-rank{font-size:12px}
+  .app-page-slot .game-detail-page .game-detail-scoreboard > div > strong{font-size:12px}
+  .app-page-slot .game-detail-page .game-detail-scoreboard > span b{font-size:26px}
+  .app-page-slot .game-detail-page .game-detail-scoreboard > span em{max-width:75px;font-size:8px}
+  .app-page-slot .game-detail-page .game-matchup-sides{grid-template-columns:minmax(0,1fr)}
+  .app-page-slot .game-detail-page .game-detail-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .app-page-slot .game-detail-page .game-detail-meta > span:last-child{grid-column:1/-1;min-height:25px}
+  .app-page-slot .game-detail-page .game-detail-market{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .app-page-slot .game-detail-page .game-detail-market > span{min-height:35px}
+  .app-page-slot .game-detail-page .game-matchup-stats>header{padding:7px 11px}
+  .app-page-slot .game-detail-page .game-matchup-stats h2{font-size:16px}
+  .app-page-slot .game-detail-page .game-matchup-sides>article{padding:6px 10px}
+  .app-page-slot .game-detail-page .game-matchup-sides>article+article{border-top:1px solid var(--app-line)}
+  .app-page-slot .game-detail-page .game-matchup-sides h3{margin:0;font-size:14px}
+  .app-page-slot .game-detail-page .game-matchup-sides h3 small{display:none}
+  .app-page-slot .game-detail-page .game-matchup-lane{padding:6px 0;border-top:1px solid var(--app-line)}
+  .app-page-slot .game-detail-page .game-matchup-lane h4{margin:0 0 5px;font-size:11px}
+  .app-page-slot .game-detail-page .game-matchup-lane h4 span{font-size:11px;white-space:nowrap}
+  .app-page-slot .game-detail-page .game-matchup-compact-pair{gap:0}
+  .app-page-slot .game-detail-page .game-matchup-compact-pair>div{gap:2px;padding:2px 6px;border:0;border-radius:0;background:transparent}
+  .app-page-slot .game-detail-page .game-matchup-compact-pair>div:first-child{padding-left:0;border-right:1px solid var(--app-line)}
+  .app-page-slot .game-detail-page .game-matchup-compact-pair>div:last-child{padding-right:0;padding-left:9px}
+  .app-page-slot .game-detail-page .game-matchup-compact-pair>div>small{font-size:10px}
+  .app-page-slot .game-detail-page .game-matchup-compact-pair>div>strong{font-size:12px}
+  .app-page-slot .game-detail-page .game-matchup-percent-label{flex-wrap:nowrap;gap:3px}
+  .app-page-slot .game-detail-page .game-matchup-percent-label b{font-size:10px}
+  .app-page-slot .game-detail-page .game-matchup-percent-label strong{font-size:14px}
+  .app-page-slot .game-detail-page .game-matchup-percent-label em{font-size:9px}
+  .app-page-slot .game-detail-page .game-matchup-percent-track{display:none}
+  .app-page-slot .game-detail-page .game-matchup-compact-pair>div>span:last-child{margin:0;font-size:10px}
+  .app-page-slot .game-detail-page .game-matchup-compact-pair>div>span:last-child i{display:none}
+}
+
+/* Symmetric game sheet: team values flank a fixed shared label. */
+.app-page-slot .game-detail-page .matchup-mirror{margin:8px 0 0;overflow:hidden;border:1px solid var(--app-line-strong);border-radius:10px;background:var(--app-panel);color:var(--app-ink);font-variant-numeric:tabular-nums}
+.app-page-slot .game-detail-page .matchup-mirror>header{display:flex;align-items:end;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid var(--app-line)}
+.app-page-slot .game-detail-page .matchup-mirror>header small{color:var(--app-muted);font:700 10px/1.2 var(--font-geist-sans);letter-spacing:.06em}
+.app-page-slot .game-detail-page .matchup-mirror h2{margin:3px 0 0;font:800 18px/1.2 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .matchup-mirror>header p{margin:0;color:var(--app-muted);font:500 11px/1.3 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .matchup-mirror-teams,.app-page-slot .game-detail-page .matchup-mirror-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,.8fr) minmax(0,1fr);align-items:center;text-align:center}
+.app-page-slot .game-detail-page .matchup-mirror-teams{min-height:38px;background:var(--app-panel-raised);font:800 13px/1.2 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .matchup-mirror-teams strong{overflow:hidden;padding:6px;text-overflow:ellipsis;white-space:nowrap}
+.app-page-slot .game-detail-page .matchup-mirror-teams span{color:var(--app-muted);font-size:10px;letter-spacing:.1em}
+.app-page-slot .game-detail-page .matchup-mirror-group h3{display:flex;justify-content:space-between;gap:8px;margin:0;padding:7px 13px;background:var(--app-panel-raised);color:var(--app-ink);border-block:1px solid var(--app-line);font:800 12px/1.2 var(--font-geist-sans);letter-spacing:.04em;text-transform:uppercase}
+.app-page-slot .game-detail-page .matchup-mirror-group h3 small{font:600 10px/1.2 var(--font-geist-sans);letter-spacing:0;text-transform:none;opacity:.8}
+.app-page-slot .game-detail-page .matchup-mirror-row{min-height:36px;border-bottom:1px solid var(--app-line);font:600 12px/1.2 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .matchup-mirror-group:last-child .matchup-mirror-row:last-child{border-bottom:0}
+.app-page-slot .game-detail-page .matchup-mirror-row:nth-child(odd){background:var(--app-panel-raised)}
+.app-page-slot .game-detail-page .matchup-mirror-label{min-width:0;padding:7px 3px;color:var(--app-muted);font-weight:650}
+.app-page-slot .game-detail-page .matchup-mirror-value{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;padding:5px 4px}
+.app-page-slot .game-detail-page .matchup-mirror-value b{font-size:15px;white-space:nowrap}
+.app-page-slot .game-detail-page .matchup-mirror-value .team-mark{flex:none;width:20px;height:20px;min-width:20px;padding:0;border:0;background:transparent}
+.app-page-slot .game-detail-page .matchup-mirror-value .team-mark img{width:100%;height:100%;object-fit:contain}
+.app-page-slot .game-detail-page .matchup-mirror-value small{color:var(--app-muted);font-size:10px;white-space:nowrap}
+.app-page-slot .game-detail-page .matchup-mirror-value em{color:var(--app-muted);font-size:10px;font-style:normal;white-space:nowrap}
+.app-page-slot .game-detail-page .matchup-mirror-value.good b{color:var(--app-positive)}
+.app-page-slot .game-detail-page .matchup-mirror-value.average b{color:var(--app-warning)}
+.app-page-slot .game-detail-page .matchup-mirror-value.poor b{color:var(--app-negative)}
+.app-page-slot .game-detail-page .matchup-mirror-value em.good{color:var(--app-positive)}
+.app-page-slot .game-detail-page .matchup-mirror-value em.average{color:var(--app-warning)}
+.app-page-slot .game-detail-page .matchup-mirror-value em.poor{color:var(--app-negative)}
+.app-page-slot .game-detail-page .game-untested-units{margin:8px 0;padding:11px 14px;border:1px solid var(--app-line-strong);border-radius:9px;background:var(--app-panel)}
+.app-page-slot .game-detail-page .game-untested-units h2{margin:0 0 8px;font:800 14px/1.2 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-untested-units>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}
+.app-page-slot .game-detail-page .game-untested-units>div>span{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--app-line);font:600 11px/1.3 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-untested-units small{color:var(--app-muted);text-align:right;font-size:10px}
+.app-page-slot .game-detail-page .game-detail-full-stats{margin:8px 0;border:1px solid var(--app-line-strong);border-radius:9px;background:var(--app-panel)}
+.app-page-slot .game-detail-page .game-detail-full-stats>summary{padding:11px 14px;cursor:pointer;font:750 13px/1.2 var(--font-geist-sans)}
+.app-page-slot .game-detail-page .game-detail-full-stats .game-detail-stats{margin:0;border:0;border-top:1px solid var(--app-line)}
+@media(max-width:660px){
+  .app-page-slot .game-detail-page .matchup-mirror>header{display:block;padding:10px 11px}
+  .app-page-slot .game-detail-page .matchup-mirror>header p{margin-top:3px}
+  .app-page-slot .game-detail-page .matchup-mirror-teams,.app-page-slot .game-detail-page .matchup-mirror-row{grid-template-columns:minmax(0,1fr) minmax(102px,.9fr) minmax(0,1fr)}
+  .app-page-slot .game-detail-page .matchup-mirror-group h3{padding:6px 9px;font-size:11px}
+  .app-page-slot .game-detail-page .matchup-mirror-group h3 small{font-size:9px}
+  .app-page-slot .game-detail-page .matchup-mirror-row{min-height:32px;font-size:10px}
+  .app-page-slot .game-detail-page .matchup-mirror-value{flex-wrap:wrap;gap:0 4px;padding:4px 2px}
+  .app-page-slot .game-detail-page .matchup-mirror-value b{font-size:13px}
+  .app-page-slot .game-detail-page .matchup-mirror-value em{flex-basis:100%;font-size:9px}
+  .app-page-slot .game-detail-page .game-untested-units>div{grid-template-columns:minmax(0,1fr)}
+}

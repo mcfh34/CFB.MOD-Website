@@ -1,0 +1,47 @@
+.app-page-slot .football-report{padding:16px;margin-bottom:16px;background:var(--app-panel);border:1px solid var(--app-line);border-top:3px solid var(--team-report-color);border-radius:8px;color:var(--app-ink);min-width:0}
+.app-page-slot .football-report-heading,.app-page-slot .football-trend-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+.app-page-slot .football-report-heading h3{font-size:20px;margin:4px 0 0}
+.app-page-slot .football-report-heading span{font-size:10px;letter-spacing:.12em;color:var(--app-muted)}
+.app-page-slot .football-report small,.app-page-slot .football-report footer{font-size:11px;line-height:1.5;color:var(--app-muted)}
+.app-page-slot .football-capsule-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--app-line);border:1px solid var(--app-line);border-radius:5px;overflow:hidden}
+.app-page-slot .football-capsule-grid article{display:grid;align-content:start;gap:6px;padding:12px;background:var(--app-panel-raised);min-width:0}
+.app-page-slot .football-capsule-grid article>span{font-size:11px;font-weight:700}
+.app-page-slot .football-capsule-grid strong{font-size:24px;font-variant-numeric:tabular-nums;line-height:1.15}
+.app-page-slot .football-report-analysis{padding:16px 0;border-bottom:1px solid var(--app-line);margin-bottom:16px}
+.app-page-slot .football-report h4{font-size:14px;margin:0 0 8px}
+.app-page-slot .football-report-analysis p{font-size:12px;line-height:1.75;margin:8px 0;max-width:105ch;color:var(--app-ink)}
+.app-page-slot .football-trend-header label{display:grid;gap:5px;font-size:10px;color:var(--app-muted)}
+.app-page-slot .football-trend-header select{min-height:34px;font-size:12px;background:var(--app-panel-raised);color:var(--app-ink);border:1px solid var(--app-line);border-radius:4px;padding:5px 9px;max-width:100%}
+.app-page-slot .football-trend-chart{width:100%;max-height:320px;display:block;background:var(--app-panel-raised);border:1px solid var(--app-line);border-radius:5px}
+.app-page-slot .football-trend-chart text{fill:var(--app-muted);font-size:12px}
+.app-page-slot .football-trend-chart .chart-grid{stroke:var(--app-line);stroke-width:1}
+.app-page-slot .football-trend-chart .chart-zero{stroke:var(--app-muted);stroke-width:1.5;stroke-dasharray:5 4}
+.app-page-slot .football-trend-chart path{fill:none;stroke-width:3;stroke-linejoin:round}
+.app-page-slot .football-trend-chart .offense-line{stroke:var(--app-ink)}
+.app-page-slot .football-trend-chart .defense-line{stroke:var(--app-positive);stroke-dasharray:7 4}
+.app-page-slot .football-trend-chart .offense-dot{fill:var(--app-ink)}
+.app-page-slot .football-trend-chart .defense-dot{fill:var(--app-positive)}
+.app-page-slot .football-trend-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:11px;margin-bottom:8px}
+.app-page-slot .football-trend-legend span{display:flex;gap:6px;align-items:center}
+.app-page-slot .football-trend-legend i{width:18px;border-top:3px solid var(--app-ink)}
+.app-page-slot .football-trend-legend .defense i{border-color:var(--app-positive);border-top-style:dashed}
+.app-page-slot .football-trend-data{margin-top:8px;font-size:11px}
+.app-page-slot .football-trend-data summary{cursor:pointer;padding:8px 0}
+.app-page-slot .football-table-scroll{overflow-x:auto;max-width:100%;border:1px solid var(--app-line);border-radius:4px}
+.app-page-slot .football-report table{border-collapse:collapse;width:100%;font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.app-page-slot .football-report th,.app-page-slot .football-report td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--app-line)}
+.app-page-slot .football-report th:first-child,.app-page-slot .football-report td:first-child,.app-page-slot .football-report tbody th{text-align:left}
+.app-page-slot .football-report thead{background:var(--app-panel-raised);font-size:10px;color:var(--app-muted)}
+.app-page-slot .football-report tbody tr:nth-child(even){background:var(--app-panel-raised)}
+.app-page-slot .football-report tbody tr:last-child>*{border-bottom:0}
+.app-page-slot .football-report table button{font:inherit;font-weight:700;color:var(--app-ink);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.app-page-slot .football-report .positive{color:var(--app-positive)!important}
+.app-page-slot .football-report .negative{color:var(--app-negative)!important}
+.app-page-slot .football-report .football-history-title{margin-top:22px}
+.app-page-slot .football-report footer{display:block;margin-top:14px;max-width:110ch}
+.app-page-slot .football-report-empty{padding:12px 0;font-size:12px;color:var(--app-muted)}
+@media(max-width:850px){.app-page-slot .football-capsule-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.app-page-slot .football-report-heading,.app-page-slot .football-trend-header{align-items:flex-start;flex-wrap:wrap}.app-page-slot .football-trend-header label{width:100%}}
+@media(max-width:500px){.app-page-slot .football-report{padding:10px}.app-page-slot .football-capsule-grid article{padding:10px}.app-page-slot .football-capsule-grid strong{font-size:20px}.app-page-slot .football-report-heading h3{font-size:17px}.app-page-slot .football-trend-chart{min-width:0}.app-page-slot .football-report-analysis p{font-size:12px}}
+
+.app-page-slot .football-chart-scroll{max-width:100%;overflow-x:auto}
+@media(max-width:600px){.app-page-slot .football-trend-chart{min-width:640px}.app-page-slot .football-chart-scroll{border-radius:5px}}

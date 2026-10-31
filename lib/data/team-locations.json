@@ -1,0 +1,3937 @@
+{
+  "source": "SportsDataverse 2026 team catalog, CFBD location fields",
+  "sourceUrl": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_cfb_teams/cfb_teams_2026.parquet",
+  "retrievedAt": "2026-10-20",
+  "teams": [
+    {
+      "id": "2",
+      "school": "Auburn",
+      "lat": 32.6025532,
+      "lon": -85.4897479
+    },
+    {
+      "id": "5",
+      "school": "UAB",
+      "lat": 33.5206824,
+      "lon": -86.8024326
+    },
+    {
+      "id": "6",
+      "school": "South Alabama",
+      "lat": 30.696904,
+      "lon": -88.192013
+    },
+    {
+      "id": "7",
+      "school": "Amherst",
+      "lat": 42.3685658,
+      "lon": -72.505714
+    },
+    {
+      "id": "8",
+      "school": "Arkansas",
+      "lat": 36.0680662,
+      "lon": -94.1789534
+    },
+    {
+      "id": "9",
+      "school": "Arizona State",
+      "lat": 33.4264471,
+      "lon": -111.9325005
+    },
+    {
+      "id": "11",
+      "school": "Colorado Mesa",
+      "lat": 39.063956,
+      "lon": -108.5507317
+    },
+    {
+      "id": "12",
+      "school": "Arizona",
+      "lat": 32.2288054,
+      "lon": -110.9488677
+    },
+    {
+      "id": "13",
+      "school": "Cal Poly",
+      "lat": 35.2984123,
+      "lon": -120.6650005
+    },
+    {
+      "id": "16",
+      "school": "Sacramento State",
+      "lat": 38.5556718,
+      "lon": -121.4229607
+    },
+    {
+      "id": "17",
+      "school": "Claremont Mudd Scripps",
+      "lat": 34.0966764,
+      "lon": -117.7197785
+    },
+    {
+      "id": "18",
+      "school": "Bridgewater State",
+      "lat": 41.9903787,
+      "lon": -70.9750426
+    },
+    {
+      "id": "21",
+      "school": "San Diego State",
+      "lat": 32.784444,
+      "lon": -117.122833
+    },
+    {
+      "id": "23",
+      "school": "San Jos\u00e9 State",
+      "lat": 37.3196675,
+      "lon": -121.8682962
+    },
+    {
+      "id": "24",
+      "school": "Stanford",
+      "lat": 37.4345556,
+      "lon": -122.1611271
+    },
+    {
+      "id": "25",
+      "school": "California",
+      "lat": 37.8710434,
+      "lon": -122.2507729
+    },
+    {
+      "id": "26",
+      "school": "UCLA",
+      "lat": 34.1613284,
+      "lon": -118.1676462
+    },
+    {
+      "id": "29",
+      "school": "Redlands",
+      "lat": 34.0550328,
+      "lon": -117.1827445
+    },
+    {
+      "id": "30",
+      "school": "USC",
+      "lat": 34.014167,
+      "lon": -118.287778
+    },
+    {
+      "id": "32",
+      "school": "Carroll (WI)",
+      "lat": 43.0053145,
+      "lon": -88.24736430153254
+    },
+    {
+      "id": "33",
+      "school": "Colby",
+      "lat": 44.5520105,
+      "lon": -69.6317121
+    },
+    {
+      "id": "36",
+      "school": "Colorado State",
+      "lat": 40.570015,
+      "lon": -105.088435
+    },
+    {
+      "id": "38",
+      "school": "Colorado",
+      "lat": 40.0094746,
+      "lon": -105.266905
+    },
+    {
+      "id": "40",
+      "school": "Curry",
+      "lat": 42.2501425,
+      "lon": -71.065573
+    },
+    {
+      "id": "41",
+      "school": "UConn",
+      "lat": 41.7595675,
+      "lon": -72.6187728
+    },
+    {
+      "id": "43",
+      "school": "Yale",
+      "lat": 41.3132441,
+      "lon": -72.9605333
+    },
+    {
+      "id": "46",
+      "school": "Georgetown",
+      "lat": 38.9080248,
+      "lon": -77.0753144
+    },
+    {
+      "id": "47",
+      "school": "Howard",
+      "lat": 38.925487,
+      "lon": -77.021047
+    },
+    {
+      "id": "48",
+      "school": "Delaware",
+      "lat": 39.6617428,
+      "lon": -75.7488224
+    },
+    {
+      "id": "49",
+      "school": "Dubuque",
+      "lat": 42.5006243,
+      "lon": -90.6647985
+    },
+    {
+      "id": "50",
+      "school": "Florida A&M",
+      "lat": 30.4261632,
+      "lon": -84.2923095
+    },
+    {
+      "id": "52",
+      "school": "Florida State",
+      "lat": 30.4381692,
+      "lon": -84.3044032
+    },
+    {
+      "id": "55",
+      "school": "Jacksonville State",
+      "lat": 33.8201052,
+      "lon": -85.76647
+    },
+    {
+      "id": "56",
+      "school": "Stetson",
+      "lat": 29.0208575,
+      "lon": -81.2993746
+    },
+    {
+      "id": "57",
+      "school": "Florida",
+      "lat": 29.6499357,
+      "lon": -82.3485788
+    },
+    {
+      "id": "58",
+      "school": "South Florida",
+      "lat": 27.9758691,
+      "lon": -82.5033344
+    },
+    {
+      "id": "59",
+      "school": "Georgia Tech",
+      "lat": 33.7724449,
+      "lon": -84.3928054
+    },
+    {
+      "id": "60",
+      "school": "Morehouse",
+      "lat": 33.7489924,
+      "lon": -84.3902644
+    },
+    {
+      "id": "61",
+      "school": "Georgia",
+      "lat": 33.9498197,
+      "lon": -83.3733813
+    },
+    {
+      "id": "62",
+      "school": "Hawai'i",
+      "lat": 21.294294,
+      "lon": -157.819338
+    },
+    {
+      "id": "63",
+      "school": "Buena Vista",
+      "lat": 42.6452817,
+      "lon": -95.1992726
+    },
+    {
+      "id": "65",
+      "school": "Grinnell",
+      "lat": 41.7430237,
+      "lon": -92.7239637
+    },
+    {
+      "id": "66",
+      "school": "Iowa State",
+      "lat": 42.0139977,
+      "lon": -93.6357716
+    },
+    {
+      "id": "67",
+      "school": "Luther",
+      "lat": 43.3041609,
+      "lon": -91.7859098
+    },
+    {
+      "id": "68",
+      "school": "Boise State",
+      "lat": 43.6028839,
+      "lon": -116.1958882
+    },
+    {
+      "id": "70",
+      "school": "Idaho",
+      "lat": 46.7262921,
+      "lon": -117.0173713
+    },
+    {
+      "id": "72",
+      "school": "Elmhurst",
+      "lat": 41.8994745,
+      "lon": -87.9403418
+    },
+    {
+      "id": "74",
+      "school": "Millikin",
+      "lat": 39.8454163,
+      "lon": -88.9524151
+    },
+    {
+      "id": "75",
+      "school": "North Park",
+      "lat": 41.8755616,
+      "lon": -87.6244212
+    },
+    {
+      "id": "77",
+      "school": "Northwestern",
+      "lat": 42.058246,
+      "lon": -87.670876
+    },
+    {
+      "id": "79",
+      "school": "Southern Illinois",
+      "lat": 37.708637,
+      "lon": -89.216212
+    },
+    {
+      "id": "80",
+      "school": "Chicago",
+      "lat": 41.8755616,
+      "lon": -87.6244212
+    },
+    {
+      "id": "81",
+      "school": "Springfield",
+      "lat": 42.1018764,
+      "lon": -72.5886727
+    },
+    {
+      "id": "83",
+      "school": "DePauw",
+      "lat": 39.6444898,
+      "lon": -86.8647316
+    },
+    {
+      "id": "84",
+      "school": "Indiana",
+      "lat": 39.1808959,
+      "lon": -86.5256217
+    },
+    {
+      "id": "86",
+      "school": "Rose Hulman",
+      "lat": 39.4667025,
+      "lon": -87.4139119
+    },
+    {
+      "id": "87",
+      "school": "Notre Dame",
+      "lat": 41.698378,
+      "lon": -86.2339425
+    },
+    {
+      "id": "89",
+      "school": "Wabash",
+      "lat": 40.0401991,
+      "lon": -86.8990249
+    },
+    {
+      "id": "90",
+      "school": "Pittsburg State",
+      "lat": 37.4108841,
+      "lon": -94.70496
+    },
+    {
+      "id": "93",
+      "school": "Murray State",
+      "lat": 36.6215165,
+      "lon": -88.3175531
+    },
+    {
+      "id": "96",
+      "school": "Kentucky",
+      "lat": 38.0220905,
+      "lon": -84.5053408
+    },
+    {
+      "id": "97",
+      "school": "Louisville",
+      "lat": 38.2057621,
+      "lon": -85.7588141
+    },
+    {
+      "id": "98",
+      "school": "Western Kentucky",
+      "lat": 36.9847901,
+      "lon": -86.4594041
+    },
+    {
+      "id": "99",
+      "school": "LSU",
+      "lat": 30.412035,
+      "lon": -91.1838163
+    },
+    {
+      "id": "101",
+      "school": "Eureka",
+      "lat": 40.7213015,
+      "lon": -89.2726708
+    },
+    {
+      "id": "103",
+      "school": "Boston College",
+      "lat": 42.335104,
+      "lon": -71.1664413
+    },
+    {
+      "id": "107",
+      "school": "Holy Cross",
+      "lat": 42.2403564,
+      "lon": -71.8111424
+    },
+    {
+      "id": "108",
+      "school": "Harvard",
+      "lat": 42.366704,
+      "lon": -71.1267511
+    },
+    {
+      "id": "109",
+      "school": "MIT",
+      "lat": 42.3750997,
+      "lon": -71.1056157
+    },
+    {
+      "id": "110",
+      "school": "Mass Maritime",
+      "lat": 41.745383,
+      "lon": -70.618087
+    },
+    {
+      "id": "112",
+      "school": "Tufts",
+      "lat": 42.4184296,
+      "lon": -71.1061639
+    },
+    {
+      "id": "113",
+      "school": "Massachusetts",
+      "lat": 42.3773244,
+      "lon": -72.5360595
+    },
+    {
+      "id": "114",
+      "school": "Fitchburg State",
+      "lat": 42.5903661,
+      "lon": -71.8119837
+    },
+    {
+      "id": "118",
+      "school": "Johns Hopkins",
+      "lat": 39.2908816,
+      "lon": -76.610759
+    },
+    {
+      "id": "119",
+      "school": "Towson",
+      "lat": 39.3885683,
+      "lon": -76.6159716
+    },
+    {
+      "id": "120",
+      "school": "Maryland",
+      "lat": 38.9903332,
+      "lon": -76.9473792
+    },
+    {
+      "id": "121",
+      "school": "Bates",
+      "lat": 44.100351,
+      "lon": -70.2147764
+    },
+    {
+      "id": "124",
+      "school": "Augsburg",
+      "lat": 44.9772995,
+      "lon": -93.2654692
+    },
+    {
+      "id": "125",
+      "school": "Grand Valley State",
+      "lat": 42.968996,
+      "lon": -85.894735
+    },
+    {
+      "id": "126",
+      "school": "Kalamazoo",
+      "lat": 42.291707,
+      "lon": -85.5872286
+    },
+    {
+      "id": "127",
+      "school": "Michigan State",
+      "lat": 42.7281474,
+      "lon": -84.4848526
+    },
+    {
+      "id": "128",
+      "school": "Northern Michigan",
+      "lat": 46.560589,
+      "lon": -87.393741
+    },
+    {
+      "id": "129",
+      "school": "Saginaw Valley State",
+      "lat": 25.71414555,
+      "lon": -80.27640498387049
+    },
+    {
+      "id": "130",
+      "school": "Michigan",
+      "lat": 42.2658365,
+      "lon": -83.7486956
+    },
+    {
+      "id": "131",
+      "school": "Wayne State (MI)",
+      "lat": 42.3315509,
+      "lon": -83.0466403
+    },
+    {
+      "id": "132",
+      "school": "Bemidji State",
+      "lat": 47.4785418,
+      "lon": -94.8907869
+    },
+    {
+      "id": "133",
+      "school": "St. Olaf",
+      "lat": 44.4582041,
+      "lon": -93.161159
+    },
+    {
+      "id": "134",
+      "school": "Minnesota Duluth",
+      "lat": 46.7729322,
+      "lon": -92.1251218
+    },
+    {
+      "id": "135",
+      "school": "Minnesota",
+      "lat": 44.976525,
+      "lon": -93.2245462
+    },
+    {
+      "id": "137",
+      "school": "Missouri Western",
+      "lat": 39.7686055,
+      "lon": -94.8466322
+    },
+    {
+      "id": "138",
+      "school": "Northwest Missouri State",
+      "lat": 40.3460468,
+      "lon": -94.8723858
+    },
+    {
+      "id": "142",
+      "school": "Missouri",
+      "lat": 38.9358491,
+      "lon": -92.3332009
+    },
+    {
+      "id": "143",
+      "school": "Washington St. Louis",
+      "lat": 38.6264256,
+      "lon": -90.1995853
+    },
+    {
+      "id": "145",
+      "school": "Ole Miss",
+      "lat": 34.3619837,
+      "lon": -89.5342076
+    },
+    {
+      "id": "146",
+      "school": "Grove City",
+      "lat": 41.1579008,
+      "lon": -80.0886631
+    },
+    {
+      "id": "147",
+      "school": "Montana State",
+      "lat": 45.659048,
+      "lon": -111.049547
+    },
+    {
+      "id": "149",
+      "school": "Montana",
+      "lat": 46.8638753,
+      "lon": -113.9815042
+    },
+    {
+      "id": "150",
+      "school": "Duke",
+      "lat": 35.9953688,
+      "lon": -78.9417564
+    },
+    {
+      "id": "151",
+      "school": "East Carolina",
+      "lat": 35.5968486,
+      "lon": -77.364564
+    },
+    {
+      "id": "152",
+      "school": "NC State",
+      "lat": 35.8008001,
+      "lon": -78.7195655
+    },
+    {
+      "id": "153",
+      "school": "North Carolina",
+      "lat": 35.9069294,
+      "lon": -79.0478889
+    },
+    {
+      "id": "154",
+      "school": "Wake Forest",
+      "lat": 36.1305507,
+      "lon": -80.2545851
+    },
+    {
+      "id": "155",
+      "school": "North Dakota",
+      "lat": 47.910622,
+      "lon": -97.090996
+    },
+    {
+      "id": "158",
+      "school": "Nebraska",
+      "lat": 40.820682,
+      "lon": -96.705594
+    },
+    {
+      "id": "159",
+      "school": "Dartmouth",
+      "lat": 43.701302,
+      "lon": -72.2842781
+    },
+    {
+      "id": "160",
+      "school": "New Hampshire",
+      "lat": 43.1386231,
+      "lon": -70.9393077
+    },
+    {
+      "id": "162",
+      "school": "Hamline",
+      "lat": 44.9497487,
+      "lon": -93.0931028
+    },
+    {
+      "id": "163",
+      "school": "Princeton",
+      "lat": 40.3457928,
+      "lon": -74.6500047
+    },
+    {
+      "id": "164",
+      "school": "Rutgers",
+      "lat": 40.513611,
+      "lon": -74.465278
+    },
+    {
+      "id": "166",
+      "school": "New Mexico State",
+      "lat": 32.2796202,
+      "lon": -106.7411148
+    },
+    {
+      "id": "167",
+      "school": "New Mexico",
+      "lat": 35.0669479,
+      "lon": -106.6283225
+    },
+    {
+      "id": "171",
+      "school": "Columbia",
+      "lat": 40.8732697,
+      "lon": -73.9164594
+    },
+    {
+      "id": "172",
+      "school": "Cornell",
+      "lat": 42.4439016,
+      "lon": -76.4785398
+    },
+    {
+      "id": "173",
+      "school": "Hartwick",
+      "lat": 42.453492,
+      "lon": -75.0629531
+    },
+    {
+      "id": "174",
+      "school": "Hobart",
+      "lat": 42.8690271,
+      "lon": -76.9786122
+    },
+    {
+      "id": "175",
+      "school": "Ithaca",
+      "lat": 42.4396039,
+      "lon": -76.4968019
+    },
+    {
+      "id": "183",
+      "school": "Syracuse",
+      "lat": 43.0362269,
+      "lon": -76.1363161
+    },
+    {
+      "id": "184",
+      "school": "Rochester (NY)",
+      "lat": 43.157285,
+      "lon": -77.615214
+    },
+    {
+      "id": "188",
+      "school": "Baldwin Wallace",
+      "lat": 41.3661614,
+      "lon": -81.8543026
+    },
+    {
+      "id": "189",
+      "school": "Bowling Green",
+      "lat": 41.3780114,
+      "lon": -83.6225
+    },
+    {
+      "id": "191",
+      "school": "Heidelberg",
+      "lat": 41.114485,
+      "lon": -83.1779537
+    },
+    {
+      "id": "193",
+      "school": "Miami (OH)",
+      "lat": 39.5197009,
+      "lon": -84.7330255
+    },
+    {
+      "id": "194",
+      "school": "Ohio State",
+      "lat": 40.0016447,
+      "lon": -83.0197266
+    },
+    {
+      "id": "195",
+      "school": "Ohio",
+      "lat": 39.3212794,
+      "lon": -82.1034315
+    },
+    {
+      "id": "196",
+      "school": "Northeastern State",
+      "lat": 35.91537,
+      "lon": -94.969956
+    },
+    {
+      "id": "197",
+      "school": "Oklahoma State",
+      "lat": 36.125673,
+      "lon": -97.066513
+    },
+    {
+      "id": "199",
+      "school": "Southeastern Oklahoma State",
+      "lat": 33.9919761,
+      "lon": -96.3776762
+    },
+    {
+      "id": "200",
+      "school": "Southern Nazarene",
+      "lat": 35.5186728,
+      "lon": -97.6322648
+    },
+    {
+      "id": "201",
+      "school": "Oklahoma",
+      "lat": 35.2058537,
+      "lon": -97.4423145
+    },
+    {
+      "id": "202",
+      "school": "Tulsa",
+      "lat": 36.1489175,
+      "lon": -95.9437853
+    },
+    {
+      "id": "203",
+      "school": "Linfield",
+      "lat": 45.2100367,
+      "lon": -123.194463
+    },
+    {
+      "id": "204",
+      "school": "Oregon State",
+      "lat": 44.5594559,
+      "lon": -123.2814341
+    },
+    {
+      "id": "205",
+      "school": "Pacific (OR)",
+      "lat": 45.5197452,
+      "lon": -123.1114405
+    },
+    {
+      "id": "209",
+      "school": "Lock Haven",
+      "lat": 41.1369077,
+      "lon": -77.4471641
+    },
+    {
+      "id": "210",
+      "school": "Millersville",
+      "lat": 39.997998,
+      "lon": -76.3545372
+    },
+    {
+      "id": "213",
+      "school": "Penn State",
+      "lat": 40.8121958,
+      "lon": -77.8561023
+    },
+    {
+      "id": "215",
+      "school": "Slippery Rock",
+      "lat": 41.0639506,
+      "lon": -80.0564468
+    },
+    {
+      "id": "216",
+      "school": "Susquehanna",
+      "lat": 40.8062437,
+      "lon": -76.8607084
+    },
+    {
+      "id": "218",
+      "school": "Temple",
+      "lat": 39.9007995,
+      "lon": -75.1675414
+    },
+    {
+      "id": "219",
+      "school": "Pennsylvania",
+      "lat": 39.9501475,
+      "lon": -75.1901043
+    },
+    {
+      "id": "221",
+      "school": "Pittsburgh",
+      "lat": 40.4467648,
+      "lon": -80.0157603
+    },
+    {
+      "id": "222",
+      "school": "Villanova",
+      "lat": 40.0343329,
+      "lon": -75.3367666
+    },
+    {
+      "id": "223",
+      "school": "West Chester",
+      "lat": 39.9597213,
+      "lon": -75.6059638
+    },
+    {
+      "id": "225",
+      "school": "Brown",
+      "lat": 41.842114,
+      "lon": -71.3939416
+    },
+    {
+      "id": "227",
+      "school": "Rhode Island",
+      "lat": 41.4879984,
+      "lon": -71.5347458
+    },
+    {
+      "id": "228",
+      "school": "Clemson",
+      "lat": 34.6787737,
+      "lon": -82.8432428
+    },
+    {
+      "id": "231",
+      "school": "Furman",
+      "lat": 34.920192,
+      "lon": -82.4370917
+    },
+    {
+      "id": "233",
+      "school": "South Dakota",
+      "lat": 42.7911218,
+      "lon": -96.9278427
+    },
+    {
+      "id": "235",
+      "school": "Memphis",
+      "lat": 35.1209429,
+      "lon": -89.977147
+    },
+    {
+      "id": "236",
+      "school": "Chattanooga",
+      "lat": 35.0363792,
+      "lon": -85.3158835
+    },
+    {
+      "id": "237",
+      "school": "Union",
+      "lat": 42.8142432,
+      "lon": -73.9395687
+    },
+    {
+      "id": "238",
+      "school": "Vanderbilt",
+      "lat": 36.1440455,
+      "lon": -86.8088942
+    },
+    {
+      "id": "239",
+      "school": "Baylor",
+      "lat": 31.5582015,
+      "lon": -97.1156702
+    },
+    {
+      "id": "241",
+      "school": "McMurry",
+      "lat": 32.44645,
+      "lon": -99.7475905
+    },
+    {
+      "id": "242",
+      "school": "Rice",
+      "lat": 29.7163297,
+      "lon": -95.4093261
+    },
+    {
+      "id": "245",
+      "school": "Texas A&M",
+      "lat": 30.6098891,
+      "lon": -96.3403828
+    },
+    {
+      "id": "246",
+      "school": "Juniata",
+      "lat": 40.4847959,
+      "lon": -78.0102813
+    },
+    {
+      "id": "247",
+      "school": "King's",
+      "lat": 41.23369915,
+      "lon": -75.85364178943517
+    },
+    {
+      "id": "248",
+      "school": "Houston",
+      "lat": 29.7219885,
+      "lon": -95.3491623
+    },
+    {
+      "id": "249",
+      "school": "North Texas",
+      "lat": 33.203899,
+      "lon": -97.159245
+    },
+    {
+      "id": "251",
+      "school": "Texas",
+      "lat": 30.2836813,
+      "lon": -97.7325345
+    },
+    {
+      "id": "252",
+      "school": "BYU",
+      "lat": 40.2575347,
+      "lon": -111.6545247
+    },
+    {
+      "id": "253",
+      "school": "Southern Utah",
+      "lat": 37.6757919,
+      "lon": -113.0773938
+    },
+    {
+      "id": "254",
+      "school": "Utah",
+      "lat": 40.7599724,
+      "lon": -111.8488255
+    },
+    {
+      "id": "255",
+      "school": "Knox",
+      "lat": 40.9475652,
+      "lon": -90.3712169
+    },
+    {
+      "id": "256",
+      "school": "James Madison",
+      "lat": 38.4352919,
+      "lon": -78.8729349
+    },
+    {
+      "id": "257",
+      "school": "Richmond",
+      "lat": 37.5807765,
+      "lon": -77.5372211
+    },
+    {
+      "id": "258",
+      "school": "Virginia",
+      "lat": 38.0311801,
+      "lon": -78.5137897
+    },
+    {
+      "id": "259",
+      "school": "Virginia Tech",
+      "lat": 37.2199873,
+      "lon": -80.4180643
+    },
+    {
+      "id": "262",
+      "school": "Lake Forest",
+      "lat": 42.2586342,
+      "lon": -87.840625
+    },
+    {
+      "id": "263",
+      "school": "Loras",
+      "lat": 42.5006243,
+      "lon": -90.6647985
+    },
+    {
+      "id": "264",
+      "school": "Washington",
+      "lat": 47.6503235,
+      "lon": -122.3015746
+    },
+    {
+      "id": "265",
+      "school": "Washington State",
+      "lat": 46.731831,
+      "lon": -117.1604991
+    },
+    {
+      "id": "266",
+      "school": "Beloit",
+      "lat": 42.5083272,
+      "lon": -89.031784
+    },
+    {
+      "id": "268",
+      "school": "Lawrence",
+      "lat": 44.2613967,
+      "lon": -88.4069744
+    },
+    {
+      "id": "271",
+      "school": "Wisconsin Oshkosh",
+      "lat": 44.0206919,
+      "lon": -88.5408574
+    },
+    {
+      "id": "272",
+      "school": "Wisconsin Platteville",
+      "lat": 42.7342942,
+      "lon": -90.4784451
+    },
+    {
+      "id": "274",
+      "school": "Maine Maritime",
+      "lat": 44.388164,
+      "lon": -68.79982
+    },
+    {
+      "id": "275",
+      "school": "Wisconsin",
+      "lat": 43.06994,
+      "lon": -89.4126943
+    },
+    {
+      "id": "276",
+      "school": "Marshall",
+      "lat": 38.4247042,
+      "lon": -82.4214412
+    },
+    {
+      "id": "277",
+      "school": "West Virginia",
+      "lat": 39.6502744,
+      "lon": -79.9551873
+    },
+    {
+      "id": "278",
+      "school": "Fresno State",
+      "lat": 36.8143527,
+      "lon": -119.7580092
+    },
+    {
+      "id": "282",
+      "school": "Indiana State",
+      "lat": 39.4746858,
+      "lon": -87.3669599
+    },
+    {
+      "id": "284",
+      "school": "Stonehill",
+      "lat": 42.0667665,
+      "lon": -71.1036592
+    },
+    {
+      "id": "286",
+      "school": "North Carolina Wesleyan",
+      "lat": 35.9423833,
+      "lon": -77.7956949
+    },
+    {
+      "id": "290",
+      "school": "Georgia Southern",
+      "lat": 32.4122471,
+      "lon": -81.7849296
+    },
+    {
+      "id": "291",
+      "school": "Methodist",
+      "lat": 35.0525759,
+      "lon": -78.878292
+    },
+    {
+      "id": "292",
+      "school": "UT Rio Grande Valley",
+      "lat": 26.2826,
+      "lon": -98.1352
+    },
+    {
+      "id": "293",
+      "school": "Vermont State Castleton",
+      "lat": 43.6111275,
+      "lon": -73.1807089
+    },
+    {
+      "id": "295",
+      "school": "Old Dominion",
+      "lat": 36.8889533,
+      "lon": -76.3049175
+    },
+    {
+      "id": "297",
+      "school": "Hampden Sydney",
+      "lat": 37.3024713,
+      "lon": -78.3923813
+    },
+    {
+      "id": "301",
+      "school": "San Diego",
+      "lat": 32.7730674,
+      "lon": -117.183721
+    },
+    {
+      "id": "302",
+      "school": "UC Davis",
+      "lat": 38.5365266,
+      "lon": -121.7627936
+    },
+    {
+      "id": "304",
+      "school": "Idaho State",
+      "lat": 42.8702052,
+      "lon": -112.4281274
+    },
+    {
+      "id": "306",
+      "school": "Illinois Wesleyan",
+      "lat": 40.4797828,
+      "lon": -88.9939147
+    },
+    {
+      "id": "308",
+      "school": "Ashland",
+      "lat": 40.8686147,
+      "lon": -82.3175942
+    },
+    {
+      "id": "309",
+      "school": "Louisiana",
+      "lat": 30.2158434,
+      "lon": -92.0417371
+    },
+    {
+      "id": "311",
+      "school": "Maine",
+      "lat": 44.905128,
+      "lon": -68.6724718
+    },
+    {
+      "id": "317",
+      "school": "Marietta",
+      "lat": 39.4167742,
+      "lon": -81.4548392
+    },
+    {
+      "id": "319",
+      "school": "Oklahoma Baptist",
+      "lat": 35.3272928,
+      "lon": -96.9253004
+    },
+    {
+      "id": "322",
+      "school": "Lafayette",
+      "lat": 40.7009796,
+      "lon": -75.2106499
+    },
+    {
+      "id": "323",
+      "school": "Moravian",
+      "lat": 40.6178915,
+      "lon": -75.3786521
+    },
+    {
+      "id": "324",
+      "school": "Coastal Carolina",
+      "lat": 33.7928506,
+      "lon": -79.0166946
+    },
+    {
+      "id": "326",
+      "school": "Texas State",
+      "lat": 29.8910008,
+      "lon": -97.9255735
+    },
+    {
+      "id": "328",
+      "school": "Utah State",
+      "lat": 41.7517394,
+      "lon": -111.8116007
+    },
+    {
+      "id": "330",
+      "school": "Virginia State",
+      "lat": 37.227928,
+      "lon": -77.4019268
+    },
+    {
+      "id": "331",
+      "school": "Eastern Washington",
+      "lat": 47.49278,
+      "lon": -117.587353
+    },
+    {
+      "id": "332",
+      "school": "Muskingum",
+      "lat": 39.9934992,
+      "lon": -81.7338559
+    },
+    {
+      "id": "333",
+      "school": "Alabama",
+      "lat": 33.2082752,
+      "lon": -87.5503836
+    },
+    {
+      "id": "336",
+      "school": "Wesleyan (CT)",
+      "lat": 41.5623178,
+      "lon": -72.6509061
+    },
+    {
+      "id": "338",
+      "school": "Kennesaw State",
+      "lat": 34.0289318,
+      "lon": -84.5676234
+    },
+    {
+      "id": "340",
+      "school": "Bowdoin",
+      "lat": 43.9145244,
+      "lon": -69.9653278
+    },
+    {
+      "id": "341",
+      "school": "Frostburg State",
+      "lat": 39.6581425,
+      "lon": -78.928357
+    },
+    {
+      "id": "344",
+      "school": "Mississippi State",
+      "lat": 33.4563403,
+      "lon": -88.7933652
+    },
+    {
+      "id": "348",
+      "school": "Hamilton",
+      "lat": 44.7278943,
+      "lon": -73.6686982
+    },
+    {
+      "id": "349",
+      "school": "Army",
+      "lat": 41.3874924,
+      "lon": -73.9640891
+    },
+    {
+      "id": "351",
+      "school": "Wingate",
+      "lat": 34.9843176,
+      "lon": -80.4492319
+    },
+    {
+      "id": "352",
+      "school": "Kenyon",
+      "lat": 40.375643,
+      "lon": -82.3970994
+    },
+    {
+      "id": "354",
+      "school": "Olivet",
+      "lat": 42.4414273,
+      "lon": -84.9241542
+    },
+    {
+      "id": "356",
+      "school": "Illinois",
+      "lat": 40.0993268,
+      "lon": -88.2359569
+    },
+    {
+      "id": "359",
+      "school": "Otterbein",
+      "lat": 40.126139,
+      "lon": -82.9295287
+    },
+    {
+      "id": "365",
+      "school": "Alfred",
+      "lat": 42.2542334,
+      "lon": -77.7906062
+    },
+    {
+      "id": "366",
+      "school": "Ferrum",
+      "lat": 36.937856999999994,
+      "lon": -80.01424992208018
+    },
+    {
+      "id": "367",
+      "school": "Gannon",
+      "lat": 42.1294712,
+      "lon": -80.0852695
+    },
+    {
+      "id": "374",
+      "school": "St. John Fisher",
+      "lat": 43.157285,
+      "lon": -77.615214
+    },
+    {
+      "id": "375",
+      "school": "St. Scholastica",
+      "lat": 46.7729322,
+      "lon": -92.1251218
+    },
+    {
+      "id": "379",
+      "school": "UMass Dartmouth",
+      "lat": 41.6332267,
+      "lon": -70.9879928
+    },
+    {
+      "id": "386",
+      "school": "Trinity (TX)",
+      "lat": 29.4246002,
+      "lon": -98.4951405
+    },
+    {
+      "id": "388",
+      "school": "Lebanon Valley",
+      "lat": 40.3295901,
+      "lon": -76.515226
+    },
+    {
+      "id": "389",
+      "school": "Upper Iowa",
+      "lat": 42.8420766,
+      "lon": -91.850265
+    },
+    {
+      "id": "390",
+      "school": "Utica",
+      "lat": 43.1009031,
+      "lon": -75.2326641
+    },
+    {
+      "id": "391",
+      "school": "Oberlin",
+      "lat": 41.2939386,
+      "lon": -82.2173786
+    },
+    {
+      "id": "396",
+      "school": "Wheaton (IL)",
+      "lat": 41.8646959,
+      "lon": -88.1101709
+    },
+    {
+      "id": "398",
+      "school": "Wilkes",
+      "lat": 33.707182,
+      "lon": -85.51021468718943
+    },
+    {
+      "id": "399",
+      "school": "UAlbany",
+      "lat": 42.6808062,
+      "lon": -73.8272841
+    },
+    {
+      "id": "402",
+      "school": "Worcester State",
+      "lat": 42.2625621,
+      "lon": -71.8018877
+    },
+    {
+      "id": "409",
+      "school": "Concordia (WI)",
+      "lat": 43.2219088,
+      "lon": -87.9822969
+    },
+    {
+      "id": "411",
+      "school": "Chapman",
+      "lat": 33.7500378,
+      "lon": -117.8704931
+    },
+    {
+      "id": "415",
+      "school": "George Fox",
+      "lat": 45.300347,
+      "lon": -122.972751
+    },
+    {
+      "id": "417",
+      "school": "Gallaudet",
+      "lat": 38.8950368,
+      "lon": -77.0365427
+    },
+    {
+      "id": "418",
+      "school": "Hendrix",
+      "lat": 35.2521996,
+      "lon": -92.6888936
+    },
+    {
+      "id": "424",
+      "school": "Capital",
+      "lat": 39.9692378,
+      "lon": -82.936864
+    },
+    {
+      "id": "425",
+      "school": "Northern State",
+      "lat": 45.4649805,
+      "lon": -98.487813
+    },
+    {
+      "id": "426",
+      "school": "Mount Union",
+      "lat": 40.9153362,
+      "lon": -81.1059309
+    },
+    {
+      "id": "427",
+      "school": "Ohio Northern",
+      "lat": 38.8398935,
+      "lon": -83.5051704
+    },
+    {
+      "id": "433",
+      "school": "Westminster (MO)",
+      "lat": 38.8467082,
+      "lon": -91.9479586
+    },
+    {
+      "id": "437",
+      "school": "Lake Erie",
+      "lat": 41.7244885,
+      "lon": -81.245657
+    },
+    {
+      "id": "446",
+      "school": "Martin Luther",
+      "lat": 44.3140261,
+      "lon": -94.4614177
+    },
+    {
+      "id": "452",
+      "school": "Endicott",
+      "lat": 42.5584284,
+      "lon": -70.8800491
+    },
+    {
+      "id": "455",
+      "school": "West Virginia Wesleyan",
+      "lat": 38.9939426,
+      "lon": -80.2322698
+    },
+    {
+      "id": "471",
+      "school": "Stevenson",
+      "lat": 39.4102772,
+      "lon": -76.7128314
+    },
+    {
+      "id": "490",
+      "school": "Benedict",
+      "lat": 34.0007493,
+      "lon": -81.0343313
+    },
+    {
+      "id": "548",
+      "school": "LaGrange",
+      "lat": 33.039291,
+      "lon": -85.0313269
+    },
+    {
+      "id": "559",
+      "school": "University of Mary",
+      "lat": 46.808327,
+      "lon": -100.783739
+    },
+    {
+      "id": "568",
+      "school": "Minot State",
+      "lat": 48.23251,
+      "lon": -101.296273
+    },
+    {
+      "id": "583",
+      "school": "Northwestern (MN)",
+      "lat": 45.0060767,
+      "lon": -93.1566107
+    },
+    {
+      "id": "611",
+      "school": "Seton Hill",
+      "lat": 40.3014581,
+      "lon": -79.5389289
+    },
+    {
+      "id": "613",
+      "school": "South Dakota Mines",
+      "lat": 44.0869329,
+      "lon": -103.2274481
+    },
+    {
+      "id": "2000",
+      "school": "Abilene Christian",
+      "lat": 32.472275,
+      "lon": -99.710464
+    },
+    {
+      "id": "2001",
+      "school": "Adams State",
+      "lat": 37.5780995,
+      "lon": -105.7890452
+    },
+    {
+      "id": "2003",
+      "school": "Adrian",
+      "lat": 41.8975152,
+      "lon": -84.0373054
+    },
+    {
+      "id": "2005",
+      "school": "Air Force",
+      "lat": 38.9969701,
+      "lon": -104.8436165
+    },
+    {
+      "id": "2006",
+      "school": "Akron",
+      "lat": 41.0725534,
+      "lon": -81.5083408
+    },
+    {
+      "id": "2010",
+      "school": "Alabama A&M",
+      "lat": 34.7835363,
+      "lon": -86.5784132
+    },
+    {
+      "id": "2011",
+      "school": "Alabama State",
+      "lat": 32.3642223,
+      "lon": -86.2896902
+    },
+    {
+      "id": "2013",
+      "school": "Albany State",
+      "lat": 31.5782062,
+      "lon": -84.1556809
+    },
+    {
+      "id": "2015",
+      "school": "Albright",
+      "lat": 40.335345,
+      "lon": -75.9279495
+    },
+    {
+      "id": "2016",
+      "school": "Alcorn State",
+      "lat": 31.873621,
+      "lon": -91.13488
+    },
+    {
+      "id": "2018",
+      "school": "Allegheny",
+      "lat": 41.641445,
+      "lon": -80.151449
+    },
+    {
+      "id": "2019",
+      "school": "Allen",
+      "lat": 34.0007493,
+      "lon": -81.0343313
+    },
+    {
+      "id": "2022",
+      "school": "American International",
+      "lat": 42.1018764,
+      "lon": -72.5886727
+    },
+    {
+      "id": "2023",
+      "school": "Anderson (IN)",
+      "lat": 40.1053196,
+      "lon": -85.6802541
+    },
+    {
+      "id": "2025",
+      "school": "Angelo State",
+      "lat": 31.4649685,
+      "lon": -100.4405094
+    },
+    {
+      "id": "2026",
+      "school": "App State",
+      "lat": 36.2114267,
+      "lon": -81.6854278
+    },
+    {
+      "id": "2028",
+      "school": "Arkansas Monticello",
+      "lat": 33.6293427,
+      "lon": -91.7912327
+    },
+    {
+      "id": "2029",
+      "school": "Arkansas-Pine Bluff",
+      "lat": 34.253327,
+      "lon": -92.0214031
+    },
+    {
+      "id": "2032",
+      "school": "Arkansas State",
+      "lat": 35.8488977,
+      "lon": -90.6677436
+    },
+    {
+      "id": "2033",
+      "school": "Arkansas Tech",
+      "lat": 35.2784173,
+      "lon": -93.1337856
+    },
+    {
+      "id": "2038",
+      "school": "Assumption",
+      "lat": 42.2625621,
+      "lon": -71.8018877
+    },
+    {
+      "id": "2042",
+      "school": "Augustana (IL)",
+      "lat": 41.4411786,
+      "lon": -90.5766144
+    },
+    {
+      "id": "2043",
+      "school": "Augustana (SD)",
+      "lat": 43.5488256,
+      "lon": -96.7307737
+    },
+    {
+      "id": "2044",
+      "school": "Aurora",
+      "lat": 41.7571701,
+      "lon": -88.3147539
+    },
+    {
+      "id": "2045",
+      "school": "Austin",
+      "lat": 36.2452294,
+      "lon": -101.8858689
+    },
+    {
+      "id": "2046",
+      "school": "Austin Peay",
+      "lat": 36.5362559,
+      "lon": -87.3525507
+    },
+    {
+      "id": "2047",
+      "school": "Averett",
+      "lat": 36.5859718,
+      "lon": -79.3950228
+    },
+    {
+      "id": "2050",
+      "school": "Ball State",
+      "lat": 40.2159422,
+      "lon": -85.4161148
+    },
+    {
+      "id": "2056",
+      "school": "Belhaven",
+      "lat": 32.2990021,
+      "lon": -90.1847691
+    },
+    {
+      "id": "2060",
+      "school": "Bentley",
+      "lat": 42.3756401,
+      "lon": -71.2358004
+    },
+    {
+      "id": "2062",
+      "school": "Bethany (WV)",
+      "lat": 40.205627,
+      "lon": -80.5567384
+    },
+    {
+      "id": "2065",
+      "school": "Bethune-Cookman",
+      "lat": 29.173466,
+      "lon": -81.117511
+    },
+    {
+      "id": "2069",
+      "school": "Black Hills State",
+      "lat": 44.490817,
+      "lon": -103.85937
+    },
+    {
+      "id": "2071",
+      "school": "Bloomsburg",
+      "lat": 41.0044958,
+      "lon": -76.4537302
+    },
+    {
+      "id": "2074",
+      "school": "Bluffton",
+      "lat": 40.8934459,
+      "lon": -83.8917849
+    },
+    {
+      "id": "2075",
+      "school": "Bowie State",
+      "lat": 38.9424464,
+      "lon": -76.7301718
+    },
+    {
+      "id": "2079",
+      "school": "Bridgewater",
+      "lat": 38.3820655,
+      "lon": -78.9766975
+    },
+    {
+      "id": "2083",
+      "school": "Bucknell",
+      "lat": 40.9519411,
+      "lon": -76.884752
+    },
+    {
+      "id": "2084",
+      "school": "Buffalo",
+      "lat": 42.9991334,
+      "lon": -78.7775113
+    },
+    {
+      "id": "2085",
+      "school": "Buffalo State",
+      "lat": 42.8867166,
+      "lon": -78.8783922
+    },
+    {
+      "id": "2086",
+      "school": "Butler",
+      "lat": 39.8444694,
+      "lon": -86.1659242
+    },
+    {
+      "id": "2094",
+      "school": "Cal Lutheran",
+      "lat": 34.1705609,
+      "lon": -118.8375937
+    },
+    {
+      "id": "2097",
+      "school": "Campbell",
+      "lat": 35.4047689,
+      "lon": -78.7424842
+    },
+    {
+      "id": "2101",
+      "school": "Carleton",
+      "lat": 44.4582041,
+      "lon": -93.161159
+    },
+    {
+      "id": "2102",
+      "school": "Carnegie Mellon",
+      "lat": 40.4416941,
+      "lon": -79.9900861
+    },
+    {
+      "id": "2105",
+      "school": "Carson Newman",
+      "lat": 36.122311,
+      "lon": -83.4923961
+    },
+    {
+      "id": "2106",
+      "school": "Carthage",
+      "lat": 42.5846773,
+      "lon": -87.8212263
+    },
+    {
+      "id": "2107",
+      "school": "Catawba",
+      "lat": 35.6709727,
+      "lon": -80.4742261
+    },
+    {
+      "id": "2108",
+      "school": "Catholic",
+      "lat": 38.8950368,
+      "lon": -77.0365427
+    },
+    {
+      "id": "2110",
+      "school": "Central Arkansas",
+      "lat": 35.0802599,
+      "lon": -92.460045
+    },
+    {
+      "id": "2115",
+      "school": "Central Connecticut",
+      "lat": 41.6950591,
+      "lon": -72.7616197
+    },
+    {
+      "id": "2116",
+      "school": "UCF",
+      "lat": 28.6079765,
+      "lon": -81.1927233
+    },
+    {
+      "id": "2117",
+      "school": "Central Michigan",
+      "lat": 43.5777313,
+      "lon": -84.7709904
+    },
+    {
+      "id": "2118",
+      "school": "Central Missouri",
+      "lat": 38.7624373,
+      "lon": -93.7409596
+    },
+    {
+      "id": "2119",
+      "school": "Central State",
+      "lat": 39.6847822,
+      "lon": -83.9296526
+    },
+    {
+      "id": "2120",
+      "school": "Central Washington",
+      "lat": 46.9970635,
+      "lon": -120.545122
+    },
+    {
+      "id": "2121",
+      "school": "Centre",
+      "lat": 37.6456488,
+      "lon": -84.7721823
+    },
+    {
+      "id": "2122",
+      "school": "Central Oklahoma",
+      "lat": 35.6571367,
+      "lon": -97.4649038
+    },
+    {
+      "id": "2123",
+      "school": "Chadron State",
+      "lat": 42.8309807,
+      "lon": -103.0003729
+    },
+    {
+      "id": "2127",
+      "school": "Charleston Southern",
+      "lat": 32.9810239,
+      "lon": -80.0659664
+    },
+    {
+      "id": "2128",
+      "school": "Charleston (WV)",
+      "lat": 38.3505995,
+      "lon": -81.6332812
+    },
+    {
+      "id": "2132",
+      "school": "Cincinnati",
+      "lat": 39.1312495,
+      "lon": -84.5161913
+    },
+    {
+      "id": "2134",
+      "school": "Clarion",
+      "lat": 41.2148975,
+      "lon": -79.3857047
+    },
+    {
+      "id": "2141",
+      "school": "Coe",
+      "lat": 41.9758872,
+      "lon": -91.6704053
+    },
+    {
+      "id": "2142",
+      "school": "Colgate",
+      "lat": 42.8168991,
+      "lon": -75.5452721
+    },
+    {
+      "id": "2146",
+      "school": "Colorado School of Mines",
+      "lat": 39.7546349,
+      "lon": -105.2205809
+    },
+    {
+      "id": "2148",
+      "school": "Concord",
+      "lat": 37.366328,
+      "lon": -81.1026607
+    },
+    {
+      "id": "2151",
+      "school": "Concordia Chicago",
+      "lat": 41.8978091,
+      "lon": -87.8139483
+    },
+    {
+      "id": "2152",
+      "school": "Concordia (MN)",
+      "lat": 46.8739081,
+      "lon": -96.7538674
+    },
+    {
+      "id": "2155",
+      "school": "Cornell (IA)",
+      "lat": 41.9222443,
+      "lon": -91.4171209
+    },
+    {
+      "id": "2166",
+      "school": "Davidson",
+      "lat": 35.4995744,
+      "lon": -80.8428419
+    },
+    {
+      "id": "2168",
+      "school": "Dayton",
+      "lat": 39.7369239,
+      "lon": -84.1981068
+    },
+    {
+      "id": "2169",
+      "school": "Delaware State",
+      "lat": 39.189375,
+      "lon": -75.5433185
+    },
+    {
+      "id": "2170",
+      "school": "Delta State",
+      "lat": 33.7440023,
+      "lon": -90.7248187
+    },
+    {
+      "id": "2171",
+      "school": "Denison",
+      "lat": 40.0681192,
+      "lon": -82.5196037
+    },
+    {
+      "id": "2175",
+      "school": "Dickinson",
+      "lat": 40.201499,
+      "lon": -77.1890783
+    },
+    {
+      "id": "2181",
+      "school": "Drake",
+      "lat": 41.605,
+      "lon": -93.655
+    },
+    {
+      "id": "2184",
+      "school": "Duquesne",
+      "lat": 40.4355808,
+      "lon": -79.9900263
+    },
+    {
+      "id": "2188",
+      "school": "East Stroudsburg",
+      "lat": 40.9995386,
+      "lon": -75.1812913
+    },
+    {
+      "id": "2191",
+      "school": "East Central",
+      "lat": 34.7743383,
+      "lon": -96.6783651
+    },
+    {
+      "id": "2193",
+      "school": "East Tennessee State",
+      "lat": 36.299084,
+      "lon": -82.374117
+    },
+    {
+      "id": "2194",
+      "school": "East Texas Baptist",
+      "lat": 32.5447756,
+      "lon": -94.3661004
+    },
+    {
+      "id": "2197",
+      "school": "Eastern Illinois",
+      "lat": 39.4804965,
+      "lon": -88.1811618
+    },
+    {
+      "id": "2198",
+      "school": "Eastern Kentucky",
+      "lat": 37.7344109,
+      "lon": -84.2972854
+    },
+    {
+      "id": "2199",
+      "school": "Eastern Michigan",
+      "lat": 42.256126,
+      "lon": -83.647285
+    },
+    {
+      "id": "2201",
+      "school": "Eastern New Mexico",
+      "lat": 34.1861922,
+      "lon": -103.334397
+    },
+    {
+      "id": "2205",
+      "school": "Edinboro",
+      "lat": 41.8742225,
+      "lon": -80.1317236
+    },
+    {
+      "id": "2206",
+      "school": "Edward Waters",
+      "lat": 30.3321838,
+      "lon": -81.655651
+    },
+    {
+      "id": "2207",
+      "school": "Elizabeth City State",
+      "lat": 36.2956836,
+      "lon": -76.2247697
+    },
+    {
+      "id": "2210",
+      "school": "Elon",
+      "lat": 36.1101269,
+      "lon": -79.5079979
+    },
+    {
+      "id": "2213",
+      "school": "Emory & Henry",
+      "lat": 37.3065238,
+      "lon": -80.0267067
+    },
+    {
+      "id": "2214",
+      "school": "Emporia State",
+      "lat": 38.4040054,
+      "lon": -96.181623
+    },
+    {
+      "id": "2220",
+      "school": "Fayetteville State",
+      "lat": 35.0525759,
+      "lon": -78.878292
+    },
+    {
+      "id": "2221",
+      "school": "FDU Florham",
+      "lat": 40.7598227,
+      "lon": -74.417097
+    },
+    {
+      "id": "2222",
+      "school": "Ferris State",
+      "lat": 43.698078,
+      "lon": -85.483656
+    },
+    {
+      "id": "2224",
+      "school": "Findlay",
+      "lat": 41.0413873,
+      "lon": -83.6503982
+    },
+    {
+      "id": "2226",
+      "school": "Florida Atlantic",
+      "lat": 26.3763763,
+      "lon": -80.1015759
+    },
+    {
+      "id": "2229",
+      "school": "Florida International",
+      "lat": 25.7525,
+      "lon": -80.37778
+    },
+    {
+      "id": "2230",
+      "school": "Fordham",
+      "lat": 40.8466508,
+      "lon": -73.8785937
+    },
+    {
+      "id": "2231",
+      "school": "Fort Hays",
+      "lat": 38.8791783,
+      "lon": -99.3267702
+    },
+    {
+      "id": "2232",
+      "school": "Fort Valley State",
+      "lat": 32.5537585,
+      "lon": -83.8874084
+    },
+    {
+      "id": "2233",
+      "school": "Franklin",
+      "lat": 33.704156,
+      "lon": -117.75109
+    },
+    {
+      "id": "2234",
+      "school": "Franklin & Marshall",
+      "lat": 40.03813,
+      "lon": -76.3056686
+    },
+    {
+      "id": "2237",
+      "school": "Fort Lewis",
+      "lat": 37.2395367,
+      "lon": -107.82158179169292
+    },
+    {
+      "id": "2241",
+      "school": "Gardner-Webb",
+      "lat": 35.2457593,
+      "lon": -81.6739887
+    },
+    {
+      "id": "2242",
+      "school": "Geneva",
+      "lat": 40.7520097,
+      "lon": -80.3192295
+    },
+    {
+      "id": "2247",
+      "school": "Georgia State",
+      "lat": 33.735267,
+      "lon": -84.389949
+    },
+    {
+      "id": "2248",
+      "school": "Gettysburg",
+      "lat": 39.8308973,
+      "lon": -77.231012
+    },
+    {
+      "id": "2249",
+      "school": "Glenville State",
+      "lat": 38.9342573,
+      "lon": -80.8376033
+    },
+    {
+      "id": "2256",
+      "school": "Greensboro",
+      "lat": 36.0726355,
+      "lon": -79.7919754
+    },
+    {
+      "id": "2257",
+      "school": "Greenville",
+      "lat": 38.8922687,
+      "lon": -89.4131356
+    },
+    {
+      "id": "2258",
+      "school": "Guilford",
+      "lat": 36.0726355,
+      "lon": -79.7919754
+    },
+    {
+      "id": "2261",
+      "school": "Hampton",
+      "lat": 37.0200894,
+      "lon": -76.3331555
+    },
+    {
+      "id": "2262",
+      "school": "Hanover",
+      "lat": 38.7142263,
+      "lon": -85.4735707
+    },
+    {
+      "id": "2264",
+      "school": "Harding",
+      "lat": 35.9018987,
+      "lon": -92.7098744
+    },
+    {
+      "id": "2271",
+      "school": "Henderson State",
+      "lat": 34.1209292,
+      "lon": -93.053784
+    },
+    {
+      "id": "2273",
+      "school": "Hillsdale",
+      "lat": 41.8779105,
+      "lon": -84.5984396
+    },
+    {
+      "id": "2274",
+      "school": "Hiram",
+      "lat": 41.312555,
+      "lon": -81.14371
+    },
+    {
+      "id": "2277",
+      "school": "Houston Christian",
+      "lat": 29.6949025,
+      "lon": -95.5167353
+    },
+    {
+      "id": "2280",
+      "school": "Husson",
+      "lat": 44.8011821,
+      "lon": -68.7778138
+    },
+    {
+      "id": "2283",
+      "school": "Benedictine (IL)",
+      "lat": 41.801159,
+      "lon": -88.0747687
+    },
+    {
+      "id": "2286",
+      "school": "Illinois College",
+      "lat": 39.7343037,
+      "lon": -90.2288356
+    },
+    {
+      "id": "2287",
+      "school": "Illinois State",
+      "lat": 40.5125091,
+      "lon": -88.9967177
+    },
+    {
+      "id": "2291",
+      "school": "IU Pennsylvania",
+      "lat": 40.6214551,
+      "lon": -79.1525349
+    },
+    {
+      "id": "2292",
+      "school": "Indianapolis",
+      "lat": 39.7683331,
+      "lon": -86.1583502
+    },
+    {
+      "id": "2294",
+      "school": "Iowa",
+      "lat": 41.6586045,
+      "lon": -91.5510829
+    },
+    {
+      "id": "2296",
+      "school": "Jackson State",
+      "lat": 32.3300053,
+      "lon": -90.1795578
+    },
+    {
+      "id": "2302",
+      "school": "John Carroll",
+      "lat": 41.497831,
+      "lon": -81.537346
+    },
+    {
+      "id": "2304",
+      "school": "Johnson C. Smith",
+      "lat": 35.2272086,
+      "lon": -80.8430827
+    },
+    {
+      "id": "2305",
+      "school": "Kansas",
+      "lat": 38.9629418,
+      "lon": -95.2463686
+    },
+    {
+      "id": "2306",
+      "school": "Kansas State",
+      "lat": 39.2020096,
+      "lon": -96.5938395
+    },
+    {
+      "id": "2309",
+      "school": "Kent State",
+      "lat": 41.1390935,
+      "lon": -81.31346
+    },
+    {
+      "id": "2310",
+      "school": "Kentucky State",
+      "lat": 38.2009055,
+      "lon": -84.8732836
+    },
+    {
+      "id": "2315",
+      "school": "Kutztown",
+      "lat": 40.5173165,
+      "lon": -75.7774177
+    },
+    {
+      "id": "2316",
+      "school": "Kentucky Wesleyan",
+      "lat": 37.742297,
+      "lon": -87.119976
+    },
+    {
+      "id": "2318",
+      "school": "La Verne",
+      "lat": 34.1008426,
+      "lon": -117.7678355
+    },
+    {
+      "id": "2320",
+      "school": "Lamar",
+      "lat": 30.04313,
+      "lon": -94.069963
+    },
+    {
+      "id": "2323",
+      "school": "Lane College",
+      "lat": 35.6144446,
+      "lon": -88.8177418
+    },
+    {
+      "id": "2329",
+      "school": "Lehigh",
+      "lat": 40.5890837,
+      "lon": -75.3553874
+    },
+    {
+      "id": "2331",
+      "school": "Lenoir Rhyne",
+      "lat": 35.7333312,
+      "lon": -81.3442915
+    },
+    {
+      "id": "2333",
+      "school": "Lewis & Clark",
+      "lat": 45.5202471,
+      "lon": -122.6741949
+    },
+    {
+      "id": "2335",
+      "school": "Liberty",
+      "lat": 37.3544305,
+      "lon": -79.1750239
+    },
+    {
+      "id": "2339",
+      "school": "Lincoln (PA)",
+      "lat": 39.8065518,
+      "lon": -75.92870551247694
+    },
+    {
+      "id": "2341",
+      "school": "Long Island University",
+      "lat": 40.816284,
+      "lon": -73.589546
+    },
+    {
+      "id": "2348",
+      "school": "Louisiana Tech",
+      "lat": 32.5321487,
+      "lon": -92.6560019
+    },
+    {
+      "id": "2354",
+      "school": "Lycoming",
+      "lat": 41.2493292,
+      "lon": -77.0027671
+    },
+    {
+      "id": "2359",
+      "school": "Macalester",
+      "lat": 44.9497487,
+      "lon": -93.0931028
+    },
+    {
+      "id": "2362",
+      "school": "Manchester",
+      "lat": 41.0006005,
+      "lon": -85.768597
+    },
+    {
+      "id": "2364",
+      "school": "Minnesota State",
+      "lat": 44.1634663,
+      "lon": -93.9993505
+    },
+    {
+      "id": "2368",
+      "school": "Marist",
+      "lat": 41.7191409,
+      "lon": -73.9329549
+    },
+    {
+      "id": "2369",
+      "school": "Mars Hill",
+      "lat": 35.82685585,
+      "lon": -82.55057686987725
+    },
+    {
+      "id": "2371",
+      "school": "Mary Hardin Baylor",
+      "lat": 31.0560132,
+      "lon": -97.464453
+    },
+    {
+      "id": "2373",
+      "school": "Maryville (TN)",
+      "lat": 35.7564719,
+      "lon": -83.9704593
+    },
+    {
+      "id": "2377",
+      "school": "McNeese",
+      "lat": 30.1804575,
+      "lon": -93.2178729
+    },
+    {
+      "id": "2382",
+      "school": "Mercer",
+      "lat": 32.8262075,
+      "lon": -83.6522485
+    },
+    {
+      "id": "2383",
+      "school": "Merchant Marine",
+      "lat": 40.8197813,
+      "lon": -73.7351337
+    },
+    {
+      "id": "2385",
+      "school": "Mercyhurst",
+      "lat": 42.1294712,
+      "lon": -80.0852695
+    },
+    {
+      "id": "2390",
+      "school": "Miami",
+      "lat": 25.9579665,
+      "lon": -80.2388604
+    },
+    {
+      "id": "2392",
+      "school": "Michigan Tech",
+      "lat": 46.8591287,
+      "lon": -88.7774734
+    },
+    {
+      "id": "2393",
+      "school": "Middle Tennessee",
+      "lat": 35.8511463,
+      "lon": -86.3681649
+    },
+    {
+      "id": "2394",
+      "school": "Middlebury",
+      "lat": 44.007273600000005,
+      "lon": -73.16330105415423
+    },
+    {
+      "id": "2395",
+      "school": "Midwestern State",
+      "lat": 33.9137085,
+      "lon": -98.4933873
+    },
+    {
+      "id": "2396",
+      "school": "Miles",
+      "lat": 33.4859402,
+      "lon": -86.9119366
+    },
+    {
+      "id": "2398",
+      "school": "Millsaps",
+      "lat": 32.2990021,
+      "lon": -90.1847691
+    },
+    {
+      "id": "2399",
+      "school": "Minnesota Morris",
+      "lat": 45.586072,
+      "lon": -95.913941
+    },
+    {
+      "id": "2400",
+      "school": "Mississippi Valley State",
+      "lat": 33.5118304,
+      "lon": -90.3397718
+    },
+    {
+      "id": "2402",
+      "school": "Missouri S&T",
+      "lat": 37.95037,
+      "lon": -91.780444
+    },
+    {
+      "id": "2403",
+      "school": "Missouri Southern State",
+      "lat": 37.08418,
+      "lon": -94.51323
+    },
+    {
+      "id": "2405",
+      "school": "Monmouth",
+      "lat": 40.278953,
+      "lon": -74.009451
+    },
+    {
+      "id": "2413",
+      "school": "Morehead State",
+      "lat": 38.1916481,
+      "lon": -83.4253315
+    },
+    {
+      "id": "2415",
+      "school": "Morgan State",
+      "lat": 39.3439778,
+      "lon": -76.5829573
+    },
+    {
+      "id": "2419",
+      "school": "Mount St Joseph",
+      "lat": 39.1014537,
+      "lon": -84.5124602
+    },
+    {
+      "id": "2422",
+      "school": "Muhlenberg",
+      "lat": 40.6022059,
+      "lon": -75.4712794
+    },
+    {
+      "id": "2424",
+      "school": "New Mexico Highlands",
+      "lat": 35.5939325,
+      "lon": -105.2238969
+    },
+    {
+      "id": "2426",
+      "school": "Navy",
+      "lat": 38.9846985,
+      "lon": -76.5076335
+    },
+    {
+      "id": "2428",
+      "school": "North Carolina Central",
+      "lat": 35.9738646,
+      "lon": -78.896969
+    },
+    {
+      "id": "2429",
+      "school": "Charlotte",
+      "lat": 35.3105033,
+      "lon": -80.7401194
+    },
+    {
+      "id": "2433",
+      "school": "UL Monroe",
+      "lat": 32.5308089,
+      "lon": -92.0660602
+    },
+    {
+      "id": "2438",
+      "school": "Nebraska Kearney",
+      "lat": 40.4906216,
+      "lon": -98.9472344
+    },
+    {
+      "id": "2439",
+      "school": "UNLV",
+      "lat": 36.09075,
+      "lon": -115.183722
+    },
+    {
+      "id": "2440",
+      "school": "Nevada",
+      "lat": 39.5469459,
+      "lon": -119.8175435
+    },
+    {
+      "id": "2441",
+      "school": "New Haven",
+      "lat": 41.2706527,
+      "lon": -72.9470471
+    },
+    {
+      "id": "2442",
+      "school": "The College of New Jersey",
+      "lat": 40.2688105,
+      "lon": -74.8006895
+    },
+    {
+      "id": "2444",
+      "school": "Newberry",
+      "lat": 34.286133,
+      "lon": -81.622539
+    },
+    {
+      "id": "2447",
+      "school": "Nicholls",
+      "lat": 29.7867254,
+      "lon": -90.80455
+    },
+    {
+      "id": "2448",
+      "school": "North Carolina A&T",
+      "lat": 36.0814337,
+      "lon": -79.7700391
+    },
+    {
+      "id": "2449",
+      "school": "North Dakota State",
+      "lat": 46.9029938,
+      "lon": -96.8003251
+    },
+    {
+      "id": "2450",
+      "school": "Norfolk State",
+      "lat": 36.8469442,
+      "lon": -76.2600839
+    },
+    {
+      "id": "2453",
+      "school": "North Alabama",
+      "lat": 34.810914,
+      "lon": -87.670587
+    },
+    {
+      "id": "2458",
+      "school": "Northern Colorado",
+      "lat": 40.403493,
+      "lon": -104.705139
+    },
+    {
+      "id": "2459",
+      "school": "Northern Illinois",
+      "lat": 41.9339586,
+      "lon": -88.7778357
+    },
+    {
+      "id": "2460",
+      "school": "Northern Iowa",
+      "lat": 42.5156111,
+      "lon": -92.4672307
+    },
+    {
+      "id": "2464",
+      "school": "Northern Arizona",
+      "lat": 35.1805483,
+      "lon": -111.6528377
+    },
+    {
+      "id": "2466",
+      "school": "Northwestern State",
+      "lat": 31.747259,
+      "lon": -93.0961357
+    },
+    {
+      "id": "2467",
+      "school": "Norwich",
+      "lat": 44.153195,
+      "lon": -72.65679528850326
+    },
+    {
+      "id": "2477",
+      "school": "Ohio Dominican",
+      "lat": 39.9622601,
+      "lon": -83.0007065
+    },
+    {
+      "id": "2483",
+      "school": "Oregon",
+      "lat": 44.0582712,
+      "lon": -123.0684883
+    },
+    {
+      "id": "2486",
+      "school": "Pacific Lutheran",
+      "lat": 47.1849009,
+      "lon": -122.29214
+    },
+    {
+      "id": "2487",
+      "school": "Pace",
+      "lat": 41.1328736,
+      "lon": -73.7926335
+    },
+    {
+      "id": "2502",
+      "school": "Portland State",
+      "lat": 45.554597,
+      "lon": -122.90694
+    },
+    {
+      "id": "2504",
+      "school": "Prairie View A&M",
+      "lat": 30.0937874,
+      "lon": -95.9960913
+    },
+    {
+      "id": "2506",
+      "school": "Presbyterian",
+      "lat": 34.46158,
+      "lon": -81.861368
+    },
+    {
+      "id": "2508",
+      "school": "Puget Sound",
+      "lat": 47.2495798,
+      "lon": -122.4398746
+    },
+    {
+      "id": "2509",
+      "school": "Purdue",
+      "lat": 40.4352253,
+      "lon": -86.9186843
+    },
+    {
+      "id": "2516",
+      "school": "Randolph Macon",
+      "lat": 37.7594012,
+      "lon": -77.4806603
+    },
+    {
+      "id": "2519",
+      "school": "Rhodes",
+      "lat": 35.1335022,
+      "lon": -89.9668758
+    },
+    {
+      "id": "2523",
+      "school": "Robert Morris",
+      "lat": 40.521046,
+      "lon": -80.2159227
+    },
+    {
+      "id": "2524",
+      "school": "Rockford",
+      "lat": 42.2713945,
+      "lon": -89.093966
+    },
+    {
+      "id": "2528",
+      "school": "Rensselaer",
+      "lat": 42.7284117,
+      "lon": -73.6917878
+    },
+    {
+      "id": "2529",
+      "school": "Sacred Heart",
+      "lat": 41.2212488,
+      "lon": -73.2417431
+    },
+    {
+      "id": "2532",
+      "school": "Salisbury",
+      "lat": 38.366027,
+      "lon": -75.6009964
+    },
+    {
+      "id": "2534",
+      "school": "Sam Houston",
+      "lat": 30.713926,
+      "lon": -95.5419802
+    },
+    {
+      "id": "2535",
+      "school": "Samford",
+      "lat": 33.463273,
+      "lon": -86.795326
+    },
+    {
+      "id": "2542",
+      "school": "Savannah State",
+      "lat": 32.0274346,
+      "lon": -81.0687492
+    },
+    {
+      "id": "2545",
+      "school": "SE Louisiana",
+      "lat": 30.5110264,
+      "lon": -90.4685792
+    },
+    {
+      "id": "2546",
+      "school": "Southeast Missouri State",
+      "lat": 37.3034933,
+      "lon": -89.5230357
+    },
+    {
+      "id": "2551",
+      "school": "Shaw",
+      "lat": 35.7803977,
+      "lon": -78.6390989
+    },
+    {
+      "id": "2553",
+      "school": "Sewanee",
+      "lat": 35.200644,
+      "lon": -85.91952368522726
+    },
+    {
+      "id": "2557",
+      "school": "Coast Guard",
+      "lat": 41.3556187,
+      "lon": -72.0997804
+    },
+    {
+      "id": "2559",
+      "school": "Shippensburg",
+      "lat": 40.0507198,
+      "lon": -77.5205485
+    },
+    {
+      "id": "2560",
+      "school": "Shorter",
+      "lat": 34.257038,
+      "lon": -85.1646726
+    },
+    {
+      "id": "2564",
+      "school": "Simpson (IA)",
+      "lat": 41.3604966,
+      "lon": -93.5613292
+    },
+    {
+      "id": "2567",
+      "school": "SMU",
+      "lat": 32.8377223,
+      "lon": -96.7827859
+    },
+    {
+      "id": "2568",
+      "school": "Southern Arkansas",
+      "lat": 33.2670725,
+      "lon": -93.2393341
+    },
+    {
+      "id": "2569",
+      "school": "South Carolina State",
+      "lat": 33.4986313,
+      "lon": -80.8446857
+    },
+    {
+      "id": "2570",
+      "school": "CSU Pueblo",
+      "lat": 38.2544472,
+      "lon": -104.609141
+    },
+    {
+      "id": "2571",
+      "school": "South Dakota State",
+      "lat": 44.3210182,
+      "lon": -96.7801386
+    },
+    {
+      "id": "2572",
+      "school": "Southern Miss",
+      "lat": 31.3289321,
+      "lon": -89.3318118
+    },
+    {
+      "id": "2579",
+      "school": "South Carolina",
+      "lat": 33.9730239,
+      "lon": -81.0191726
+    },
+    {
+      "id": "2582",
+      "school": "Southern",
+      "lat": 30.5221461,
+      "lon": -91.1896087
+    },
+    {
+      "id": "2583",
+      "school": "Southern Connecticut State",
+      "lat": 41.3082138,
+      "lon": -72.9250518
+    },
+    {
+      "id": "2586",
+      "school": "Southwest Baptist",
+      "lat": 37.1976229,
+      "lon": -93.2798119
+    },
+    {
+      "id": "2587",
+      "school": "Southwest Minnesota State",
+      "lat": 48.3605336,
+      "lon": -96.381968
+    },
+    {
+      "id": "2588",
+      "school": "Southwestern U",
+      "lat": 30.6326942,
+      "lon": -97.6772311
+    },
+    {
+      "id": "2598",
+      "school": "Saint Francis",
+      "lat": 40.5063173,
+      "lon": -78.637214
+    },
+    {
+      "id": "2600",
+      "school": "Saint John's (MN)",
+      "lat": 45.5944117,
+      "lon": -94.3622868
+    },
+    {
+      "id": "2614",
+      "school": "Saint Vincent",
+      "lat": 40.317287,
+      "lon": -79.3840301
+    },
+    {
+      "id": "2617",
+      "school": "Stephen F. Austin",
+      "lat": 31.625719,
+      "lon": -94.6444034
+    },
+    {
+      "id": "2619",
+      "school": "Stony Brook",
+      "lat": 40.9188829,
+      "lon": -73.1242966
+    },
+    {
+      "id": "2623",
+      "school": "Missouri State",
+      "lat": 37.1976229,
+      "lon": -93.2798119
+    },
+    {
+      "id": "2627",
+      "school": "Tarleton State",
+      "lat": 32.2191836,
+      "lon": -98.2130634
+    },
+    {
+      "id": "2628",
+      "school": "TCU",
+      "lat": 32.7096604,
+      "lon": -97.3680835
+    },
+    {
+      "id": "2630",
+      "school": "UT Martin",
+      "lat": 36.3448341,
+      "lon": -88.8616245
+    },
+    {
+      "id": "2633",
+      "school": "Tennessee",
+      "lat": 35.9550131,
+      "lon": -83.9250128
+    },
+    {
+      "id": "2634",
+      "school": "Tennessee State",
+      "lat": 36.166479,
+      "lon": -86.7712898
+    },
+    {
+      "id": "2635",
+      "school": "Tennessee Tech",
+      "lat": 36.1780555,
+      "lon": -85.506183
+    },
+    {
+      "id": "2636",
+      "school": "UTSA",
+      "lat": 29.4169834,
+      "lon": -98.4788143
+    },
+    {
+      "id": "2638",
+      "school": "UTEP",
+      "lat": 31.7733353,
+      "lon": -106.507957
+    },
+    {
+      "id": "2639",
+      "school": "Texas Lutheran",
+      "lat": 29.5688411,
+      "lon": -97.9647269
+    },
+    {
+      "id": "2640",
+      "school": "Texas Southern",
+      "lat": 29.7521988,
+      "lon": -95.3524146
+    },
+    {
+      "id": "2641",
+      "school": "Texas Tech",
+      "lat": 33.5910518,
+      "lon": -101.8728824
+    },
+    {
+      "id": "2643",
+      "school": "The Citadel",
+      "lat": 32.7936975,
+      "lon": -79.9558183
+    },
+    {
+      "id": "2644",
+      "school": "Thiel",
+      "lat": 31.8295972,
+      "lon": -86.6177517
+    },
+    {
+      "id": "2649",
+      "school": "Toledo",
+      "lat": 41.6574777,
+      "lon": -83.6135652
+    },
+    {
+      "id": "2651",
+      "school": "Trine",
+      "lat": 41.634874,
+      "lon": -84.99928
+    },
+    {
+      "id": "2653",
+      "school": "Troy",
+      "lat": 31.7995565,
+      "lon": -85.9518328
+    },
+    {
+      "id": "2654",
+      "school": "Truman State",
+      "lat": 40.1948848,
+      "lon": -92.5833939
+    },
+    {
+      "id": "2655",
+      "school": "Tulane",
+      "lat": 29.944616,
+      "lon": -90.116692
+    },
+    {
+      "id": "2657",
+      "school": "Tuskegee",
+      "lat": 32.4240286,
+      "lon": -85.6916195
+    },
+    {
+      "id": "2658",
+      "school": "Texas A&M-Kingsville",
+      "lat": 27.5158689,
+      "lon": -97.856109
+    },
+    {
+      "id": "2667",
+      "school": "Ursinus",
+      "lat": 40.1856597,
+      "lon": -75.451571
+    },
+    {
+      "id": "2673",
+      "school": "Valdosta State",
+      "lat": 30.8327022,
+      "lon": -83.2784851
+    },
+    {
+      "id": "2674",
+      "school": "Valparaiso",
+      "lat": 41.465642,
+      "lon": -87.0479446
+    },
+    {
+      "id": "2676",
+      "school": "Virginia Union",
+      "lat": 37.5385087,
+      "lon": -77.43428
+    },
+    {
+      "id": "2678",
+      "school": "VMI",
+      "lat": 37.788983,
+      "lon": -79.43505
+    },
+    {
+      "id": "2681",
+      "school": "Wagner",
+      "lat": 40.614688,
+      "lon": -74.090639
+    },
+    {
+      "id": "2682",
+      "school": "Walsh",
+      "lat": 40.7985464,
+      "lon": -81.3749508
+    },
+    {
+      "id": "2685",
+      "school": "Wartburg",
+      "lat": 42.7258451,
+      "lon": -92.4746033
+    },
+    {
+      "id": "2686",
+      "school": "Washington & Jefferson",
+      "lat": 31.3991238,
+      "lon": -88.2019828
+    },
+    {
+      "id": "2687",
+      "school": "Washburn",
+      "lat": 39.049011,
+      "lon": -95.677556
+    },
+    {
+      "id": "2688",
+      "school": "Washington and Lee",
+      "lat": 37.7840208,
+      "lon": -79.4428157
+    },
+    {
+      "id": "2692",
+      "school": "Weber State",
+      "lat": 41.1918741,
+      "lon": -111.9401391
+    },
+    {
+      "id": "2695",
+      "school": "West Alabama",
+      "lat": 32.5843026,
+      "lon": -88.1872474
+    },
+    {
+      "id": "2698",
+      "school": "West Georgia",
+      "lat": 33.58006,
+      "lon": -85.12064
+    },
+    {
+      "id": "2699",
+      "school": "West Liberty",
+      "lat": 40.0639616,
+      "lon": -80.7209149
+    },
+    {
+      "id": "2700",
+      "school": "McDaniel",
+      "lat": 39.5752639,
+      "lon": -76.9959277
+    },
+    {
+      "id": "2702",
+      "school": "Western New England",
+      "lat": 42.1018764,
+      "lon": -72.5886727
+    },
+    {
+      "id": "2703",
+      "school": "Western New Mexico",
+      "lat": 32.7751371,
+      "lon": -108.2754371
+    },
+    {
+      "id": "2704",
+      "school": "West Texas",
+      "lat": 34.9799429,
+      "lon": -101.919197
+    },
+    {
+      "id": "2707",
+      "school": "West Virginia State",
+      "lat": 38.3836097,
+      "lon": -81.7654665
+    },
+    {
+      "id": "2710",
+      "school": "Western Illinois",
+      "lat": 40.4683928,
+      "lon": -90.6841248
+    },
+    {
+      "id": "2711",
+      "school": "Western Michigan",
+      "lat": 42.2860064,
+      "lon": -85.6007573
+    },
+    {
+      "id": "2714",
+      "school": "Western Colorado",
+      "lat": 38.6476702,
+      "lon": -107.0603126
+    },
+    {
+      "id": "2717",
+      "school": "Western Carolina",
+      "lat": 35.3048352,
+      "lon": -83.1818148
+    },
+    {
+      "id": "2721",
+      "school": "Whitworth",
+      "lat": 47.6571934,
+      "lon": -117.4235106
+    },
+    {
+      "id": "2723",
+      "school": "Wisconsin River Falls",
+      "lat": 44.8595111,
+      "lon": -92.6265897
+    },
+    {
+      "id": "2725",
+      "school": "Widener",
+      "lat": 39.849557,
+      "lon": -75.3557458
+    },
+    {
+      "id": "2729",
+      "school": "William & Mary",
+      "lat": 37.2730996,
+      "lon": -76.7137202
+    },
+    {
+      "id": "2731",
+      "school": "Williams",
+      "lat": 42.6889156,
+      "lon": -73.2246057
+    },
+    {
+      "id": "2733",
+      "school": "Wilmington (OH)",
+      "lat": 39.4453393,
+      "lon": -83.8285375
+    },
+    {
+      "id": "2736",
+      "school": "Winston-Salem State",
+      "lat": 36.083372,
+      "lon": -80.222037
+    },
+    {
+      "id": "2738",
+      "school": "Wisconsin Eau Claire",
+      "lat": 44.811349,
+      "lon": -91.4984941
+    },
+    {
+      "id": "2740",
+      "school": "Wisconsin La Crosse",
+      "lat": 43.8122836,
+      "lon": -91.2514355
+    },
+    {
+      "id": "2741",
+      "school": "Wisconsin Lutheran",
+      "lat": 43.0494122,
+      "lon": -88.0079271
+    },
+    {
+      "id": "2743",
+      "school": "Wisconsin Stevens Point",
+      "lat": 44.5229223,
+      "lon": -89.574111
+    },
+    {
+      "id": "2744",
+      "school": "Wisconsin Stout",
+      "lat": 44.8755183,
+      "lon": -91.9193422
+    },
+    {
+      "id": "2745",
+      "school": "Wisconsin Whitewater",
+      "lat": 42.8336422,
+      "lon": -88.7292679
+    },
+    {
+      "id": "2746",
+      "school": "Wittenberg",
+      "lat": 39.937943,
+      "lon": -83.812075
+    },
+    {
+      "id": "2747",
+      "school": "Wofford",
+      "lat": 34.9618606,
+      "lon": -81.9328915
+    },
+    {
+      "id": "2748",
+      "school": "Wooster",
+      "lat": 40.7980976,
+      "lon": -81.9397733
+    },
+    {
+      "id": "2749",
+      "school": "WPI",
+      "lat": 42.2625621,
+      "lon": -71.8018877
+    },
+    {
+      "id": "2751",
+      "school": "Wyoming",
+      "lat": 41.31161,
+      "lon": -105.5681384
+    },
+    {
+      "id": "2754",
+      "school": "Youngstown State",
+      "lat": 41.1092964,
+      "lon": -80.6501885
+    },
+    {
+      "id": "2755",
+      "school": "Grambling",
+      "lat": 32.5258665,
+      "lon": -92.7146412
+    },
+    {
+      "id": "2757",
+      "school": "Berry",
+      "lat": 34.275093,
+      "lon": -85.1832843
+    },
+    {
+      "id": "2758",
+      "school": "Howard Payne",
+      "lat": 31.7070026,
+      "lon": -98.9831022
+    },
+    {
+      "id": "2771",
+      "school": "Merrimack",
+      "lat": 42.6839894,
+      "lon": -71.1127065
+    },
+    {
+      "id": "2776",
+      "school": "Salve Regina",
+      "lat": 41.4899827,
+      "lon": -71.3137707
+    },
+    {
+      "id": "2779",
+      "school": "St. Lawrence",
+      "lat": 44.5956163,
+      "lon": -75.1690942
+    },
+    {
+      "id": "2781",
+      "school": "Brockport",
+      "lat": 43.213671,
+      "lon": -77.93918
+    },
+    {
+      "id": "2782",
+      "school": "SUNY Cortland",
+      "lat": 41.2446453,
+      "lon": -73.9259559
+    },
+    {
+      "id": "2790",
+      "school": "Albion",
+      "lat": 42.243097,
+      "lon": -84.7530304
+    },
+    {
+      "id": "2800",
+      "school": "Alma",
+      "lat": 43.37892,
+      "lon": -84.659727
+    },
+    {
+      "id": "2802",
+      "school": "Bethel (MN)",
+      "lat": 45.0761409,
+      "lon": -93.1666945
+    },
+    {
+      "id": "2803",
+      "school": "Bryant",
+      "lat": 41.924206,
+      "lon": -71.5385124
+    },
+    {
+      "id": "2804",
+      "school": "Chowan",
+      "lat": 36.434053,
+      "lon": -77.098431
+    },
+    {
+      "id": "2805",
+      "school": "Clark Atlanta",
+      "lat": 33.7489924,
+      "lon": -84.3902644
+    },
+    {
+      "id": "2808",
+      "school": "Delaware Valley",
+      "lat": 40.30815835,
+      "lon": -75.2164370939226
+    },
+    {
+      "id": "2810",
+      "school": "Hardin Simmons",
+      "lat": 32.44645,
+      "lon": -99.7475905
+    },
+    {
+      "id": "2812",
+      "school": "Hope",
+      "lat": 42.7876022,
+      "lon": -86.1090828
+    },
+    {
+      "id": "2815",
+      "school": "Lindenwood",
+      "lat": 38.7946252,
+      "lon": -90.519829
+    },
+    {
+      "id": "2816",
+      "school": "McKendree",
+      "lat": 38.6039375,
+      "lon": -89.8073195
+    },
+    {
+      "id": "2817",
+      "school": "Minnesota St Moorhead",
+      "lat": 46.8739081,
+      "lon": -96.7538674
+    },
+    {
+      "id": "2818",
+      "school": "Montclair State",
+      "lat": 40.8164458,
+      "lon": -74.2210643
+    },
+    {
+      "id": "2822",
+      "school": "North Greenville",
+      "lat": 35.0684492,
+      "lon": -82.3684509
+    },
+    {
+      "id": "2823",
+      "school": "Northwestern (OK)",
+      "lat": 36.8030501,
+      "lon": -98.6660278
+    },
+    {
+      "id": "2825",
+      "school": "Quincy",
+      "lat": 39.9356016,
+      "lon": -91.4098727
+    },
+    {
+      "id": "2827",
+      "school": "Rowan",
+      "lat": 39.7027677,
+      "lon": -75.1119434
+    },
+    {
+      "id": "2828",
+      "school": "Shenandoah",
+      "lat": 39.1852184,
+      "lon": -78.1652404
+    },
+    {
+      "id": "2830",
+      "school": "Saint Anselm",
+      "lat": 42.9956397,
+      "lon": -71.4547891
+    },
+    {
+      "id": "2832",
+      "school": "St. Norbert",
+      "lat": 44.4493584,
+      "lon": -88.0599986
+    },
+    {
+      "id": "2834",
+      "school": "Sul Ross State",
+      "lat": 30.3573802,
+      "lon": -103.6609367
+    },
+    {
+      "id": "2837",
+      "school": "East Texas A&M",
+      "lat": 33.2442615,
+      "lon": -95.9006353
+    },
+    {
+      "id": "2838",
+      "school": "Tiffin",
+      "lat": 41.114485,
+      "lon": -83.1779537
+    },
+    {
+      "id": "2839",
+      "school": "Tusculum",
+      "lat": 36.1631575,
+      "lon": -82.8309861
+    },
+    {
+      "id": "2842",
+      "school": "UVA Wise",
+      "lat": 36.9759345,
+      "lon": -82.5757108
+    },
+    {
+      "id": "2843",
+      "school": "Western Connecticut State",
+      "lat": 41.394817,
+      "lon": -73.4540111
+    },
+    {
+      "id": "2844",
+      "school": "Wayne State (NE)",
+      "lat": 42.1941294,
+      "lon": -97.169623
+    },
+    {
+      "id": "2845",
+      "school": "Waynesburg",
+      "lat": 39.8964641,
+      "lon": -80.1792299
+    },
+    {
+      "id": "2848",
+      "school": "Western Oregon",
+      "lat": 44.8486414,
+      "lon": -123.2290777
+    },
+    {
+      "id": "2849",
+      "school": "Westminster (PA)",
+      "lat": 41.1222812,
+      "lon": -80.3328428
+    },
+    {
+      "id": "2850",
+      "school": "Whittier",
+      "lat": 33.9708782,
+      "lon": -118.0308396
+    },
+    {
+      "id": "2851",
+      "school": "Winona State",
+      "lat": 43.9582272,
+      "lon": -91.7807784
+    },
+    {
+      "id": "2858",
+      "school": "California (PA)",
+      "lat": 40.0236854,
+      "lon": -79.8839357
+    },
+    {
+      "id": "2871",
+      "school": "Kean",
+      "lat": 40.6976019,
+      "lon": -74.2632024
+    },
+    {
+      "id": "2876",
+      "school": "Lincoln (MO)",
+      "lat": 38.577359,
+      "lon": -92.1724265
+    },
+    {
+      "id": "2882",
+      "school": "UNC Pembroke",
+      "lat": 34.6801627,
+      "lon": -79.1950373
+    },
+    {
+      "id": "2884",
+      "school": "Nichols",
+      "lat": 42.0572744,
+      "lon": -71.9396898
+    },
+    {
+      "id": "2886",
+      "school": "Northwood",
+      "lat": 43.6155825,
+      "lon": -84.2472117
+    },
+    {
+      "id": "2888",
+      "school": "Ouachita Baptist",
+      "lat": 34.1209292,
+      "lon": -93.053784
+    },
+    {
+      "id": "2891",
+      "school": "Ripon",
+      "lat": 43.8424502,
+      "lon": -88.8372972
+    },
+    {
+      "id": "2894",
+      "school": "Sioux Falls",
+      "lat": 43.5488256,
+      "lon": -96.7307737
+    },
+    {
+      "id": "2896",
+      "school": "Southern Virginia",
+      "lat": 37.7342962,
+      "lon": -79.3539292
+    },
+    {
+      "id": "2900",
+      "school": "St. Thomas (MN)",
+      "lat": 44.9497487,
+      "lon": -93.0931028
+    },
+    {
+      "id": "2909",
+      "school": "Westfield State",
+      "lat": 42.1390327,
+      "lon": -72.7584859
+    },
+    {
+      "id": "2913",
+      "school": "Brevard",
+      "lat": 35.2334472,
+      "lon": -82.7342919
+    },
+    {
+      "id": "2916",
+      "school": "Incarnate Word",
+      "lat": 29.4674787,
+      "lon": -98.470014
+    },
+    {
+      "id": "2919",
+      "school": "Monmouth (IL)",
+      "lat": 40.9127103,
+      "lon": -90.6472477
+    },
+    {
+      "id": "2923",
+      "school": "Pomona Pitzer",
+      "lat": 34.0966764,
+      "lon": -117.7197785
+    },
+    {
+      "id": "2927",
+      "school": "Southwestern Oklahoma State",
+      "lat": 35.5261633,
+      "lon": -98.7075744
+    },
+    {
+      "id": "2930",
+      "school": "Willamette",
+      "lat": 44.9391565,
+      "lon": -123.033121
+    },
+    {
+      "id": "2938",
+      "school": "Huntingdon",
+      "lat": 32.3669656,
+      "lon": -86.3006485
+    },
+    {
+      "id": "2940",
+      "school": "Livingstone",
+      "lat": 35.6709727,
+      "lon": -80.4742261
+    },
+    {
+      "id": "2951",
+      "school": "SUNY Maritime",
+      "lat": 40.807528,
+      "lon": -73.797744
+    },
+    {
+      "id": "2963",
+      "school": "Case Western Reserve",
+      "lat": 41.513447,
+      "lon": -81.603634
+    },
+    {
+      "id": "2964",
+      "school": "Central College",
+      "lat": 41.4073138,
+      "lon": -92.9174074
+    },
+    {
+      "id": "2967",
+      "school": "Framingham State",
+      "lat": 42.3095704,
+      "lon": -71.4413097
+    },
+    {
+      "id": "2968",
+      "school": "Gustavus Adolphus",
+      "lat": 44.3238384,
+      "lon": -93.9585295
+    },
+    {
+      "id": "2969",
+      "school": "Misericordia",
+      "lat": 32.3117968,
+      "lon": -87.1046643
+    },
+    {
+      "id": "2970",
+      "school": "William Paterson",
+      "lat": 40.9491723,
+      "lon": -74.2376802
+    },
+    {
+      "id": "2972",
+      "school": "Plymouth State",
+      "lat": 43.757209,
+      "lon": -71.688538
+    },
+    {
+      "id": "2974",
+      "school": "Shepherd",
+      "lat": 39.4300996,
+      "lon": -77.804161
+    },
+    {
+      "id": "2977",
+      "school": "Trinity (CT)",
+      "lat": 41.764582,
+      "lon": -72.6908547
+    },
+    {
+      "id": "2980",
+      "school": "Ohio Wesleyan",
+      "lat": 40.2986724,
+      "lon": -83.067965
+    },
+    {
+      "id": "2986",
+      "school": "Fairmont State",
+      "lat": 39.4850848,
+      "lon": -80.1425781
+    },
+    {
+      "id": "3066",
+      "school": "Concordia St. Paul",
+      "lat": 44.9497487,
+      "lon": -93.0931028
+    },
+    {
+      "id": "3071",
+      "school": "North Central College",
+      "lat": 41.7728699,
+      "lon": -88.1479278
+    },
+    {
+      "id": "3101",
+      "school": "Utah Tech",
+      "lat": 37.1098868,
+      "lon": -113.5674494
+    },
+    {
+      "id": "3110",
+      "school": "SUNY Morrisville",
+      "lat": 42.8986566,
+      "lon": -75.6402204
+    },
+    {
+      "id": "3111",
+      "school": "Apprentice School",
+      "lat": 36.9775016,
+      "lon": -76.42977
+    },
+    {
+      "id": "3112",
+      "school": "Christopher Newport",
+      "lat": 36.9775016,
+      "lon": -76.42977
+    },
+    {
+      "id": "3162",
+      "school": "Alfred State",
+      "lat": 42.2542334,
+      "lon": -77.7906062
+    },
+    {
+      "id": "6353",
+      "school": "Lakeland",
+      "lat": 43.7486054,
+      "lon": -87.977038
+    },
+    {
+      "id": "6845",
+      "school": "Nebraska Wesleyan",
+      "lat": 40.8088861,
+      "lon": -96.7077751
+    },
+    {
+      "id": "101161",
+      "school": "Lyon",
+      "lat": 42.2542334,
+      "lon": -77.7906062
+    },
+    {
+      "id": "101784",
+      "school": "Erskine",
+      "lat": 34.1954001,
+      "lon": -82.1617883
+    },
+    {
+      "id": "110242",
+      "school": "West Florida",
+      "lat": 30.547231,
+      "lon": -87.222001
+    },
+    {
+      "id": "110243",
+      "school": "UT Permian Basin",
+      "lat": 31.8457149,
+      "lon": -102.367687
+    },
+    {
+      "id": "110254",
+      "school": "Davenport",
+      "lat": 37.763382,
+      "lon": -90.7729061
+    },
+    {
+      "id": "110438",
+      "school": "Dean",
+      "lat": 34.440962,
+      "lon": -87.8339064
+    },
+    {
+      "id": "111674",
+      "school": "Alvernia",
+      "lat": 40.335345,
+      "lon": -75.9279495
+    },
+    {
+      "id": "111675",
+      "school": "New England",
+      "lat": 43.6610277,
+      "lon": -70.2548596
+    },
+    {
+      "id": "112334",
+      "school": "Franklin Pierce",
+      "lat": 42.7517669,
+      "lon": -72.01012902437412
+    },
+    {
+      "id": "112335",
+      "school": "Wheeling",
+      "lat": 40.0639616,
+      "lon": -80.7209149
+    },
+    {
+      "id": "122666",
+      "school": "Barton",
+      "lat": 35.7212689,
+      "lon": -77.9155395
+    },
+    {
+      "id": "122774",
+      "school": "Keystone",
+      "lat": 41.5565738,
+      "lon": -75.7551655
+    },
+    {
+      "id": "124180",
+      "school": "Bluefield State",
+      "lat": 37.2698395,
+      "lon": -81.2223195
+    }
+  ]
+}

@@ -1,0 +1,217 @@
+/* Dense, aligned data tables for the four ranking and comparison pages. */
+.app-page-slot :is(.results-rankings-page,.standings-page,.all137-page,.conference-comparison-page) > .section-title-row {
+  margin-bottom:6px!important; padding:3px 0 7px!important;
+}
+.app-page-slot :is(.results-rankings-page,.standings-page,.all137-page,.conference-comparison-page) > .section-title-row h1 {
+  font-size:20px!important;
+}
+
+/* Rankings and All137 share an actual column grid, including the schedule control. */
+.app-page-slot .results-ranking-snapshot {
+  grid-template-columns:auto auto minmax(0,1fr); gap:7px 12px;
+  margin-bottom:7px; padding:6px 9px; border-radius:4px;
+}
+.app-page-slot .results-ranking-snapshot p { font-size:9px; }
+.app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) .unified-ranking-row {
+  min-height:52px!important; padding:4px 8px!important;
+}
+.app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) .ranking-team {
+  gap:6px;
+}
+.app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) .ranking-team .team-mark-sm {
+  width:35px!important; height:35px!important; flex:0 0 35px!important;
+}
+.app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) .ranking-team strong {
+  font-size:12px!important; line-height:1.15!important;
+}
+.app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) .ranking-team small {
+  margin-top:0; font-size:8px!important; line-height:1.1!important;
+}
+.app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) .ranking-metrics > * {
+  font-size:11px!important; font-variant-numeric:tabular-nums;
+}
+.app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) .ranking-schedule-toggle {
+  min-height:27px; padding:0 4px;
+}
+.app-page-slot .results-only-rankings-shell > .results-only-ranking-head,
+.app-page-slot .results-only-ranking-entry .unified-ranking-row {
+  min-width:990px; grid-template-columns:36px minmax(215px,1fr) 84px 78px 66px 54px 54px 84px 66px 66px 74px;
+  column-gap:5px!important;
+}
+.app-page-slot .results-only-ranking-entry { min-width:990px; }
+.app-page-slot .all137-ranking-head,
+.app-page-slot .all137-ranking-entry .unified-ranking-row {
+  min-width:880px; grid-template-columns:36px minmax(215px,1fr) 120px 72px 76px 82px minmax(116px,.5fr) 72px;
+  column-gap:5px!important;
+}
+.app-page-slot .all137-ranking-entry { min-width:880px; }
+.app-page-slot :is(.results-only-ranking-head,.all137-ranking-head) { min-height:31px; padding-inline:8px; }
+
+/* Standings rules remain available without occupying the table's initial viewport. */
+.app-page-slot .standings-conference-control {
+  min-height:0; grid-template-columns:minmax(190px,300px) minmax(0,1fr);
+  gap:8px; margin:6px 0; padding:7px 9px;
+}
+.app-page-slot .standings-conference-control select { min-height:32px; }
+.app-page-slot .standings-conference-control > span { padding-bottom:7px; }
+.app-page-slot .standings-rules-disclosure { margin-bottom:7px; border:1px solid var(--app-line); background:var(--app-panel); }
+.app-page-slot .standings-rules-disclosure > summary {
+  display:flex; align-items:center; gap:10px; min-height:32px; padding:5px 10px;
+  color:var(--app-ink); font:850 10px/1.25 var(--font-geist-mono); cursor:pointer;
+}
+.app-page-slot .standings-rules-disclosure > summary span { margin-left:auto; color:var(--app-muted); font-size:9px; }
+.app-page-slot .standings-rules-disclosure .standings-rules { margin:0; border:0; border-top:1px solid var(--app-line); border-radius:0; }
+.app-page-slot .standings-rules-disclosure .standings-rules > header { padding:10px; }
+.app-page-slot .standings-rules-disclosure .standings-rules li { min-height:46px; padding:6px 8px; }
+.app-page-slot .standings-tables { gap:7px; }
+.app-page-slot .standings-division-head { min-height:32px; padding-inline:10px; }
+.app-page-slot .standings-head,
+.app-page-slot .standings-row {
+  min-width:840px; grid-template-columns:36px minmax(200px,1.25fr) 105px 75px 55px 70px minmax(185px,1fr) 95px;
+  column-gap:0;
+}
+.app-page-slot .standings-head { min-height:29px; }
+.app-page-slot .standings-head span { padding-inline:7px; font-size:9px; }
+.app-page-slot .standings-row { min-height:55px; }
+.app-page-slot .standings-row > * { padding:4px 7px; font-size:10px; }
+.app-page-slot .standings-rank { font-size:14px!important; }
+.app-page-slot .standings-team { gap:7px; }
+.app-page-slot .standings-team .team-mark-sm { width:35px!important; height:35px!important; flex:0 0 35px!important; }
+.app-page-slot .standings-team > span { gap:2px; }
+.app-page-slot .standings-team > span strong { font-size:11px; }
+
+/* All137's summary becomes a short strip above its standings. */
+.app-page-slot .all137-controls { align-items:end; }
+.app-page-slot .all137-field-control { padding:4px 6px; gap:3px; }
+.app-page-slot .all137-summary { gap:5px; margin-bottom:6px; }
+.app-page-slot .all137-summary article {
+  min-height:62px; padding:7px 10px; justify-content:center;
+}
+.app-page-slot .all137-summary article > strong,
+.app-page-slot .all137-summary article > b { margin-top:3px; font-size:18px; }
+.app-page-slot .all137-summary article:first-child > div { margin-top:2px; gap:6px; }
+.app-page-slot .all137-summary article:first-child > b { font-size:16px; }
+.app-page-slot .all137-summary .team-mark-md { width:37px; height:37px; flex:0 0 37px; }
+.app-page-slot .all137-toolbar { gap:7px; padding:6px 9px; border-radius:4px 4px 0 0; }
+.app-page-slot .all137-toolbar input { padding:5px 8px; }
+.app-page-slot .all137-disclaimer { margin-top:8px; }
+
+/* Conference comparison remains a full table, with shorter rows and a fixed identity column. */
+.app-page-slot .conference-comparison-page .conference-comparison-controls { gap:7px; }
+.app-page-slot .conference-comparison-page .conference-comparison-controls label { gap:3px; font-size:10px; }
+.app-page-slot .conference-comparison-page .conference-postseason { font-size:10px; }
+.app-page-slot .conference-evidence-note { margin:6px 0; font-size:10px; line-height:1.35; }
+.app-page-slot .conference-table-wrap { max-width:100%; overflow-x:auto; overscroll-behavior-inline:contain; }
+.app-page-slot .conference-comparison-table { width:max-content; min-width:100%; font-size:11px; }
+.app-page-slot .conference-comparison-table th,
+.app-page-slot .conference-comparison-table td { padding:5px 7px; }
+.app-page-slot .conference-comparison-table thead th { font-size:10px; font-weight:850; }
+.app-page-slot .conference-comparison-table td small { font-size:9px; }
+.app-page-slot .conference-comparison-table th button { font-size:10px; }
+.app-page-slot .conference-comparison-table .conference-mark { width:43px; height:29px; }
+.app-page-slot .conference-pair { margin-top:10px; }
+.app-page-slot .conference-pair header { gap:8px; margin-bottom:6px; }
+.app-page-slot .conference-pair h2 { font-size:16px; }
+.app-page-slot .conference-pair-summary article { gap:3px; padding:7px 9px; }
+.app-page-slot .conference-pair-summary span,
+.app-page-slot .conference-pair-summary small { font-size:10px; }
+.app-page-slot .conference-pair-summary strong { font-size:19px; }
+.app-page-slot .conference-pair-delta { gap:9px; margin-top:5px; padding:7px 9px; }
+.app-page-slot .conference-pair-delta > div { gap:2px; }
+.app-page-slot .conference-pair-delta span,
+.app-page-slot .conference-pair-delta small { font-size:10px; }
+.app-page-slot .conference-pair-delta strong { font-size:15px; }
+.app-page-slot .conference-pair > p { margin:6px 0; font-size:10px; line-height:1.35; }
+.app-page-slot .conference-method { margin-top:9px; padding-top:6px; }
+
+@media (max-width:900px) {
+  /* Preserve column alignment on phones instead of expanding each row into a card. */
+  .app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell),
+  .app-page-slot .standings-table { overflow-x:auto!important; overflow-y:hidden!important; -webkit-overflow-scrolling:touch; }
+  .app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) > .rankings-head,
+  .app-page-slot .standings-head { display:grid!important; }
+  .app-page-slot .results-only-rankings-shell > .results-only-ranking-head,
+  .app-page-slot .results-only-ranking-entry,
+  .app-page-slot .results-only-ranking-entry .unified-ranking-row { width:990px!important; min-width:990px!important; }
+  .app-page-slot .all137-unified-shell > .all137-ranking-head,
+  .app-page-slot .all137-ranking-entry,
+  .app-page-slot .all137-ranking-entry .unified-ranking-row { width:880px!important; min-width:880px!important; }
+  .app-page-slot .results-only-ranking-entry .unified-ranking-row,
+  .app-page-slot .all137-ranking-entry .unified-ranking-row {
+    display:grid!important; grid-template-rows:auto!important; gap:0 5px!important;
+    padding:3px 8px!important; min-height:48px!important;
+  }
+  .app-page-slot .results-only-ranking-entry .unified-ranking-row { grid-template-columns:36px minmax(215px,1fr) 84px 78px 66px 54px 54px 84px 66px 66px 74px!important; }
+  .app-page-slot .all137-ranking-entry .unified-ranking-row { grid-template-columns:36px minmax(215px,1fr) 120px 72px 76px 82px minmax(116px,.5fr) 72px!important; }
+  .app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) > .rankings-head > :first-child,
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .ranking-number,
+  .app-page-slot .standings-head > :first-child,
+  .app-page-slot .standings-row > .standings-rank {
+    position:sticky!important; left:0; z-index:3; background:var(--app-panel);
+  }
+  .app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) > .rankings-head > :nth-child(2),
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .ranking-team,
+  .app-page-slot .standings-head > :nth-child(2),
+  .app-page-slot .standings-row > .standings-team {
+    position:sticky!important; left:36px; z-index:2; background:var(--app-panel);
+    box-shadow:3px 0 0 var(--app-line);
+  }
+  .app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) > .rankings-head > :first-child,
+  .app-page-slot :is(.results-only-rankings-shell,.all137-unified-shell) > .rankings-head > :nth-child(2),
+  .app-page-slot .standings-head > :first-child,
+  .app-page-slot .standings-head > :nth-child(2) { background:var(--app-panel-inset); z-index:4; }
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .unified-ranking-row .ranking-number,
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .unified-ranking-row .ranking-team,
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .unified-ranking-row .ranking-schedule-toggle {
+    grid-column:auto!important; grid-row:auto!important; align-self:center;
+  }
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .unified-ranking-row .ranking-team { width:auto; }
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .unified-ranking-row .ranking-metrics { display:contents!important; }
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .unified-ranking-row .ranking-metrics > * {
+    display:flex!important; align-items:center!important; justify-content:center!important; min-height:0;
+    padding:0!important; border:0; white-space:nowrap!important; font-size:11px!important;
+  }
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .unified-ranking-row .ranking-metrics > *::before { display:none!important; }
+  .app-page-slot :is(.results-only-ranking-entry,.all137-ranking-entry) .unified-ranking-row .ranking-schedule-toggle { width:100%; }
+  .app-page-slot .standings-head,
+  .app-page-slot .standings-row {
+    display:grid!important; width:840px!important; min-width:840px!important;
+    grid-template-columns:36px minmax(200px,1.25fr) 105px 75px 55px 70px minmax(185px,1fr) 95px!important;
+  }
+  .app-page-slot .standings-row { min-height:55px; padding:0!important; }
+  .app-page-slot .standings-row > .standings-rank { position:static; width:auto; padding:4px; }
+  .app-page-slot .standings-row > .standings-team { grid-column:auto; min-height:0; padding:4px 7px; }
+  .app-page-slot .standings-row > [data-label] {
+    min-height:0; align-items:center!important; justify-content:center!important;
+    flex-direction:column; padding:4px 6px; border-top:0; border-right:1px solid var(--app-line);
+    white-space:normal!important;
+  }
+  .app-page-slot .standings-row > [data-label]::before { display:none!important; }
+  .app-page-slot .standings-row .team-mark-sm { width:35px!important; height:35px!important; flex:0 0 35px!important; }
+  .app-page-slot .standings-conference-control { grid-template-columns:minmax(0,1fr) auto; }
+  .app-page-slot .results-ranking-snapshot { grid-template-columns:auto 1fr; }
+  .app-page-slot .results-ranking-snapshot p { grid-column:1/-1; }
+  .app-page-slot .all137-summary article { min-height:55px; }
+  .app-page-slot .all137-controls { width:100%; flex-direction:row; flex-wrap:wrap; }
+  .app-page-slot .all137-field-control { width:auto; }
+  .app-page-slot .all137-field-control select { width:auto; min-height:32px; font-size:12px; }
+  .app-page-slot .conference-comparison-table th:first-child,
+  .app-page-slot .conference-comparison-table tbody th:first-child {
+    position:sticky; left:0; z-index:2; background:var(--app-panel);
+    box-shadow:2px 0 0 var(--app-line);
+  }
+  .app-page-slot .conference-comparison-table thead th:first-child { z-index:3; background:var(--app-panel-inset); }
+}
+
+@media (max-width:600px) {
+  .app-page-slot .standings-conference-control { grid-template-columns:1fr; }
+  .app-page-slot .standings-conference-control > span { padding:0; text-align:left; }
+  .app-page-slot .standings-rules-disclosure > summary span { max-width:45%; text-align:right; }
+  .app-page-slot .all137-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-page-slot .all137-summary article:first-child { grid-column:1/3; }
+  .app-page-slot .all137-summary article { min-height:50px; }
+  .app-page-slot .conference-pair-summary { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .app-page-slot .conference-pair-summary article { border-bottom:0; border-right:1px solid var(--app-line); }
+  .app-page-slot .conference-pair-summary article:last-child { border-right:0; }
+  .app-page-slot .conference-pair-summary .conference-mark.compact { width:24px; height:17px; }
+}

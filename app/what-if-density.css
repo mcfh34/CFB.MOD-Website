@@ -1,0 +1,186 @@
+/* Compact What If navigation and season simulation. */
+.app-page-slot .what-if-page { max-width:1500px!important; }
+.app-page-slot .what-if-page > .section-title-row { margin-bottom:5px!important; padding:3px 0 6px!important; }
+.app-page-slot .what-if-tabs { gap:5px; margin:2px 0 7px; }
+.app-page-slot .what-if-tabs > button {
+  min-height:37px; grid-template-columns:20px minmax(0,1fr); gap:0 6px;
+  padding:5px 8px; border-radius:4px;
+}
+.app-page-slot .what-if-tabs > button > span { font-size:12px; }
+.app-page-slot .what-if-tabs > button > strong { font-size:9px; }
+.app-page-slot .what-if-tabs > button > small { margin-top:1px; font-size:8px; }
+.app-page-slot .what-if-simulation-section > .section-title-row { margin:0 0 5px!important; padding:3px 0!important; }
+.app-page-slot .simulation-ranking-snapshot {
+  grid-template-columns:auto auto minmax(0,1fr); gap:8px; margin-bottom:6px; padding:6px 9px;
+}
+.app-page-slot .simulation-page .simulation-hero {
+  min-height:0; grid-template-columns:minmax(0,1fr) 54px auto;
+  gap:10px; padding:9px 13px; border-radius:5px;
+}
+.app-page-slot .simulation-page .simulation-hero h2 { margin:2px 0; font-size:27px; }
+.app-page-slot .simulation-page .simulation-hero p { max-width:780px; font-size:9px; line-height:1.35; }
+.app-page-slot .simulation-page .simulation-hero > .team-mark-lg { width:50px!important; height:50px!important; }
+.app-page-slot .simulation-page .simulation-hero-metrics {
+  grid-column:3; display:grid; grid-template-columns:repeat(3,minmax(68px,1fr)); gap:2px;
+}
+.app-page-slot .simulation-page .simulation-hero-metrics div { padding:4px 6px; }
+.app-page-slot .simulation-page .simulation-hero-metrics strong { margin-top:2px; font-size:11px; }
+.app-page-slot .simulation-page > .playoff-card,
+.app-page-slot .simulation-stack > .conference-projections,
+.app-page-slot .simulation-stack > .simulation-rankings-card { padding:9px!important; }
+.app-page-slot .simulation-page > .playoff-card { margin-top:7px; }
+.app-page-slot .simulation-stack { gap:7px; margin-top:7px; }
+.app-page-slot .simulation-page .block-head { margin-bottom:6px; padding:0; }
+.app-page-slot .simulation-page .block-head h2 { font-size:16px; }
+
+/* Four paths feed inward: two quadrants from the left, two from the right. */
+.app-page-slot .quadrant-bracket-scroll {
+  max-width:100%; overflow-x:auto; overscroll-behavior-inline:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.app-page-slot .simulation-page .playoff-bracket.quadrant-bracket {
+  min-width:1110px; width:100%; display:grid;
+  grid-template-columns:minmax(316px,2fr) minmax(145px,.88fr) minmax(180px,1.08fr) minmax(145px,.88fr) minmax(316px,2fr);
+  gap:7px; align-items:stretch; overflow:visible; padding:2px 1px 6px;
+  scroll-snap-type:none;
+}
+.app-page-slot .simulation-page .playoff-bracket.quadrant-bracket.format-4 {
+  min-width:600px; grid-template-columns:minmax(170px,1fr) minmax(200px,1.12fr) minmax(170px,1fr);
+}
+.app-page-slot .quadrant-bracket .bracket-wing { min-width:0; display:grid; grid-template-rows:repeat(2,minmax(0,1fr)); gap:7px; }
+.app-page-slot .quadrant-bracket .bracket-quadrant { min-width:0; display:flex; flex-direction:column; border:1px solid var(--app-line); background:var(--app-panel-inset); }
+.app-page-slot .quadrant-bracket :is(.bracket-quadrant,.bracket-semi-side,.bracket-title-game) > header {
+  min-height:22px; display:grid; place-items:center; padding:3px 5px;
+  border-bottom:1px solid var(--app-line); color:var(--app-muted);
+  font:850 8px/1 var(--font-geist-mono); letter-spacing:.05em;
+}
+.app-page-slot .quadrant-bracket .bracket-quadrant-games {
+  flex:1; min-width:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:center; gap:5px; padding:5px;
+}
+.app-page-slot .quadrant-bracket .bracket-wing.right .bracket-quadrant-games { direction:rtl; }
+.app-page-slot .quadrant-bracket .bracket-wing.right .bracket-quadrant-games > div { direction:ltr; }
+.app-page-slot .quadrant-bracket .bracket-quadrant-games > div { min-width:0; }
+.app-page-slot .quadrant-bracket .bracket-quadrant-games small {
+  display:block; margin-bottom:3px; color:var(--app-faint); text-align:center;
+  font:850 7px/1 var(--font-geist-mono);
+}
+.app-page-slot .quadrant-bracket :is(.bracket-semi-side,.bracket-title-game) {
+  min-width:0; display:flex; flex-direction:column; justify-content:center;
+  padding:0 5px 5px; border:1px solid var(--app-line); background:var(--app-panel-inset);
+}
+.app-page-slot .quadrant-bracket :is(.bracket-semi-side,.bracket-title-game) > header { margin:0 -5px 5px; }
+.app-page-slot .quadrant-bracket .bracket-title-game { align-self:center; border-color:var(--app-line-strong); }
+.app-page-slot .quadrant-bracket .bracket-game { min-width:0; border-radius:3px; }
+.app-page-slot .quadrant-bracket .bracket-game > div {
+  min-height:30px; grid-template-columns:13px 20px minmax(0,1fr) 18px;
+  gap:3px; padding:3px 4px;
+}
+.app-page-slot .quadrant-bracket .bracket-game .team-mark { width:19px!important; height:19px!important; }
+.app-page-slot .quadrant-bracket .bracket-game > div strong { font-size:8px; }
+.app-page-slot .quadrant-bracket .bracket-game > div b { font-size:10px; }
+.app-page-slot .quadrant-bracket .bracket-game > div {
+  background:var(--bracket-team-color)!important;
+  color:var(--bracket-team-ink)!important;
+  opacity:1!important;
+}
+.app-page-slot .quadrant-bracket .bracket-game > div.winner { box-shadow:inset 0 0 0 2px var(--bracket-team-ink); }
+.app-page-slot .quadrant-bracket .bracket-game > div :is(.bracket-seed,strong,b) { color:var(--bracket-team-ink)!important; }
+.app-page-slot .quadrant-bracket .bracket-game footer {
+  min-height:0; grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-rows:auto auto auto!important; gap:2px 3px!important; padding:3px 4px!important;
+}
+.app-page-slot .quadrant-bracket .bracket-game footer > span { display:block; grid-column:1; grid-row:2; font-size:6px; }
+.app-page-slot .quadrant-bracket .bracket-game footer > b { grid-column:1; grid-row:1; font-size:7px; }
+.app-page-slot .quadrant-bracket .bracket-game footer > small { grid-column:1; grid-row:3; font-size:7px; }
+.app-page-slot .quadrant-bracket .bracket-game footer > .simulation-matchup-preview {
+  grid-column:2; grid-row:1/4; min-height:23px; padding:0 3px; font-size:6px;
+}
+.app-page-slot .quadrant-bracket .bracket-game footer > .simulation-matchup-preview > span { font-size:9px; }
+
+/* The title-game cards are concise score lines with an inline edge and preview. */
+.app-page-slot .simulation-stack .conference-projections > div:last-child {
+  grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px;
+}
+.app-page-slot .simulation-stack .conference-projections article { border-radius:4px; }
+.app-page-slot .simulation-stack .conference-projections article > header { min-height:25px; gap:4px; padding:3px 6px; }
+.app-page-slot .simulation-stack .conference-projections article > header span,
+.app-page-slot .simulation-stack .conference-projections article > header b { font-size:8px; }
+.app-page-slot .simulation-stack .conference-projections .conference-matchup {
+  min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr);
+  gap:2px; padding:4px 6px;
+}
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > div,
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > div:last-child {
+  min-width:0; width:auto; min-height:27px; display:grid;
+  grid-template-columns:22px minmax(0,1fr) auto; grid-template-rows:auto;
+  gap:3px; padding:2px; border:0; border-radius:0; text-align:left;
+}
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > div:last-child > .team-mark,
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > div:last-child > span,
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > div:last-child > strong,
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > div > .team-mark {
+  grid-column:auto; grid-row:auto;
+}
+.app-page-slot .simulation-stack .conference-projections .conference-matchup .team-mark { width:21px!important; height:21px!important; }
+.app-page-slot .simulation-stack .conference-projections .conference-matchup span { font-size:8px; }
+.app-page-slot .simulation-stack .conference-projections .conference-matchup strong { font-size:12px; }
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > div {
+  background:var(--bracket-team-color)!important;
+  color:var(--bracket-team-ink)!important;
+  opacity:1!important;
+  border-radius:3px;
+}
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > div.winner { box-shadow:inset 0 0 0 2px var(--bracket-team-ink); }
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > div :is(span,strong) { color:var(--bracket-team-ink)!important; }
+.app-page-slot .simulation-stack .conference-projections .conference-matchup > i {
+  width:16px; height:16px; border:0; align-self:center; font-size:6px;
+}
+.app-page-slot .simulation-stack .conference-projections .conference-matchup-footer {
+  display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:3px;
+  padding:3px 6px; border-top:1px solid var(--app-line);
+}
+.app-page-slot .simulation-stack .conference-projections .sim-schematic-edge {
+  min-width:0; margin:0; padding:0; overflow:hidden;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;
+  font-size:7px;
+}
+.app-page-slot .simulation-stack .conference-projections .conference-preview {
+  width:auto; min-height:21px; margin:0; padding:0 5px; font-size:7px;
+}
+
+@media (max-width:1100px) {
+  .app-page-slot .simulation-stack .conference-projections > div:last-child { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:680px) {
+  .app-page-slot .what-if-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .app-page-slot .what-if-tabs > button { min-height:40px; grid-template-columns:1fr; padding:5px; text-align:center; }
+  .app-page-slot .what-if-tabs > button > span,
+  .app-page-slot .what-if-tabs > button > small { display:none; }
+  .app-page-slot .what-if-tabs > button > strong { font-size:8px; white-space:normal; }
+  .app-page-slot .simulation-ranking-snapshot { grid-template-columns:auto 1fr; }
+  .app-page-slot .simulation-ranking-snapshot p { grid-column:1/-1; }
+  .app-page-slot .simulation-page .simulation-hero { grid-template-columns:minmax(0,1fr) 45px; }
+  .app-page-slot .simulation-page .simulation-hero > .team-mark-lg { width:43px!important; height:43px!important; }
+  .app-page-slot .simulation-page .simulation-hero-metrics { grid-column:1/-1; }
+  .app-page-slot .simulation-page .simulation-hero h2 { font-size:22px; }
+  .app-page-slot .simulation-stack .conference-projections > div:last-child { grid-template-columns:1fr; }
+  /* On phones all four quadrants begin at the left edge and advance rightward. */
+  .app-page-slot .simulation-page .playoff-bracket.quadrant-bracket {
+    min-width:680px; width:680px; max-width:none;
+    grid-template-columns:320px 150px 190px;
+    grid-template-rows:repeat(2,minmax(0,auto));
+    overflow:visible;
+  }
+  .app-page-slot .quadrant-bracket .bracket-wing.left { grid-column:1; grid-row:1; }
+  .app-page-slot .quadrant-bracket .bracket-wing.right { grid-column:1; grid-row:2; }
+  .app-page-slot .quadrant-bracket .bracket-semi-side.left { grid-column:2; grid-row:1; }
+  .app-page-slot .quadrant-bracket .bracket-semi-side.right { grid-column:2; grid-row:2; }
+  .app-page-slot .quadrant-bracket .bracket-title-game { grid-column:3; grid-row:1/3; }
+  .app-page-slot .quadrant-bracket .bracket-wing.right .bracket-quadrant-games { direction:ltr; }
+  .app-page-slot .simulation-page .playoff-bracket.quadrant-bracket.format-4 {
+    min-width:480px; width:480px; grid-template-columns:220px 250px;
+  }
+  .app-page-slot .quadrant-bracket.format-4 .bracket-semi-side.left,
+  .app-page-slot .quadrant-bracket.format-4 .bracket-semi-side.right { grid-column:1; }
+  .app-page-slot .quadrant-bracket.format-4 .bracket-title-game { grid-column:2; }
+}

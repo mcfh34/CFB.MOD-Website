@@ -1,0 +1,1554 @@
+{
+  "createdAt": "2026-10-06T16:53:58.853Z",
+  "method": "Current fixed possession model; choose policy by 2021–24 FBS margin MAE; 2025 untouched holdout; regular-season Weeks 2–15 only; prior-week snapshots and pregame Elo/evidence; frozen 2021–24 viability calibration; weekly conference corrections replayed separately for each policy from prior weeks only; no postseason/final-context profiles.",
+  "coverage": {
+    "2021": 682,
+    "2022": 681,
+    "2023": 698,
+    "2024": 712,
+    "2025": 713
+  },
+  "skippedMissingAdvanced": 5,
+  "selected": {
+    "earlyFormWeight": 0.25,
+    "extraShrinkage": 0.35
+  },
+  "results": [
+    {
+      "policy": {
+        "earlyFormWeight": 0,
+        "extraShrinkage": 0
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.741376243586947,
+        "brier": 0.1880565012450176,
+        "winnerAccuracy": 0.713667508113956,
+        "meanHomeMarginError": 0.8415531541412836,
+        "calibrationError": 0.042100638058087614
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.257161789651928,
+        "brier": 0.18027746523856308,
+        "winnerAccuracy": 0.7223001402524544,
+        "meanHomeMarginError": -0.365315418200024,
+        "calibrationError": 0.04840648563560369
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 13.11098367924018,
+        "brier": 0.18500361042808963,
+        "winnerAccuracy": 0.721120186697783,
+        "meanHomeMarginError": 0.3156415644297305,
+        "calibrationError": 0.05435611820083014
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.259837392243481,
+        "brier": 0.17727064030740888,
+        "winnerAccuracy": 0.7272727272727273,
+        "meanHomeMarginError": -1.6642770904784236,
+        "calibrationError": 0.0588712944342598
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.360445657836927,
+        "brier": 0.13422140845679031,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": -0.535313359269874,
+        "calibrationError": 0.07137120707165885
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 12.045011875762253,
+        "brier": 0.11217707847618202,
+        "winnerAccuracy": 0.87,
+        "meanHomeMarginError": -5.415988020572339,
+        "calibrationError": 0.1195437080299536
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.189172198815806,
+          "brier": 0.18606122207776563,
+          "winnerAccuracy": 0.718475073313783,
+          "meanHomeMarginError": 1.310690227025602,
+          "calibrationError": 0.039670252564471264
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.412473185486624,
+          "brier": 0.19343761854789995,
+          "winnerAccuracy": 0.7019089574155654,
+          "meanHomeMarginError": 1.3515239802890129,
+          "calibrationError": 0.02846596868515893
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.548020806095144,
+          "brier": 0.1829793645315489,
+          "winnerAccuracy": 0.7263610315186246,
+          "meanHomeMarginError": 0.7944136579635289,
+          "calibrationError": 0.06001831364930985
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.816584440875657,
+          "brier": 0.18979818795120385,
+          "winnerAccuracy": 0.7078651685393258,
+          "meanHomeMarginError": -0.049371351450899575,
+          "calibrationError": 0.048543481080293945
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.257161789651928,
+          "brier": 0.18027746523856308,
+          "winnerAccuracy": 0.7223001402524544,
+          "meanHomeMarginError": -0.365315418200024,
+          "calibrationError": 0.04840648563560369
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0,
+        "extraShrinkage": 0.1
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.737530590046548,
+        "brier": 0.1883227023324779,
+        "winnerAccuracy": 0.713667508113956,
+        "meanHomeMarginError": 0.8318957720007227,
+        "calibrationError": 0.04577667484583597
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.271311597033131,
+        "brier": 0.18067302411784003,
+        "winnerAccuracy": 0.7208976157082749,
+        "meanHomeMarginError": -0.36964555793711396,
+        "calibrationError": 0.05133338027601681
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 13.107698825311829,
+        "brier": 0.18513748224960286,
+        "winnerAccuracy": 0.7222870478413069,
+        "meanHomeMarginError": 0.2900941384209296,
+        "calibrationError": 0.058186911118039746
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.287544376181643,
+        "brier": 0.1775606212526779,
+        "winnerAccuracy": 0.7272727272727273,
+        "meanHomeMarginError": -1.6873342355110161,
+        "calibrationError": 0.05931232829856268
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.38015552806422,
+        "brier": 0.13459931325613725,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": -0.6510922247360172,
+        "calibrationError": 0.07521500948927148
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 12.09550980154958,
+        "brier": 0.11251911618371416,
+        "winnerAccuracy": 0.87,
+        "meanHomeMarginError": -5.543168065324335,
+        "calibrationError": 0.1214022326996044
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.186348428196505,
+          "brier": 0.1863494259552025,
+          "winnerAccuracy": 0.718475073313783,
+          "meanHomeMarginError": 1.3060096922384294,
+          "calibrationError": 0.04571386589995234
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.418187931109472,
+          "brier": 0.19360757450227467,
+          "winnerAccuracy": 0.7019089574155654,
+          "meanHomeMarginError": 1.3301107197120956,
+          "calibrationError": 0.030637793374597495
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.53717612968706,
+          "brier": 0.18334348129308056,
+          "winnerAccuracy": 0.7263610315186246,
+          "meanHomeMarginError": 0.791438030786926,
+          "calibrationError": 0.06131484303488171
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.809477217081412,
+          "brier": 0.19003937765153806,
+          "winnerAccuracy": 0.7078651685393258,
+          "meanHomeMarginError": -0.05910221904749759,
+          "calibrationError": 0.049734635215302095
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.271311597033131,
+          "brier": 0.18067302411784003,
+          "winnerAccuracy": 0.7208976157082749,
+          "meanHomeMarginError": -0.36964555793711396,
+          "calibrationError": 0.05133338027601681
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0,
+        "extraShrinkage": 0.2
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.738218712719092,
+        "brier": 0.1886366958772972,
+        "winnerAccuracy": 0.711864406779661,
+        "meanHomeMarginError": 0.8240120325831986,
+        "calibrationError": 0.047964658860432545
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.28936975646033,
+        "brier": 0.18109403592016965,
+        "winnerAccuracy": 0.7208976157082749,
+        "meanHomeMarginError": -0.37460003022548527,
+        "calibrationError": 0.05482130054177946
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 13.111010708098851,
+        "brier": 0.1853203391212904,
+        "winnerAccuracy": 0.7199533255542591,
+        "meanHomeMarginError": 0.2717349021441116,
+        "calibrationError": 0.05762705915419368
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.318211923769685,
+        "brier": 0.17783074177131905,
+        "winnerAccuracy": 0.7272727272727273,
+        "meanHomeMarginError": -1.710128601768878,
+        "calibrationError": 0.06153167210054416
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.409153891407446,
+        "brier": 0.1350365820435007,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": -0.7556180679467951,
+        "calibrationError": 0.07887123393219964
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 12.148556010564999,
+        "brier": 0.11287877137591946,
+        "winnerAccuracy": 0.87,
+        "meanHomeMarginError": -5.6652037576003655,
+        "calibrationError": 0.12318745378243473
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.1859744001782,
+          "brier": 0.1866302853988576,
+          "winnerAccuracy": 0.718475073313783,
+          "meanHomeMarginError": 1.3023313660603377,
+          "calibrationError": 0.047606233377556983
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.428445261365539,
+          "brier": 0.19384129456599086,
+          "winnerAccuracy": 0.7033773861967695,
+          "meanHomeMarginError": 1.3100128689332107,
+          "calibrationError": 0.030708686863518145
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.532760328051356,
+          "brier": 0.18375687314569777,
+          "winnerAccuracy": 0.7249283667621776,
+          "meanHomeMarginError": 0.7911897990694298,
+          "calibrationError": 0.06656482965945236
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.807033732413972,
+          "brier": 0.19036444377891334,
+          "winnerAccuracy": 0.7008426966292135,
+          "meanHomeMarginError": -0.06681723145212756,
+          "calibrationError": 0.04888066276181946
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.28936975646033,
+          "brier": 0.18109403592016965,
+          "winnerAccuracy": 0.7208976157082749,
+          "meanHomeMarginError": -0.37460003022548527,
+          "calibrationError": 0.05482130054177946
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0,
+        "extraShrinkage": 0.35
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.743401128506845,
+        "brier": 0.18920276736857358,
+        "winnerAccuracy": 0.710061305445366,
+        "meanHomeMarginError": 0.8138595672336472,
+        "calibrationError": 0.05390885202412185
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.327760170805611,
+        "brier": 0.1818007242145357,
+        "winnerAccuracy": 0.7223001402524544,
+        "meanHomeMarginError": -0.3795113367710972,
+        "calibrationError": 0.06136873775718725
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 13.115663243655183,
+        "brier": 0.18571022505922874,
+        "winnerAccuracy": 0.7164527421236873,
+        "meanHomeMarginError": 0.2506151761365344,
+        "calibrationError": 0.06459923318587697
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.36071057586984,
+        "brier": 0.17832948466076762,
+        "winnerAccuracy": 0.7272727272727273,
+        "meanHomeMarginError": -1.7278391544586134,
+        "calibrationError": 0.06829622672110859
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.451267372970754,
+        "brier": 0.13588417410007625,
+        "winnerAccuracy": 0.8294573643410853,
+        "meanHomeMarginError": -0.8973196998421908,
+        "calibrationError": 0.0804393808318835
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 12.246615485770567,
+        "brier": 0.11357293636088052,
+        "winnerAccuracy": 0.87,
+        "meanHomeMarginError": -5.788751165710852,
+        "calibrationError": 0.12393041898600231
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.186364660087772,
+          "brier": 0.18708723461916218,
+          "winnerAccuracy": 0.7140762463343109,
+          "meanHomeMarginError": 1.2977611928628365,
+          "calibrationError": 0.05507879077675881
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.44633555463498,
+          "brier": 0.19431667476499853,
+          "winnerAccuracy": 0.7019089574155654,
+          "meanHomeMarginError": 1.283747787979827,
+          "calibrationError": 0.038360299862399826
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.534885072275724,
+          "brier": 0.18447317954931003,
+          "winnerAccuracy": 0.7249283667621776,
+          "meanHomeMarginError": 0.7906471729821496,
+          "calibrationError": 0.07146556716425954
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.807649351144276,
+          "brier": 0.19097450149213796,
+          "winnerAccuracy": 0.699438202247191,
+          "meanHomeMarginError": -0.07632657858053507,
+          "calibrationError": 0.05325993645117928
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.327760170805611,
+          "brier": 0.1818007242145357,
+          "winnerAccuracy": 0.7223001402524544,
+          "meanHomeMarginError": -0.3795113367710972,
+          "calibrationError": 0.06136873775718725
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0.25,
+        "extraShrinkage": 0
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.695640968225248,
+        "brier": 0.18698086363316463,
+        "winnerAccuracy": 0.714028128380815,
+        "meanHomeMarginError": 0.8807279554546589,
+        "calibrationError": 0.03842287603447575
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.206762614488657,
+        "brier": 0.1792998120055205,
+        "winnerAccuracy": 0.7251051893408135,
+        "meanHomeMarginError": -0.37716686795202686,
+        "calibrationError": 0.04822979227922544
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 12.965804898945605,
+        "brier": 0.1816009082830396,
+        "winnerAccuracy": 0.7199533255542591,
+        "meanHomeMarginError": 0.4567043077244955,
+        "calibrationError": 0.04731274461567036
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.046891849373665,
+        "brier": 0.17303861450839744,
+        "winnerAccuracy": 0.7323232323232324,
+        "meanHomeMarginError": -1.6937821517947487,
+        "calibrationError": 0.06262491383917886
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.156248692983159,
+        "brier": 0.12972349039914938,
+        "winnerAccuracy": 0.8372093023255814,
+        "meanHomeMarginError": 0.2786661480036346,
+        "calibrationError": 0.041623809880673324
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 11.482792036061467,
+        "brier": 0.10446042392927611,
+        "winnerAccuracy": 0.87,
+        "meanHomeMarginError": -4.844936607958685,
+        "calibrationError": 0.10813967022420762
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.160855814427816,
+          "brier": 0.185236750271939,
+          "winnerAccuracy": 0.7199413489736071,
+          "meanHomeMarginError": 1.327490563411949,
+          "calibrationError": 0.036830742909094556
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.32713186738646,
+          "brier": 0.1924588413031211,
+          "winnerAccuracy": 0.7033773861967695,
+          "meanHomeMarginError": 1.4195034179530364,
+          "calibrationError": 0.03158922275355421
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.556752465401663,
+          "brier": 0.181354661573476,
+          "winnerAccuracy": 0.7277936962750716,
+          "meanHomeMarginError": 0.789683143086259,
+          "calibrationError": 0.04842023811303339
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.738649883298299,
+          "brier": 0.18892759334774012,
+          "winnerAccuracy": 0.7050561797752809,
+          "meanHomeMarginError": 0.026726677989599313,
+          "calibrationError": 0.049845638453925346
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.206762614488657,
+          "brier": 0.1792998120055205,
+          "winnerAccuracy": 0.7251051893408135,
+          "meanHomeMarginError": -0.37716686795202686,
+          "calibrationError": 0.04822979227922544
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0.25,
+        "extraShrinkage": 0.1
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.687696236511705,
+        "brier": 0.18719777442065177,
+        "winnerAccuracy": 0.713667508113956,
+        "meanHomeMarginError": 0.8716623716542534,
+        "calibrationError": 0.0417044445178101
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.214900844504173,
+        "brier": 0.1796522259345844,
+        "winnerAccuracy": 0.7237026647966339,
+        "meanHomeMarginError": -0.38080395783737725,
+        "calibrationError": 0.05029249587490626
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 12.950494063941203,
+        "brier": 0.18159310414003008,
+        "winnerAccuracy": 0.721120186697783,
+        "meanHomeMarginError": 0.4322688150509701,
+        "calibrationError": 0.04954479071682995
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.052123832096937,
+        "brier": 0.17320438600769475,
+        "winnerAccuracy": 0.7323232323232324,
+        "meanHomeMarginError": -1.7175891739956783,
+        "calibrationError": 0.06213602895979972
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.142992165330035,
+        "brier": 0.12982072816548385,
+        "winnerAccuracy": 0.8372093023255814,
+        "meanHomeMarginError": 0.16481977007764667,
+        "calibrationError": 0.04348529752207377
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 11.498434594618061,
+        "brier": 0.10457931719998247,
+        "winnerAccuracy": 0.87,
+        "meanHomeMarginError": -4.970641060729306,
+        "calibrationError": 0.1261333590664947
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.155237508732776,
+          "brier": 0.18547108828708722,
+          "winnerAccuracy": 0.718475073313783,
+          "meanHomeMarginError": 1.3229436004189732,
+          "calibrationError": 0.04043071223122983
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.331002740622548,
+          "brier": 0.19260278687991997,
+          "winnerAccuracy": 0.7019089574155654,
+          "meanHomeMarginError": 1.3986737023764124,
+          "calibrationError": 0.03354326706397389
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.539390767955735,
+          "brier": 0.18166534432741568,
+          "winnerAccuracy": 0.7263610315186246,
+          "meanHomeMarginError": 0.786873202617115,
+          "calibrationError": 0.05250035069183347
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.726407388334483,
+          "brier": 0.1891056714198201,
+          "winnerAccuracy": 0.7078651685393258,
+          "meanHomeMarginError": 0.01845215500902341,
+          "calibrationError": 0.049340634383875946
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.214900844504173,
+          "brier": 0.1796522259345844,
+          "winnerAccuracy": 0.7237026647966339,
+          "meanHomeMarginError": -0.38080395783737725,
+          "calibrationError": 0.05029249587490626
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0.25,
+        "extraShrinkage": 0.2
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.683883134866639,
+        "brier": 0.1874639060140422,
+        "winnerAccuracy": 0.7133068878470971,
+        "meanHomeMarginError": 0.8640899948423921,
+        "calibrationError": 0.043315562523163605
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.228830372121628,
+        "brier": 0.18002699797840088,
+        "winnerAccuracy": 0.7237026647966339,
+        "meanHomeMarginError": -0.3846843725753524,
+        "calibrationError": 0.05149169214387701
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 12.940922557042065,
+        "brier": 0.1816380559592065,
+        "winnerAccuracy": 0.7222870478413069,
+        "meanHomeMarginError": 0.41467270123000805,
+        "calibrationError": 0.044835523757733406
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.067640288889072,
+        "brier": 0.17335617394477132,
+        "winnerAccuracy": 0.7323232323232324,
+        "meanHomeMarginError": -1.7411557940778402,
+        "calibrationError": 0.06253958599222369
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.136108266993784,
+        "brier": 0.12997168458431632,
+        "winnerAccuracy": 0.8372093023255814,
+        "meanHomeMarginError": 0.06149288235831761,
+        "calibrationError": 0.04635097870701511
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 11.525874940383831,
+        "brier": 0.10471815762270671,
+        "winnerAccuracy": 0.87,
+        "meanHomeMarginError": -5.091254840628935,
+        "calibrationError": 0.11584905638980315
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.151925880464857,
+          "brier": 0.18570258463609554,
+          "winnerAccuracy": 0.7199413489736071,
+          "meanHomeMarginError": 1.3194424111605738,
+          "calibrationError": 0.045468438012219996
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.339773646150775,
+          "brier": 0.19280403356448056,
+          "winnerAccuracy": 0.7077826725403817,
+          "meanHomeMarginError": 1.3787598037055318,
+          "calibrationError": 0.03126337750241464
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.526115163029237,
+          "brier": 0.18202702743353522,
+          "winnerAccuracy": 0.7234957020057307,
+          "meanHomeMarginError": 0.7867811319961099,
+          "calibrationError": 0.05306391417729513
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.71935427764766,
+          "brier": 0.18937336608020136,
+          "winnerAccuracy": 0.702247191011236,
+          "meanHomeMarginError": 0.011451088243957026,
+          "calibrationError": 0.04727375574250212
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.228830372121628,
+          "brier": 0.18002699797840088,
+          "winnerAccuracy": 0.7237026647966339,
+          "meanHomeMarginError": -0.3846843725753524,
+          "calibrationError": 0.05149169214387701
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0.25,
+        "extraShrinkage": 0.35
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.68336410419183,
+        "brier": 0.18796405086644283,
+        "winnerAccuracy": 0.7107825459790841,
+        "meanHomeMarginError": 0.8544038538500949,
+        "calibrationError": 0.0485651916738623
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.259437445339364,
+        "brier": 0.18066607008554286,
+        "winnerAccuracy": 0.7237026647966339,
+        "meanHomeMarginError": -0.387683194340168,
+        "calibrationError": 0.06026626250110347
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 12.929416668024215,
+        "brier": 0.18182959862135467,
+        "winnerAccuracy": 0.7164527421236873,
+        "meanHomeMarginError": 0.3946011779024974,
+        "calibrationError": 0.04965165145301363
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.10523184170599,
+        "brier": 0.17369344322867827,
+        "winnerAccuracy": 0.7272727272727273,
+        "meanHomeMarginError": -1.7591570889810682,
+        "calibrationError": 0.06849720499892113
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.132575582058266,
+        "brier": 0.13040079968903043,
+        "winnerAccuracy": 0.8372093023255814,
+        "meanHomeMarginError": -0.07895862840646664,
+        "calibrationError": 0.05059399077644554
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 11.584070797226593,
+        "brier": 0.10509697574218332,
+        "winnerAccuracy": 0.87,
+        "meanHomeMarginError": -5.21284302845634,
+        "calibrationError": 0.1132361808298229
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.145045653153973,
+          "brier": 0.18608884765726127,
+          "winnerAccuracy": 0.7155425219941349,
+          "meanHomeMarginError": 1.3149180250260304,
+          "calibrationError": 0.04868445639534436
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.356304805328818,
+          "brier": 0.19323748045821532,
+          "winnerAccuracy": 0.7063142437591777,
+          "meanHomeMarginError": 1.3526910127644687,
+          "calibrationError": 0.041905035797556965
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.5162056557346,
+          "brier": 0.18267505449050908,
+          "winnerAccuracy": 0.7220630372492837,
+          "meanHomeMarginError": 0.7869392467608431,
+          "calibrationError": 0.057256163722396954
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.717826411996093,
+          "brier": 0.18990141393816326,
+          "winnerAccuracy": 0.699438202247191,
+          "meanHomeMarginError": 0.00283935354901574,
+          "calibrationError": 0.05427492141138686
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.259437445339364,
+          "brier": 0.18066607008554286,
+          "winnerAccuracy": 0.7237026647966339,
+          "meanHomeMarginError": -0.387683194340168,
+          "calibrationError": 0.06026626250110347
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0.5,
+        "extraShrinkage": 0
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.735423325888146,
+        "brier": 0.18679283451658651,
+        "winnerAccuracy": 0.715109989181392,
+        "meanHomeMarginError": 0.9161406662209287,
+        "calibrationError": 0.030975485833656207
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.253017412410895,
+        "brier": 0.1792030695790894,
+        "winnerAccuracy": 0.7194950911640954,
+        "meanHomeMarginError": -0.38992010417152845,
+        "calibrationError": 0.044734445699569136
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 13.09526782512975,
+        "brier": 0.18096015590537187,
+        "winnerAccuracy": 0.7246207701283547,
+        "meanHomeMarginError": 0.5942116986992739,
+        "calibrationError": 0.029912689701332866
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.179294962327456,
+        "brier": 0.1718252223659942,
+        "winnerAccuracy": 0.7222222222222222,
+        "meanHomeMarginError": -1.7190873331029217,
+        "calibrationError": 0.07728074612176275
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.461162683549897,
+        "brier": 0.12933588237296076,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": 1.0843528411531667,
+        "calibrationError": 0.02941566782595719
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 11.433647454578677,
+        "brier": 0.10076831606746948,
+        "winnerAccuracy": 0.88,
+        "meanHomeMarginError": -4.275020267385607,
+        "calibrationError": 0.10242077525962344
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.235890461903281,
+          "brier": 0.18529794886746226,
+          "winnerAccuracy": 0.7155425219941349,
+          "meanHomeMarginError": 1.3486091688027892,
+          "calibrationError": 0.031016962258651803
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.340039527817327,
+          "brier": 0.19222505004196114,
+          "winnerAccuracy": 0.7092511013215859,
+          "meanHomeMarginError": 1.4823394187381913,
+          "calibrationError": 0.033474355023087814
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.612982746347779,
+          "brier": 0.18066797125737113,
+          "winnerAccuracy": 0.7292263610315186,
+          "meanHomeMarginError": 0.783649799096649,
+          "calibrationError": 0.04178926378962602
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.754245382409339,
+          "brier": 0.189033463441946,
+          "winnerAccuracy": 0.7064606741573034,
+          "meanHomeMarginError": 0.09023302019236218,
+          "calibrationError": 0.04638953621312445
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.253017412410895,
+          "brier": 0.1792030695790894,
+          "winnerAccuracy": 0.7194950911640954,
+          "meanHomeMarginError": -0.38992010417152845,
+          "calibrationError": 0.044734445699569136
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0.5,
+        "extraShrinkage": 0.1
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.722998679314706,
+        "brier": 0.18697890055274158,
+        "winnerAccuracy": 0.714749368914533,
+        "meanHomeMarginError": 0.9079044850942817,
+        "calibrationError": 0.03391381275647289
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.257006619131554,
+        "brier": 0.17952489506901323,
+        "winnerAccuracy": 0.7138849929873773,
+        "meanHomeMarginError": -0.39343753800695574,
+        "calibrationError": 0.05984448226235931
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 13.06595801124926,
+        "brier": 0.18085801567054394,
+        "winnerAccuracy": 0.7257876312718786,
+        "meanHomeMarginError": 0.572054750388808,
+        "calibrationError": 0.03429520778719913
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.171672813141194,
+        "brier": 0.171913046085381,
+        "winnerAccuracy": 0.7121212121212122,
+        "meanHomeMarginError": -1.7433223390304844,
+        "calibrationError": 0.08374727002874213
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.417122151908014,
+        "brier": 0.12927179615454484,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": 0.9757820685087978,
+        "calibrationError": 0.03030047679878706
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 11.4143625173518,
+        "brier": 0.1007382143342133,
+        "winnerAccuracy": 0.88,
+        "meanHomeMarginError": -4.400158338305257,
+        "calibrationError": 0.10436857522977366
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.225222571473287,
+          "brier": 0.18550850676017117,
+          "winnerAccuracy": 0.7155425219941349,
+          "meanHomeMarginError": 1.3438883852309473,
+          "calibrationError": 0.038179857215439046
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.335965338330684,
+          "brier": 0.1923477247129794,
+          "winnerAccuracy": 0.7077826725403817,
+          "meanHomeMarginError": 1.4644513511256934,
+          "calibrationError": 0.04032223226046818
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.594436648213687,
+          "brier": 0.18094209892602947,
+          "winnerAccuracy": 0.7277936962750716,
+          "meanHomeMarginError": 0.7812343590822591,
+          "calibrationError": 0.042907461370968986
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.738152202441848,
+          "brier": 0.18917037084608013,
+          "winnerAccuracy": 0.7078651685393258,
+          "meanHomeMarginError": 0.08215492371197665,
+          "calibrationError": 0.04386301708569701
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.257006619131554,
+          "brier": 0.17952489506901323,
+          "winnerAccuracy": 0.7138849929873773,
+          "meanHomeMarginError": -0.39343753800695574,
+          "calibrationError": 0.05984448226235931
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0.5,
+        "extraShrinkage": 0.2
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.716340426047163,
+        "brier": 0.18721243929262085,
+        "winnerAccuracy": 0.714749368914533,
+        "meanHomeMarginError": 0.9011799262015746,
+        "calibrationError": 0.03771138102818457
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.266593822669382,
+        "brier": 0.17987403247941205,
+        "winnerAccuracy": 0.7152875175315568,
+        "meanHomeMarginError": -0.39711609672134773,
+        "calibrationError": 0.05605255216014813
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 13.047579139723776,
+        "brier": 0.18080782105844903,
+        "winnerAccuracy": 0.7292882147024504,
+        "meanHomeMarginError": 0.5563161080882811,
+        "calibrationError": 0.03215947846935307
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.174668770844258,
+        "brier": 0.17199179194382105,
+        "winnerAccuracy": 0.7121212121212122,
+        "meanHomeMarginError": -1.7672908710156547,
+        "calibrationError": 0.08144627857927643
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.389716480623333,
+        "brier": 0.12925852130871895,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": 0.876985756721536,
+        "calibrationError": 0.027103717245827507
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 11.4040046600526,
+        "brier": 0.10073042512370137,
+        "winnerAccuracy": 0.88,
+        "meanHomeMarginError": -4.5201873630095175,
+        "calibrationError": 0.09588112918184916
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.217505046880161,
+          "brier": 0.18571398720370197,
+          "winnerAccuracy": 0.7155425219941349,
+          "meanHomeMarginError": 1.3403600199821228,
+          "calibrationError": 0.03716900917985518
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.340806133802658,
+          "brier": 0.1925221903247621,
+          "winnerAccuracy": 0.71071953010279,
+          "meanHomeMarginError": 1.4468090107419647,
+          "calibrationError": 0.04132561498664661
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.581168020176756,
+          "brier": 0.18127153526093978,
+          "winnerAccuracy": 0.7277936962750716,
+          "meanHomeMarginError": 0.7814110508064142,
+          "calibrationError": 0.04767615217945543
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.727990595861705,
+          "brier": 0.18939327480648094,
+          "winnerAccuracy": 0.7050561797752809,
+          "meanHomeMarginError": 0.0760457190323207,
+          "calibrationError": 0.04311304861087318
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.266593822669382,
+          "brier": 0.17987403247941205,
+          "winnerAccuracy": 0.7152875175315568,
+          "meanHomeMarginError": -0.39711609672134773,
+          "calibrationError": 0.05605255216014813
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 0.5,
+        "extraShrinkage": 0.35
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.712160547165663,
+        "brier": 0.1876629829923469,
+        "winnerAccuracy": 0.713667508113956,
+        "meanHomeMarginError": 0.8927147237453444,
+        "calibrationError": 0.040146101094623736
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.293861353832458,
+        "brier": 0.18047317181598266,
+        "winnerAccuracy": 0.7152875175315568,
+        "meanHomeMarginError": -0.39988023481331586,
+        "calibrationError": 0.06579229742088324
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 13.02545240523658,
+        "brier": 0.1808577962280282,
+        "winnerAccuracy": 0.7281213535589265,
+        "meanHomeMarginError": 0.5387942624809497,
+        "calibrationError": 0.02903778993185836
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 12.200071820119847,
+        "brier": 0.17220792830040896,
+        "winnerAccuracy": 0.7121212121212122,
+        "meanHomeMarginError": -1.7868651548146737,
+        "calibrationError": 0.08298292840348921
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 13.3625003929983,
+        "brier": 0.12943078121533252,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": 0.7424383373151618,
+        "calibrationError": 0.024676282616681165
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 11.421815050763858,
+        "brier": 0.10088525957177859,
+        "winnerAccuracy": 0.88,
+        "meanHomeMarginError": -4.642005776262973,
+        "calibrationError": 0.09684648479049698
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.206500907632476,
+          "brier": 0.18606036380622704,
+          "winnerAccuracy": 0.7126099706744868,
+          "meanHomeMarginError": 1.3361206214711137,
+          "calibrationError": 0.041083340546068624
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.352786368684066,
+          "brier": 0.19290871960895695,
+          "winnerAccuracy": 0.71071953010279,
+          "meanHomeMarginError": 1.4232735461855046,
+          "calibrationError": 0.046457349741304804
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.57094463780566,
+          "brier": 0.1818738201856644,
+          "winnerAccuracy": 0.7263610315186246,
+          "meanHomeMarginError": 0.782391448576752,
+          "calibrationError": 0.05028048402959418
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 12.720815595537669,
+          "brier": 0.18985606626213103,
+          "winnerAccuracy": 0.7050561797752809,
+          "meanHomeMarginError": 0.06868700708377248,
+          "calibrationError": 0.04638524470298266
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.293861353832458,
+          "brier": 0.18047317181598266,
+          "winnerAccuracy": 0.7152875175315568,
+          "meanHomeMarginError": -0.39988023481331586,
+          "calibrationError": 0.06579229742088324
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 1,
+        "extraShrinkage": 0
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 13.05330556673622,
+        "brier": 0.188155416181236,
+        "winnerAccuracy": 0.714388748647674,
+        "meanHomeMarginError": 0.9765276200812731,
+        "calibrationError": 0.02054470155158847
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.660668491837447,
+        "brier": 0.1809249127043851,
+        "winnerAccuracy": 0.7110799438990182,
+        "meanHomeMarginError": -0.4328537180217103,
+        "calibrationError": 0.05369861910771519
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 14.120275247406601,
+        "brier": 0.18522786811063688,
+        "winnerAccuracy": 0.7187864644107351,
+        "meanHomeMarginError": 0.847229191190264,
+        "calibrationError": 0.043302223393958256
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 13.568257912046727,
+        "brier": 0.1759328935759018,
+        "winnerAccuracy": 0.696969696969697,
+        "meanHomeMarginError": -1.7938963247166653,
+        "calibrationError": 0.09449904969706151
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 15.38932049456876,
+        "brier": 0.13492405435112473,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": 2.647793793737652,
+        "calibrationError": 0.04480653612120122
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 13.03379799592038,
+        "brier": 0.10077824235771118,
+        "winnerAccuracy": 0.88,
+        "meanHomeMarginError": -3.215446892165179,
+        "calibrationError": 0.08412139462771709
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.6556775453194,
+          "brier": 0.18693421223399762,
+          "winnerAccuracy": 0.7140762463343109,
+          "meanHomeMarginError": 1.3795110855219133,
+          "calibrationError": 0.043632742261909885
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.56474749749866,
+          "brier": 0.19332421147496198,
+          "winnerAccuracy": 0.7121879588839941,
+          "meanHomeMarginError": 1.5856487322885036,
+          "calibrationError": 0.035271511379457963
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.917178177861532,
+          "brier": 0.1812428759358989,
+          "winnerAccuracy": 0.7234957020057307,
+          "meanHomeMarginError": 0.7543737895545585,
+          "calibrationError": 0.03914582516128798
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 13.077051736949112,
+          "brier": 0.19115803498493633,
+          "winnerAccuracy": 0.7078651685393258,
+          "meanHomeMarginError": 0.22570904264308603,
+          "calibrationError": 0.032353977661368924
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.660668491837447,
+          "brier": 0.1809249127043851,
+          "winnerAccuracy": 0.7110799438990182,
+          "meanHomeMarginError": -0.4328537180217103,
+          "calibrationError": 0.05369861910771519
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 1,
+        "extraShrinkage": 0.1
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 13.029552933453532,
+        "brier": 0.18831567280255726,
+        "winnerAccuracy": 0.714028128380815,
+        "meanHomeMarginError": 0.9712189649966404,
+        "calibrationError": 0.02364176690014465
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.659129614209379,
+        "brier": 0.18123282024470694,
+        "winnerAccuracy": 0.7096774193548387,
+        "meanHomeMarginError": -0.4318024094493391,
+        "calibrationError": 0.05968640279466776
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 14.056550390240318,
+        "brier": 0.1850461166274627,
+        "winnerAccuracy": 0.7199533255542591,
+        "meanHomeMarginError": 0.8308524438294246,
+        "calibrationError": 0.04472022914020596
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 13.53849836583486,
+        "brier": 0.1759795765056228,
+        "winnerAccuracy": 0.696969696969697,
+        "meanHomeMarginError": -1.8086826888154037,
+        "calibrationError": 0.09395276996399715
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 15.273843801612003,
+        "brier": 0.13473656513713708,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": 2.550803265128246,
+        "calibrationError": 0.04272283369362146
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 12.993535479469497,
+        "brier": 0.10061640665306854,
+        "winnerAccuracy": 0.88,
+        "meanHomeMarginError": -3.3077696593986694,
+        "calibrationError": 0.0848518781116078
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.636994541741352,
+          "brier": 0.18713464077591221,
+          "winnerAccuracy": 0.7155425219941349,
+          "meanHomeMarginError": 1.381145744186928,
+          "calibrationError": 0.05051362137081198
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.54769972842493,
+          "brier": 0.19343739034964572,
+          "winnerAccuracy": 0.71071953010279,
+          "meanHomeMarginError": 1.5711332133522231,
+          "calibrationError": 0.03664970060271771
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.888810970498398,
+          "brier": 0.18147758842596853,
+          "winnerAccuracy": 0.7220630372492837,
+          "meanHomeMarginError": 0.7529596056511019,
+          "calibrationError": 0.04366887023515492
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 13.046553981086792,
+          "brier": 0.19125184848719703,
+          "winnerAccuracy": 0.7078651685393258,
+          "meanHomeMarginError": 0.2187377378691959,
+          "calibrationError": 0.032430096526742946
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.659129614209379,
+          "brier": 0.18123282024470694,
+          "winnerAccuracy": 0.7096774193548387,
+          "meanHomeMarginError": -0.4318024094493391,
+          "calibrationError": 0.05968640279466776
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 1,
+        "extraShrinkage": 0.2
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 13.012635179099055,
+        "brier": 0.18852032043254333,
+        "winnerAccuracy": 0.712585647313379,
+        "meanHomeMarginError": 0.9666739889726007,
+        "calibrationError": 0.025973990164509082
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.659293901416097,
+        "brier": 0.1815656887288935,
+        "winnerAccuracy": 0.7096774193548387,
+        "meanHomeMarginError": -0.4330174705972507,
+        "calibrationError": 0.05504603873315222
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 14.006724620572019,
+        "brier": 0.18490556971921052,
+        "winnerAccuracy": 0.7199533255542591,
+        "meanHomeMarginError": 0.8191816367313428,
+        "calibrationError": 0.04200390900935026
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 13.509976983150365,
+        "brier": 0.17601599921826716,
+        "winnerAccuracy": 0.696969696969697,
+        "meanHomeMarginError": -1.8270617444036614,
+        "calibrationError": 0.09786919286122467
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 15.183461693956573,
+        "brier": 0.13458353385398938,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": 2.4598492290512386,
+        "calibrationError": 0.040702792003958765
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 12.933699914786102,
+        "brier": 0.10047066597219426,
+        "winnerAccuracy": 0.88,
+        "meanHomeMarginError": -3.411653946486301,
+        "calibrationError": 0.0856459515596655
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.622644550805223,
+          "brier": 0.18733286881495734,
+          "winnerAccuracy": 0.7155425219941349,
+          "meanHomeMarginError": 1.3811718202617103,
+          "calibrationError": 0.04534921179315719
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.536414308238506,
+          "brier": 0.19359471671451198,
+          "winnerAccuracy": 0.7121879588839941,
+          "meanHomeMarginError": 1.5577180629161647,
+          "calibrationError": 0.03559814876103156
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.868588363841802,
+          "brier": 0.18176707867342906,
+          "winnerAccuracy": 0.7191977077363897,
+          "meanHomeMarginError": 0.7543736096998974,
+          "calibrationError": 0.049713933363247094
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 13.02502941870861,
+          "brier": 0.19142473178512012,
+          "winnerAccuracy": 0.7036516853932584,
+          "meanHomeMarginError": 0.21245647413778979,
+          "calibrationError": 0.03026455946838076
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.659293901416097,
+          "brier": 0.1815656887288935,
+          "winnerAccuracy": 0.7096774193548387,
+          "meanHomeMarginError": -0.4330174705972507,
+          "calibrationError": 0.05504603873315222
+        }
+      }
+    },
+    {
+      "policy": {
+        "earlyFormWeight": 1,
+        "extraShrinkage": 0.35
+      },
+      "training": {
+        "games": 2773,
+        "marginMAE": 12.995629597444989,
+        "brier": 0.18892260235686442,
+        "winnerAccuracy": 0.711503786512802,
+        "meanHomeMarginError": 0.9604731457711609,
+        "calibrationError": 0.02901723061779583
+      },
+      "holdout": {
+        "games": 713,
+        "marginMAE": 12.667441297959297,
+        "brier": 0.18212658852906088,
+        "winnerAccuracy": 0.7110799438990182,
+        "meanHomeMarginError": -0.43441895965796357,
+        "calibrationError": 0.056899058443433216
+      },
+      "earlyTraining": {
+        "games": 857,
+        "marginMAE": 13.94337760547644,
+        "brier": 0.18480526120857868,
+        "winnerAccuracy": 0.7187864644107351,
+        "meanHomeMarginError": 0.8071125327539088,
+        "calibrationError": 0.041361019557382465
+      },
+      "earlyHoldout": {
+        "games": 198,
+        "marginMAE": 13.474836002167223,
+        "brier": 0.17611850946325106,
+        "winnerAccuracy": 0.696969696969697,
+        "meanHomeMarginError": -1.845349316004039,
+        "calibrationError": 0.09729060425519875
+      },
+      "untestedFavoriteTraining": {
+        "games": 387,
+        "marginMAE": 15.07851350536807,
+        "brier": 0.13450100358428066,
+        "winnerAccuracy": 0.834625322997416,
+        "meanHomeMarginError": 2.336569692662921,
+        "calibrationError": 0.0379379201881438
+      },
+      "untestedFavoriteHoldout": {
+        "games": 100,
+        "marginMAE": 12.861392737406506,
+        "brier": 0.10040165828235784,
+        "winnerAccuracy": 0.88,
+        "meanHomeMarginError": -3.527289711918383,
+        "calibrationError": 0.08642462219761547
+      },
+      "years": {
+        "2021": {
+          "games": 682,
+          "marginMAE": 13.605013381457855,
+          "brier": 0.18766895764998615,
+          "winnerAccuracy": 0.7111436950146628,
+          "meanHomeMarginError": 1.3787258877205275,
+          "calibrationError": 0.043271381462251644
+        },
+        "2022": {
+          "games": 681,
+          "marginMAE": 12.527268478915728,
+          "brier": 0.1939450472158156,
+          "winnerAccuracy": 0.71071953010279,
+          "meanHomeMarginError": 1.5392781308188013,
+          "calibrationError": 0.03952124764974575
+        },
+        "2023": {
+          "games": 698,
+          "marginMAE": 12.84878100344628,
+          "brier": 0.1823059136512766,
+          "winnerAccuracy": 0.7206303724928367,
+          "meanHomeMarginError": 0.7577426741873288,
+          "calibrationError": 0.04880506978752643
+        },
+        "2024": {
+          "games": 712,
+          "marginMAE": 13.003852209288757,
+          "brier": 0.19180623923557943,
+          "winnerAccuracy": 0.7036516853932584,
+          "meanHomeMarginError": 0.20498340467370268,
+          "calibrationError": 0.032785688937347596
+        },
+        "2025": {
+          "games": 713,
+          "marginMAE": 12.667441297959297,
+          "brier": 0.18212658852906088,
+          "winnerAccuracy": 0.7110799438990182,
+          "meanHomeMarginError": -0.43441895965796357,
+          "calibrationError": 0.056899058443433216
+        }
+      }
+    }
+  ]
+}

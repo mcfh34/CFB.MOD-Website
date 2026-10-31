@@ -1,0 +1,57 @@
+.imperialism{width:100%;min-width:0;color:var(--app-ink);font-family:Consolas,"Courier New",monospace}
+.imperialism-heading{display:flex;justify-content:space-between;align-items:end;gap:18px;margin:0 0 20px}
+.imperialism-kicker{font-size:11px;letter-spacing:.17em;opacity:.63}
+.imperialism h2{font-size:clamp(26px,3vw,42px);line-height:1.1;margin:7px 0 8px}
+.imperialism-heading p{font-size:13px;line-height:1.5;opacity:.76;margin:0}
+.imperialism-summary{border:1px solid currentColor;border-radius:10px;opacity:.75;padding:9px 15px;display:grid;text-align:center;flex-shrink:0}
+.imperialism-summary strong{font-size:24px}.imperialism-summary span{font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.imperialism-controls{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin:0 0 16px}
+.imperialism-controls label{font-size:10px;letter-spacing:.08em;display:grid;gap:5px;min-width:120px;flex:1}
+.imperialism-controls label:nth-child(3){flex:2;min-width:170px}
+.imperialism-controls select{max-width:100%;width:100%;font:inherit;font-size:13px;letter-spacing:normal;padding:10px;border-radius:7px;background:var(--app-panel);color:var(--app-ink);border:1px solid var(--app-line-strong)}
+.imperialism-zoom{display:flex;align-items:center;gap:8px;border:1px solid #85858588;border-radius:7px;height:39px}
+.imperialism-zoom button{background:none;border:0;color:inherit;cursor:pointer;font:inherit;font-size:20px;width:35px;height:36px}
+.imperialism-zoom span{font-size:11px;min-width:32px;text-align:center}
+.imperialism-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,270px);gap:14px;align-items:start}
+.imperialism-map-wrap,.imperialism-leaders{min-width:0;border:1px solid var(--app-line);border-radius:10px;background:var(--app-panel);overflow:hidden}
+.imperialism-map-title{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:12px 17px;border-bottom:2px solid #a98b4b;background:linear-gradient(135deg,#1c2523,#2b3028);color:#f5eedb}
+.imperialism-map-title>div{display:grid;gap:4px}
+.imperialism-map-title>div span{font-size:9px;letter-spacing:.22em;color:#c7ae70}
+.imperialism-map-title strong{font-size:16px;letter-spacing:.03em}
+.imperialism-map-title>span{font-size:10px;letter-spacing:.07em;color:#d8cfb7}
+.imperialism-map{width:100%;height:auto;display:block;background:#fff;touch-action:none;overscroll-behavior:contain;cursor:grab}
+.imperialism-map:active{cursor:grabbing}
+.imperialism-map .imperialism-county{stroke:none;cursor:pointer;transition:opacity .12s;fill-rule:evenodd}
+.imperialism-map .imperialism-county:hover{filter:brightness(1.06)}
+.imperialism-map .imperialism-border{stroke:#18242a;stroke-opacity:.16;stroke-width:.18;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke;fill:none;pointer-events:none}
+.imperialism-map .imperialism-territory-border{stroke-opacity:.38;stroke-width:.4}
+.imperialism-map .imperialism-state-border{stroke:#000;stroke-opacity:1;stroke-width:1.1}
+.imperialism-map .imperialism-dim{opacity:.26}
+.imperialism-map-mark{filter:drop-shadow(0 1px 1px #0008);cursor:pointer;transition:opacity .15s}
+.imperialism-map-mark.imperialism-mark-dim{opacity:.22}
+.imperialism-inset-labels text{fill:#424944;font:700 12px Consolas,monospace;letter-spacing:.18em}
+.imperialism-map-help{color:var(--app-muted);font-size:10px;letter-spacing:.04em;padding:8px 16px 0;text-align:right}
+.imperialism-hover{display:flex;gap:9px;flex-wrap:wrap;align-items:center;min-height:42px;padding:8px 15px;border-top:1px solid #85858555;font-size:11px}
+.imperialism-hover span{opacity:.7}
+.imperialism-slider{width:calc(100% - 32px);margin:7px 16px;accent-color:#c5993b}
+.imperialism-slider-labels{display:flex;justify-content:space-between;gap:5px;padding:0 16px 14px;font-size:10px;opacity:.75}
+.imperialism-slider-labels strong{font-size:11px}
+.imperialism-method{margin:0;padding:0 16px 13px;color:var(--app-muted);font-size:10px;line-height:1.5}
+.imperialism-leaders h3{font-size:17px;margin:15px 15px 3px}.imperialism-leaders>p{font-size:11px;opacity:.65;margin:0 15px 12px}
+.imperialism-leader-list{max-height:600px;overflow:auto}
+.imperialism-leader-list button{width:100%;display:flex;gap:8px;align-items:center;padding:8px 12px;background:transparent;border:0;border-top:1px solid #85858534;color:inherit;text-align:left;cursor:pointer;font:inherit;font-size:12px}
+.imperialism-leader-list button:hover,.imperialism-leader-list button.active{background:#9993}
+.imperialism-place{width:21px;opacity:.55;font-size:10px}
+.imperialism-leader-list img{object-fit:contain;width:28px;height:28px;background:#fff;border-radius:5px;padding:2px}
+.imperialism-team{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imperialism-leader-list strong{font-size:13px}
+.imperialism-leaders .imperialism-note{line-height:1.4;padding:4px 0}
+.imperialism-loading,.imperialism-error{padding:30px;border:1px solid var(--app-line);border-radius:8px}
+@media(max-width:840px){.imperialism-layout{grid-template-columns:minmax(0,1fr)}.imperialism-leader-list{max-height:275px}.imperialism-heading{align-items:start}}
+@media(max-width:500px){.imperialism-heading{display:block}.imperialism-summary{display:none}.imperialism-controls label{min-width:calc(50% - 5px)}.imperialism-controls label:nth-child(3){min-width:calc(100% - 80px)}.imperialism-map-title{font-size:11px}.imperialism-hover{min-height:56px}}
+
+.imperialism-export-controls{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:0 0 16px}.imperialism-export-controls button{font:inherit;font-size:14px;color:var(--app-ink);background:var(--app-panel);border:1px solid var(--app-line-strong);padding:10px 14px;border-radius:7px;cursor:pointer}.imperialism-export-controls button:disabled{opacity:.5;cursor:wait}.imperialism-export-controls span{font-size:12px;color:var(--app-muted)}
+
+.imperialism-history{margin:0 0 16px;border:1px solid var(--app-line-strong);border-radius:8px;background:var(--app-panel);overflow:hidden}.imperialism-history summary{padding:14px 16px;font-size:16px;font-weight:700;cursor:pointer}.imperialism-history summary span{font-size:13px;font-weight:400;margin-left:12px;color:var(--app-muted)}.imperialism-history-controls{padding:8px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 24px;font-size:14px}.imperialism-history-controls label{display:flex;align-items:center;gap:8px}.imperialism-history-controls span,.imperialism-history>p{font-size:13px;color:var(--app-muted)}.imperialism-history>p{padding:0 16px;line-height:1.5}.imperialism-history-scroll{overflow-x:auto}.imperialism-history table{border-collapse:collapse;width:100%;font-size:14px}.imperialism-history th,.imperialism-history td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--app-line);white-space:nowrap}.imperialism-history th span{display:flex;align-items:center;gap:9px}.imperialism-history img{width:28px;height:28px;object-fit:contain}.imperialism-history input{accent-color:var(--app-ink)}
+
+.imperialism-map .imperialism-land-outline{stroke:#000;stroke-opacity:1;stroke-width:1.3}

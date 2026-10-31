@@ -1,0 +1,4 @@
+"use client";
+import type {Section} from "./AppShell";
+const tools:[Section,string,string][]=[["visualize","Charts & maps","On Schedule, spider graphs, Food Chain and Imperialism."],["all137","All137","Neutral-field comparisons across teams and seasons."],["performance","Model performance","Prediction accuracy and betting results."],["game","Down by Down","Play a game or a complete season."],["conferences","Conference comparison","Compare strength across conferences."],["stats","Statistical leaders","Team and player production in one place."]];
+export default function ExploreHub({onNavigate}:{onNavigate:(section:Section)=>void}){return <section className="page-section"><h1>Explore</h1><div className="explore-grid">{tools.map(([id,title,text])=><button key={id} type="button" onClick={()=>onNavigate(id)}><strong>{title}</strong><span>{text}</span><small>Open →</small></button>)}</div></section>;}

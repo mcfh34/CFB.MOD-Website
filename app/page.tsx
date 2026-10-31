@@ -1,9 +1,48 @@
 "use client";
+import {useVisualizationRefresh} from "./components/useVisualizationRefresh";
 /* eslint-disable @next/next/no-img-element -- team logos are dynamic remote assets supplied by the season feed */
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import {scoringEvidenceFields} from "../lib/matchupEvidenceFields";
+import {flatStakeReturn} from "../lib/flatStakeReturn";
+import { lazy, Suspense, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AppShell, navigation, type Section } from "./components/AppShell";
+const SeasonMode=lazy(()=>import("./components/SeasonMode").then(m=>({default:m.SeasonMode})));
+const NetSuccessRateChart=lazy(()=>import("./components/NetSuccessRateChart").then(m=>({default:m.NetSuccessRateChart})));
+const FoodChainChart=lazy(()=>import("./components/FoodChainChart").then(m=>({default:m.FoodChainChart})));
+const ImperialismChart=lazy(()=>import("./ImperialismChart"));
+const ConferenceRatingChart=lazy(()=>import("./components/ConferenceRatingChart").then(m=>({default:m.ConferenceRatingChart})));
+const SpiderGraph=lazy(()=>import("./components/SpiderGraph").then(m=>({default:m.SpiderGraph})));
+import { ConferenceComparison } from "./components/ConferenceComparison";
+import { WeeklyReview } from "./components/WeeklyReview";
+import {SelectionContext,useSharedSeason} from "./components/SelectionContext";
+import {parseSiteLocation} from "../lib/siteNavigation";
+import {SearchSelect} from "./components/ui/SearchSelect";
+import {useQuery} from "@tanstack/react-query";
+import {cachedClientFetch} from "../lib/clientQuery";
+import {profileFingerprint,roundRobinProfilesFromRows,type ModelOutput} from "../lib/backgroundModel";
+const TeamDirectory=lazy(()=>import("./components/TeamDirectory"));
+const ExploreHub=lazy(()=>import("./components/ExploreHub"));
+const SeasonInsights=lazy(()=>import("./components/SeasonInsights"));
+import { CurrentWeekContext, useCurrentWeek, type CurrentWeek } from "./components/CurrentWeekContext";
+import { TeamAction } from "./components/TeamAction";
+import { TeamAccent, teamIdentityStyle } from "./components/TeamAccent";
+import { TeamLink, teamPageHref } from "./components/TeamLink";
+import { TeamFootballReport } from "./components/TeamFootballReport";
+import { RushingPanel } from "./components/RushingPanel";
+import { PassingPanel } from "./components/PassingPanel";
+import {CopyImageButton} from "./components/CopyImageButton";
+import {MatchupBriefing} from "./components/MatchupBriefing";
+import {DirectionalMatchupArt} from "./components/DirectionalMatchupArt";
+import { ScoresBoard } from "./components/scores/ScoresBoard";
+import { PlayByPlayDropdown } from "./components/scores/PlayByPlayDropdown";
+import { ScoresFilters } from "./components/scores/ScoresFilters";
+import { ScoreExplanation, type ScoreExplanationData } from "./components/ScoreExplanation";
+import type { RosterProjection } from "../lib/rosterModel";
+import type { UnitRanks } from "../lib/unitRankings";
+import { averageMarginVsPregame } from "../lib/teamSchedulePerformance";
+import { ScoresForecastPanel } from "./components/scores/ScoresForecastPanel";
+import { ScoresToolbar } from "./components/scores/ScoresToolbar";
 import {
   baselines,
   modelCalibration,
@@ -15,10 +54,11 @@ import {
   type WeekProfile,
 } from "./modelData";
 import type { MatchupEdgeAnalysis } from "../lib/matchupAnalysis";
-import { matchupScoreCard, projectMatchupEngine } from "../lib/matchupEngine";
-import { projectCalibratedMatchup } from "../lib/matchupModel";
+import { matchupScoreCard, projectMatchupAtSite, projectMatchupCore, type MatchupSite } from "../lib/matchupEngine";
+import { currentMatchupFormulaRevision, modelDataFetch } from "../lib/formulaRevision";
 import { holdoutBaselineComparison, holdoutMarketCalibration, holdoutProjectionDistribution, possessionModel, scoringModelValidation, validationBySeason } from "../lib/scoringModel";
-import { buildRoundRobinStandings, type RoundRobinProfile } from "../lib/roundRobin";
+import {buildRoundRobinOffThread as buildRoundRobinStandingsAsync} from "../lib/roundRobinClient";
+import { type RoundRobinStanding, type RoundRobinProfile } from "../lib/roundRobin";
 import type { ConferenceRuleProfile, ConferenceStandingRow } from "../lib/conferenceStandings";
 import { buildTacticalPlan, type FormationId, type PlayArtId, type TacticalZone } from "../lib/tacticalPlan";
 import { buildPlayDiagram, defenseFormations, offenseFormations, type DiagramPathKind } from "../lib/playDiagram";
@@ -37,16 +77,18 @@ import {
   type TeamPlayerModel,
 } from "../lib/playerModel";
 import type { AdvancedMetricKey, AdvancedProfile, AdvancedSideProjection } from "../lib/advancedMetrics";
+import type { pregameMatchupStats } from "../lib/pregameMatchupStats";
+import type { MatchupTest } from "../lib/matchupTests";
 import { scatterDomain, scatterMean, scatterPosition, scatterRegression, scatterTicks } from "../lib/scatterplot";
 import { type BroadcastMetric } from "../lib/matchupIntelligence";
 import { wilsonConfidenceInterval } from "../lib/marketLineQuality";
 import { configureViabilityCalibration, type OffensiveViability, type ViabilityCalibrationMap } from "../lib/offensiveViability";
 import { compareScheduleRows, matchesSchedulePickFilter, type SchedulePickFilter, type ScheduleSortMode } from "../lib/scheduleFilters";
 import { scheduleGameLabel } from "../lib/scheduleLabels";
+import { weekLabel } from "../lib/weekLabels";
 import { resolveTeamLogoAsset, type TeamLogoVariant } from "../lib/teamLogoAssets";
 import {
   deriveMatchupIntelligence,
-  deriveRosterStability,
   deriveTeamIdentity,
   deriveTeamMovement,
   deriveTeamStability,
@@ -60,6 +102,7 @@ import {
   defaultTeamStatsSortDirection,
   formatTeamStatsValue,
   sortTeamStatsRows,
+  teamStatsColumnRanks,
   teamStatsColumns,
   teamStatsValueTone,
   type TeamStatsAdvancedView,
@@ -77,6 +120,7 @@ import {
   playerStatsColumns,
   playerStatsDefaultSortKey,
   playerStatsMetricColumns,
+  playerStatsGroupColumns,
   playerStatsNumericValue,
   playerStatsQualification,
   playerMeetsScatterParticipationThreshold,
@@ -104,7 +148,6 @@ import {
   type PffTablePayload,
 } from "../lib/pffVisualizer";
 import type { MatchupAnalogLane, MatchupContextLaneId, MatchupContextPayload, MatchupTeamContext } from "../lib/matchupContext";
-import { buildMatchupFieldMap, buildPffFieldTendency, type MatchupFieldMap } from "../lib/matchupFieldMap";
 import { modelSpreadRead, modelTotalRead, officialAtsSetRead } from "../lib/gameMarketSummary";
 import { POWER_4_FILTER, POWER_4_LABEL, conferenceFilterDisplay, matchesConferenceFilter } from "../lib/conferenceFilters";
 import { enteringWeekSnapshotWeek, rankingAppliesToWeek, scoreRankingSnapshotWeek } from "../lib/weeklyRankingSnapshot";
@@ -121,6 +164,9 @@ const teamMap = new Map(teams.map((team) => [team.name, team]));
 const rankedMap = new Map<string, (typeof top25)[number]>(top25.map((team) => [team.team, team]));
 
 type DynamicProfileRow = {
+  fbsScoringMargin?:number;fcsResultAdjustment?:number;fcsGamesPlayed?:number;fbsGamesPlayed?:number;fbsPlays?:number;scheduleConnectivity?:number;
+  conferenceAdjustment?:number;conferenceAdjustmentGames?:number;conferenceAdjustmentWeek?:number;
+  roster?:RosterProjection;
   season:number;week:number;team:string;gamesPlayed:number;teamId?:string;abbreviation?:string;mascot?:string;conference?:string;color?:string;altColor?:string;logo?:string;
   offYpp:number;offYpa:number;offYpc:number;offPatt:number;offRatt:number;defYpp:number;defYpa:number;defYpc:number;defPatt:number;defRatt:number;
   offYppIndex:number;offYpaIndex:number;offYpcIndex:number;offPattIndex:number;offRattIndex:number;defYppIndex:number;defYpaIndex:number;defYpcIndex:number;defPattIndex:number;defRattIndex:number;
@@ -135,7 +181,7 @@ type HistoricalComparisonRow = {season:number;team:string;similarity:number;shar
 
 type GameStatProfile = {
   totalYards:number|null;yardsPerPlay:number|null;passYards:number|null;passAttempts:number|null;passCompletions:number|null;yardsPerPass:number|null;
-  rushYards:number|null;rushAttempts:number|null;yardsPerRush:number|null;turnovers:number|null;
+  rushYards:number|null;rushAttempts:number|null;yardsPerRush:number|null;turnovers:number|null;sacksAllowed:number|null;sackYardsLost:number|null;
 };
 
 type GameAdvancedProfile = {
@@ -152,22 +198,29 @@ type GameStatBenchmarks = {
 };
 
 type ScheduleRow = {
+  scoreExplanation?:ScoreExplanationData;
   gameId:string;season:number;week:number;seasonType:string;startDate?:string;completed:boolean|number;neutralSite:boolean|number;venue?:string;
   homeTeam:string;homeConference?:string;homePoints:number|null;awayTeam:string;awayConference?:string;awayPoints:number|null;
   generatedFromWeek?:number;predictedHomeScore:number|null;predictedAwayScore:number|null;homeWinProbability:number|null;modelHomeSpread:number|null;modelTotal:number|null;
   vegasSpread:number|null;vegasTotal:number|null;spreadEdge:number|null;totalEdge:number|null;spreadError:number|null;totalError:number|null;spreadResult?:string;totalResult?:string;
   spreadQualified?:boolean;totalQualified?:boolean;spreadRecommendation?:string;totalRecommendation?:string;positionScore?:number;
   totalDiagnosticQualified?:boolean;totalDiagnosticRecommendation?:string;totalDiagnosticResult?:string|null;
-  provider?:string;formattedSpread?:string;spreadOpen?:number|null;overUnderOpen?:number|null;
+  marketUpdatedAt?:string;marketIssues?:string[];provider?:string;formattedSpread?:string;spreadOpen?:number|null;overUnderOpen?:number|null;
   lineQuality?:"verified"|"live"|"provisional"|"quarantined";lineQualityReason?:string|null;
   homeLogo?:string;awayLogo?:string;
   homePregameRank?:number|null;awayPregameRank?:number|null;rankingWeek?:number|null;
+  homeCurrentRecord?:string|null;awayCurrentRecord?:string|null;homeCurrentConferenceRecord?:string|null;awayCurrentConferenceRecord?:string|null;
+  homeRecordBefore?:string|null;awayRecordBefore?:string|null;homeConferenceRecordBefore?:string|null;awayConferenceRecordBefore?:string|null;
   homeRecordAfter?:string|null;awayRecordAfter?:string|null;recordStatus?:"actual"|"projected"|"unavailable";
   storedModelVersion?:string;predictionSource?:"materialized"|"live-profile"|"pending";
   homeActualStats?:GameStatProfile|null;awayActualStats?:GameStatProfile|null;homePredictedStats?:GameStatProfile|null;awayPredictedStats?:GameStatProfile|null;
   homeActualAdvanced?:GameAdvancedProfile|null;awayActualAdvanced?:GameAdvancedProfile|null;homePredictedAdvanced?:GameAdvancedProfile|null;awayPredictedAdvanced?:GameAdvancedProfile|null;
+  matchupStats?:ReturnType<typeof pregameMatchupStats>|null;
+  matchupTests?:MatchupTest[];
   statBenchmarks?:GameStatBenchmarks|null;
   edgeAnalysis?:MatchupEdgeAnalysis;
+  opponentUnitRanks?:UnitRanks|null;
+  pregameHomeScore?:number|null;pregameAwayScore?:number|null;
 };
 
 type WinConditionTeamIdentity = {
@@ -192,7 +245,8 @@ type SeasonPerformance = {
   snapshotStatus?:"frozen"|"live";lineQualityStatus?:"live"|"provisional";
   straightUp:{wins:number;graded:number;accuracy:number|null};spread:AccuracyMetric;total:AccuracyMetric;
 };
-type CalibrationSeason = { season:number;snapshotStatus:"live";lineQualityStatus:"live"|"provisional";straightUp:{wins:number;losses:number;graded:number;accuracy:number|null};spread:AccuracyMetric;total:AccuracyMetric };
+type MoneylineReturn = {priced:number;missing:number;wins:number;losses:number;net:number};
+type CalibrationSeason = { season:number;modelVersions?:string[];formulaStatus?:"current"|"archived";snapshotStatus:"live";lineQualityStatus:"live"|"provisional";straightUp:{wins:number;losses:number;graded:number;accuracy:number|null};moneyline?:MoneylineReturn;spread:AccuracyMetric;total:AccuracyMetric };
 type CalibrationScope = "qualified"|"all";
 type CalibrationReport = {
   modelVersion:string;snapshotStatus:"live";minMarketWeek:number;scope?:CalibrationScope;validation:string;rows:CalibrationSeason[];
@@ -215,6 +269,7 @@ type SeasonRankingRow = {
   rank:number;team:string;teamId?:string;abbreviation?:string;mascot?:string;conference?:string;color?:string;altColor?:string;logo?:string;
   wins:number;losses:number;ties:number;record:string;conferenceRecord:string;bcsScore:number;resultsScore:number;scheduleScore:number;computerScore:number;
   sorRank:number;sosRank:number;powerRank:number;eloRank:number;colleyRank:number;headToHeadRank:number;
+  offenseRank?:number|null;defenseRank?:number|null;
   bestWins?:string[];lossesTo?:string[];
 };
 type SeasonRankingReport = {
@@ -246,7 +301,7 @@ type SeasonSimulation = {
 };
 type SimulationScenarioOverride={gameId:string;winnerTeam:string};
 type SimulationScenarioRanking={
-  rank:number;team:string;conference?:string;logo?:string;projectedRecord:string;expectedWins:number;
+  rank:number;team:string;conference?:string;logo?:string;projectedRecord:string;regularSeasonRecord?:string;expectedWins:number;
   conferenceChampion:boolean;playoffSeed:number|null;
 };
 type SimulationScenarioBracketGame={
@@ -274,7 +329,7 @@ type BackfillPayload = {
   depthChartArchive?:{firstSeason:number;lastSeason:number;targetTeamSeasons:number;sourcedTeamSeasons:number;fullyMatchedTeamSeasons:number;verifiedSnapshots:number;verifiedEntries:number;unresolvedEntries:number};
   message?:string;importedSeason?:number;retryAfterSeconds?:number;result?:BackfillResult;
 };
-type DynamicProfilePayload={source?:string;rows?:DynamicProfileRow[];viabilityCalibration?:ViabilityCalibrationMap};
+type DynamicProfilePayload={effectiveWeek?:number;source?:string;rows?:DynamicProfileRow[];viabilityCalibration?:ViabilityCalibrationMap};
 type PlayerTeamIndexRow={team:string;teamId?:string;abbreviation?:string;mascot?:string;conference?:string;color?:string;altColor?:string;logo?:string};
 type PlayerApiPayload={
   configured?:boolean;season:number;status:"ready"|"upgrading"|"building"|"waiting"|"error"|"unsupported"|"unavailable";
@@ -300,7 +355,7 @@ type PlayerRatingRow={
 type PlayerRatingsPayload={
   configured?:boolean;season:number;status:"ready"|"building"|"waiting"|"error"|"unsupported"|"unavailable";
   message?:string|null;retryAfterSeconds?:number;
-  baseline?:{firstSeason:number;lastSeason:number;playerSeasonCount:number;currentGenerationReady?:boolean};
+  baseline?:{firstSeason:number;lastSeason:number;playerSeasonCount:number;currentGenerationReady?:boolean;seasonGenerationReady?:boolean};
   availableSeasons?:number[];positions?:string[];teams?:PlayerTeamIndexRow[];conferences?:string[];
   filters?:{team:string;conference:string;position:string;sort:string;direction:"asc"|"desc"};
   pagination?:{page:number;pageCount:number;limit:number;total:number};
@@ -337,12 +392,12 @@ const winConditionRequests=new Map<string,Promise<WinConditionsPayload>>();
 
 type WinConditionRequest =
   |{kind:"game";season:number;gameId:string}
-  |{kind:"matchup";homeTeam:string;awayTeam:string;homeSeason:number;awaySeason:number;homeWeek:number;awayWeek:number;neutralSite:boolean};
+  |{kind:"matchup";homeTeam:string;awayTeam:string;homeSeason:number;awaySeason:number;homeWeek:number;awayWeek:number;neutralSite:boolean;awayHome?:boolean};
 
 function winConditionRequestKey(request:WinConditionRequest){
   return request.kind==="game"
     ?`game:${request.season}:${request.gameId}`
-    :`matchup:${request.homeSeason}:${request.homeWeek}:${request.homeTeam}:${request.awaySeason}:${request.awayWeek}:${request.awayTeam}:${request.neutralSite}`;
+    :`matchup:${request.homeSeason}:${request.homeWeek}:${request.homeTeam}:${request.awaySeason}:${request.awayWeek}:${request.awayTeam}:${request.neutralSite}:${request.awayHome??false}`;
 }
 
 function loadWinConditions(request:WinConditionRequest){
@@ -353,8 +408,8 @@ function loadWinConditions(request:WinConditionRequest){
   const params=request.kind==="game"
     ?new URLSearchParams({view:"win-conditions",season:String(request.season),gameId:request.gameId})
     :new URLSearchParams({view:"win-conditions",season:String(request.homeSeason),week:String(request.homeWeek),homeTeam:request.homeTeam,
-        awaySeason:String(request.awaySeason),awayWeek:String(request.awayWeek),awayTeam:request.awayTeam,neutralSite:request.neutralSite?"1":"0"});
-  const promise=fetch(`/api/data?${params}`).then(async(response)=>{
+        awaySeason:String(request.awaySeason),awayWeek:String(request.awayWeek),awayTeam:request.awayTeam,neutralSite:request.neutralSite?"1":"0",awayHome:request.awayHome?"1":"0"});
+  const promise=modelDataFetch(`/api/data?${params}`).then(async(response)=>{
     const payload=await readJsonBody<WinConditionsPayload>(response);
     if(!response.ok||!payload.analysis)throw new Error(payload.message||"Win Conditions are unavailable for this matchup.");
     winConditionCache.set(key,{loadedAt:Date.now(),payload});
@@ -383,12 +438,12 @@ function useWinConditions(request:WinConditionRequest|null,enabled:boolean){
   };
 }
 
-function loadDynamicProfilePayload(season:number,week:number) {
+function loadDynamicProfilePayload(season:number,week:number,force=false) {
   const key=`${season}:${week}`,cached=dynamicProfileCache.get(key);
-  if(cached&&Date.now()-cached.loadedAt<5*60*1000) return Promise.resolve(cached.payload);
+  if(!force&&cached&&Date.now()-cached.loadedAt<300_000) return Promise.resolve(cached.payload);
   const pending=dynamicProfileRequests.get(key);
   if(pending) return pending;
-  const request=fetch(`/api/data?view=profiles&season=${season}&week=${week}`)
+  const request=modelDataFetch(`/api/data?view=profiles&season=${season}&week=${week}&compactProfiles=1&revision=${season===2026?currentMatchupFormulaRevision:"historical"}`,{cache:"no-store"})
     .then((response)=>readJsonBody<DynamicProfilePayload>(response))
     .then((payload)=>{dynamicProfileCache.set(key,{loadedAt:Date.now(),payload});return payload;})
     .finally(()=>dynamicProfileRequests.delete(key));
@@ -493,13 +548,16 @@ function useDynamicProfiles(season:number, week:number) {
   const [rows,setRows] = useState<DynamicProfileRow[]>([]);
   const [source,setSource] = useState<"database"|"embedded"|"loading">("loading");
   const [loadedKey,setLoadedKey] = useState("");
-  const requestKey = `${season}:${week}`;
+  const [effectiveWeek,setEffectiveWeek]=useState<number|null>(null);
+  const profileRefresh=useVisualizationRefresh(season===new Date().getFullYear());
+  const requestKey = `${season}:${week}:${profileRefresh}`;
   useEffect(() => {
     let cancelled=false;
-    loadDynamicProfilePayload(season,week)
+    loadDynamicProfilePayload(season,week,profileRefresh>0)
       .then((payload) => {
         if(cancelled)return;
         configureViabilityCalibration(payload.viabilityCalibration);
+        setEffectiveWeek(payload.effectiveWeek??null);
         if (payload.rows?.length) { setRows(payload.rows); setSource("database"); }
         else { setRows([]); setSource("embedded"); }
         setLoadedKey(requestKey);
@@ -513,14 +571,15 @@ function useDynamicProfiles(season:number, week:number) {
     id:String(row.teamId || row.team),name:row.team,mascot:row.mascot || "",abbr:row.abbreviation || row.team.slice(0,4).toUpperCase(),conference:row.conference || "FBS",
     color:row.color ? `#${row.color.replace(/^#/,"")}` : teamMap.get(row.team)?.color || "#333333",altColor:row.altColor ? `#${row.altColor.replace(/^#/,"")}` : teamMap.get(row.team)?.altColor || "#ffffff",
     logo:row.logo || teamMap.get(row.team)?.logo,rating:row.crossEraRating??row.eloRating,baseRating:row.eloRating,
+    conferenceAdjustment:row.conferenceAdjustment,
     resumeScore:row.resumeScore,seasonRecord:row.seasonRecord,nationalChampion:row.nationalChampion,finalContext:row.finalContextApplied,
     weeks:{[String(row.week)]:{o:[row.offYppIndex,row.offYpaIndex,row.offYpcIndex,row.offPattIndex,row.offRattIndex],d:[row.defYppIndex,row.defYpaIndex,row.defYpcIndex,row.defPattIndex,row.defRattIndex],rank:null,evidence:{
       gamesPlayed:row.gamesPlayed,scheduleStrength:row.scheduleStrength ?? 0.5,bestOpponentStrength:row.bestOpponentStrength ?? 0.5,
-      qualityWinStrength:row.qualityWinStrength ?? 0.5,reliability:row.matchupReliability ?? 1,
-    },advanced:row.advancedProfile}},
+      qualityWinStrength:row.qualityWinStrength ?? 0.5,reliability:row.matchupReliability ?? 1,...scoringEvidenceFields(row),
+    },advanced:row.advancedProfile,roster:row.roster}},
   })),[activeRows]);
   const fallback = season === modelSnapshot.season ? teams : [];
-  return { rows:activeRows, teams:dynamicTeams.length ? dynamicTeams : fallback, source:activeSource, loading:activeSource === "loading" };
+  return { rows:activeRows, teams:dynamicTeams.length ? dynamicTeams : fallback, source:activeSource,effectiveWeek:loadedKey===requestKey?effectiveWeek:null, loading:activeSource === "loading" };
 }
 
 function usePlayerLayer(season:number, requestedTeams:string[] = []) {
@@ -534,7 +593,7 @@ function usePlayerLayer(season:number, requestedTeams:string[] = []) {
       try {
         const params=new URLSearchParams({season:String(season)});
         if(teamKey) params.set("teams",teamKey);
-        const response=await fetch(`/api/players?${params}`);
+        const response=await cachedClientFetch(`/api/players?${params}`);
         const payload=await readJsonBody<PlayerApiPayload>(response);
         if(cancelled)return;
         setResult({key:requestKey,payload});
@@ -574,7 +633,7 @@ function useSeasonPerformance(season:number) {
   const [loadedSeason,setLoadedSeason] = useState<number|null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`/api/data?view=performance&season=${season}&marketMetric=v21`, { signal:controller.signal })
+    modelDataFetch(`/api/data?view=performance&season=${season}&marketMetric=v21`, { signal:controller.signal })
       .then((response) => readJsonBody<SeasonPerformance>(response))
       .then((payload) => { setData(payload?.spread && payload?.total ? payload : null); setLoadedSeason(season); })
       .catch((error) => { if (error instanceof Error && error.name !== "AbortError") { setData(null); setLoadedSeason(season); } });
@@ -591,7 +650,7 @@ function useCalibrationReport(scope:CalibrationScope="qualified",team="",confere
     const params=new URLSearchParams({view:"calibration",marketMetric:"v21",scope});
     if(team)params.set("team",team);
     else if(conference)params.set("conference",conference);
-    fetch(`/api/data?${params}`, { signal:controller.signal })
+    modelDataFetch(`/api/data?${params}`, { signal:controller.signal })
       .then((response) => readJsonBody<CalibrationReport>(response))
       .then((payload) => setResult({key:requestKey,payload:payload?.rows ? payload : null}))
       .catch((error) => { if (error instanceof Error && error.name !== "AbortError") setResult({key:requestKey,payload:null}); });
@@ -609,7 +668,7 @@ function useValidationSlices() {
   const [loaded,setLoaded]=useState(false);
   useEffect(()=>{
     const controller=new AbortController();
-    fetch("/api/data?view=validation-slices",{signal:controller.signal})
+    modelDataFetch("/api/data?view=validation-slices",{signal:controller.signal})
       .then((response)=>readJsonBody<ValidationSlicesReport>(response))
       .then((payload)=>{setData(payload?.week?payload:null);setLoaded(true);})
       .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError"){setData(null);setLoaded(true);}});
@@ -625,7 +684,7 @@ function useConferenceStandings(season:number,week:number,conference:string) {
     const controller=new AbortController();
     const params=new URLSearchParams({view:"standings",season:String(season),week:String(week)});
     if(conference)params.set("conference",conference);
-    fetch(`/api/data?${params}`,{signal:controller.signal})
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal})
       .then((response)=>readJsonBody<ConferenceStandingsReport>(response))
       .then((payload)=>setResult({key:requestKey,payload:payload?.conferences?payload:null}))
       .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setResult({key:requestKey,payload:null});});
@@ -645,7 +704,7 @@ function useEverySeasonProfiles(enabled:boolean) {
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
-    fetch("/api/data?view=all-time-profiles", { signal:controller.signal })
+    modelDataFetch("/api/data?view=all-time-profiles", { signal:controller.signal })
       .then((response) => readJsonBody<{rows?:DynamicProfileRow[];seasons?:number[];viabilityCalibration?:ViabilityCalibrationMap}>(response))
       .then((payload) => { configureViabilityCalibration(payload.viabilityCalibration); setRows(payload.rows ?? []); setSeasons(payload.seasons ?? []); setLoaded(true); })
       .catch((error) => { if (error instanceof Error && error.name !== "AbortError") { setRows([]); setSeasons([]); setLoaded(true); } });
@@ -661,7 +720,7 @@ function useTeamHistory(season:number, week:number, team:string|undefined) {
     if(!team||!requestKey)return;
     const controller=new AbortController();
     const params=new URLSearchParams({view:"team-history",season:String(season),week:String(week),team});
-    fetch(`/api/data?${params}`,{signal:controller.signal})
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal})
       .then((response)=>readJsonBody<{rows?:DynamicProfileRow[]}>(response))
       .then((payload)=>setResult({key:requestKey,rows:payload.rows??[]}))
       .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setResult({key:requestKey,rows:[]});});
@@ -677,7 +736,7 @@ function useHistoricalComparisons(season:number,week:number,team:string|undefine
     if(!team||!requestKey)return;
     const controller=new AbortController();
     const params=new URLSearchParams({view:"similar-teams",season:String(season),week:String(week),team});
-    fetch(`/api/data?${params}`,{signal:controller.signal})
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal})
       .then((response)=>readJsonBody<{rows?:HistoricalComparisonRow[]}>(response))
       .then((payload)=>setResult({key:requestKey,rows:payload.rows??[]}))
       .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setResult({key:requestKey,rows:[]});});
@@ -690,10 +749,11 @@ function useSeasonSimulation(season:number, week:number) {
   const [data,setData] = useState<SeasonSimulation|null>(null);
   const [loadedKey,setLoadedKey] = useState("");
   const [error,setError] = useState("");
-  const requestKey = `${season}:${week}`;
+  const refreshRevision=useVisualizationRefresh(season===new Date().getFullYear());
+  const requestKey = `${season}:${week}:results-cutoff-v2:${refreshRevision}`;
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`/api/data?view=simulation&season=${season}&week=${week}&engine=shared-game-path-v4`, { signal:controller.signal })
+    modelDataFetch(`/api/data?view=simulation&season=${season}&week=${week}&engine=results-cutoff-v2`, { signal:controller.signal,cache:"no-store" })
       .then((response) => readJsonBody<SeasonSimulation & {message?:string}>(response))
       .then((payload) => {
         setData(payload.rankings?.length ? payload : null);
@@ -721,7 +781,7 @@ function useSimulationScenario(season:number,week:number,team:string,overrides:S
     const controller=new AbortController();
     const params=new URLSearchParams({view:"simulation-scenario",season:String(season),week:String(week),team});
     if(overrides.length)params.set("overrides",overrideKey);
-    fetch(`/api/data?${params}`,{signal:controller.signal,cache:"no-store"})
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal,cache:"no-store"})
       .then(async(response)=>{
         const payload=await readJsonBody<SimulationScenarioPayload>(response);
         if(!response.ok||!payload.baseline)throw new Error(payload.message||"The scenario could not be simulated.");
@@ -740,7 +800,7 @@ function useSeasonRankings(season:number,week:number){
   const [result,setResult]=useState<{key:string;payload:SeasonRankingReport|null}>({key:"",payload:null});
   useEffect(()=>{
     const controller=new AbortController();
-    fetch(`/api/data?view=rankings&season=${season}&week=${week}`,{signal:controller.signal})
+    modelDataFetch(`/api/data?view=rankings&season=${season}&week=${week}`,{signal:controller.signal})
       .then((response)=>readJsonBody<SeasonRankingReport>(response))
       .then((payload)=>setResult({key:requestKey,payload:Array.isArray(payload.rows)?payload:null}))
       .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setResult({key:requestKey,payload:null});});
@@ -749,27 +809,31 @@ function useSeasonRankings(season:number,week:number){
   return {data:result.key===requestKey?result.payload:null,loading:result.key!==requestKey};
 }
 
-function useProjectedFinalRanks(season:number,week:number,team="") {
+function useProjectedFinalRanks(season:number,week:number,team="",enabled=true) {
   const requestKey=`${season}:${week}:${team}`;
   const [result,setResult]=useState<{key:string;payload:ProjectedFinalRankReport|null}>({key:"",payload:null});
   useEffect(()=>{
+    if(!enabled)return;
     const controller=new AbortController();
-    const params=new URLSearchParams({view:"projected-ranks",season:String(season),week:String(week),engine:"shared-game-path-v4"});
+    const params=new URLSearchParams({view:"projected-ranks",season:String(season),week:String(week),engine:"shared-season-forecast-v5"});
     if(team)params.set("team",team);
-    fetch(`/api/data?${params}`,{signal:controller.signal})
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal})
       .then((response)=>readJsonBody<ProjectedFinalRankReport>(response))
       .then((payload)=>setResult({key:requestKey,payload:payload.rankings?.length?payload:null}))
       .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setResult({key:requestKey,payload:null});});
     return()=>controller.abort();
-  },[requestKey,season,team,week]);
+  },[enabled,requestKey,season,team,week]);
   const payload=result.key===requestKey?result.payload:null;
-  return{data:payload,loading:result.key!==requestKey};
+  return{data:payload,loading:enabled&&result.key!==requestKey};
 }
 
-function VintageControl({season,week,setSeason,setWeek,allWeeks=false,finalWeek=false,idPrefix="profile",weekLabel="MODEL WEEK"}:{season:number;week:number;setSeason:(value:number)=>void;setWeek:(value:number)=>void;allWeeks?:boolean;finalWeek?:boolean;idPrefix?:string;weekLabel?:string}) {
+function VintageControl({season,week,setSeason,setWeek,allWeeks=false,finalWeek=false,idPrefix="profile",weekLabel:weekCaption="MODEL WEEK"}:{season:number;week:number;setSeason:(value:number)=>void;setWeek:(value:number)=>void;allWeeks?:boolean;finalWeek?:boolean;idPrefix?:string;weekLabel?:string}) {
+  const current=useCurrentWeek();
+  const shared=useContext(SelectionContext);
+  if(shared&&idPrefix!=="global"&&!allWeeks&&!finalWeek)return null;
   return <div className="vintage-control">
     <div><label htmlFor={`season-${idPrefix}`}>SEASON</label><select id={`season-${idPrefix}`} value={season} onChange={(event)=>setSeason(Number(event.target.value))}>{seasonOptions.map((value)=><option key={value}>{value}</option>)}</select></div>
-    <div><label htmlFor={`week-${idPrefix}`}>{weekLabel}</label><select id={`week-${idPrefix}`} value={week} onChange={(event)=>setWeek(Number(event.target.value))}>{allWeeks?<option value={0}>Full season</option>:null}{Array.from({length:17},(_,index)=><option key={index} value={index}>{finalWeek&&index===16?"Final · bowls + playoff":`Week ${index}`}</option>)}</select></div>
+    <div><label htmlFor={`week-${idPrefix}`}>{weekCaption}</label><select id={`week-${idPrefix}`} value={week} onChange={(event)=>setWeek(Number(event.target.value))}>{allWeeks?<option value={0}>Full season</option>:null}{Array.from({length:17},(_,index)=><option key={index} value={index}>{finalWeek&&index===16?"Final · bowls + playoff":weekLabel(index)}{current?.season===season&&current.week===index?" · CURRENT":""}</option>)}</select></div>
   </div>;
 }
 
@@ -802,20 +866,17 @@ function oppositionProofLabel(reliability:number) {
   return reliability >= 0.82 ? "PROVEN" : reliability >= 0.66 ? "SOLID" : "STILL UNTESTED";
 }
 
-function projectMatchup(home: TeamModel, away: TeamModel, homeWeek: number, neutral: boolean, awayWeek = homeWeek, labels?:{home:string;away:string}) {
+function projectMatchup(home: TeamModel, away: TeamModel, homeWeek: number, neutral: boolean, awayWeek = homeWeek, labels?:{home:string;away:string}, awayHome=false) {
   const hp = latestProfile(home, homeWeek);
   const ap = latestProfile(away, awayWeek);
   if (!hp || !ap) return null;
 
   const all137Aligned = neutral && Boolean(home.finalContext) && Boolean(away.finalContext);
-  const detailedProjection = projectMatchupEngine(
-    { team:labels?.home ?? home.name,offense:hp.o,defense:hp.d,evidence:hp.evidence,advanced:hp.advanced,outcomeRating:home.rating },
-    { team:labels?.away ?? away.name,offense:ap.o,defense:ap.d,evidence:ap.evidence,advanced:ap.advanced,outcomeRating:away.rating },
-    neutral,
-  );
-  const coreInput = (profile:WeekProfile, includeAdvanced:boolean) => ({ offense:profile.o,defense:profile.d,evidence:profile.evidence,advanced:includeAdvanced?profile.advanced:null });
+  const engineHome={team:labels?.home??home.name,offense:hp.o,defense:hp.d,evidence:hp.evidence,advanced:hp.advanced,roster:hp.roster,outcomeRating:home.rating,conferenceAdjustment:home.conferenceAdjustment};
+  const engineAway={team:labels?.away??away.name,offense:ap.o,defense:ap.d,evidence:ap.evidence,advanced:ap.advanced,roster:ap.roster,outcomeRating:away.rating,conferenceAdjustment:away.conferenceAdjustment};
+  const detailedProjection=projectMatchupAtSite(engineHome,engineAway,neutral?"neutral":awayHome?"away":"home");
   const projection = detailedProjection;
-  const neutralProjection = projectCalibratedMatchup(coreInput(hp,true),coreInput(ap,true),true,home.rating,away.rating);
+  const neutralProjection=projectMatchupCore(engineHome,engineAway,true);
   // Resume and opponent proof already enter the calibrated margin layer. A
   // second standalone resume adjustment would count the same signal twice.
   const resumeAdjustment = 0;
@@ -833,9 +894,11 @@ function projectMatchup(home: TeamModel, away: TeamModel, homeWeek: number, neut
     margin,
     total,
     homeWin:projection.homeWinProbability,
+    scoreExplanation:{reconciliation:detailedProjection.reconciliation,roster:detailedProjection.roster,quarterbackScenarios:detailedProjection.quarterbackScenarios},
     homeStats:detailedProjection.homeStats,
     awayStats:detailedProjection.awayStats,
     volatility:projection.volatility,
+    turnoverScenario:detailedProjection.turnoverScenario,
     homeEvidence:detailedProjection.calibratedHome.evidence,
     awayEvidence:detailedProjection.calibratedAway.evidence,
     homeAdvancedProfile:detailedProjection.calibratedHome.advanced,
@@ -853,13 +916,12 @@ function useMatchupMarket(enabled:boolean,season:number,profileWeek:number,homeT
   useEffect(()=>{
     if(!requestKey||!homeTeam||!awayTeam) return;
     const controller=new AbortController();
-    const params=new URLSearchParams({view:"schedule",season:String(season),week:"0",team:homeTeam});
-    fetch(`/api/data?${params}`,{signal:controller.signal})
+    const params=new URLSearchParams({view:"schedule",season:String(season),week:"0",forecastWeek:String(profileWeek),seasonForecast:"1",team:homeTeam,compactSchedule:"1"});
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal})
       .then((response)=>readJsonBody<{rows?:ScheduleRow[]}>(response))
       .then((payload)=>{
         const candidates=(payload.rows??[]).filter((game)=>(game.homeTeam===homeTeam&&game.awayTeam===awayTeam)||(game.homeTeam===awayTeam&&game.awayTeam===homeTeam));
-        const exact=candidates.find((game)=>game.generatedFromWeek===profileWeek);
-        setResult({key:requestKey,row:exact??candidates.at(-1)??null});
+        setResult({key:requestKey,row:candidates.find((game)=>!game.completed&&game.seasonType==="regular")??candidates.at(-1)??null});
       }).catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setResult({key:requestKey,row:null});});
     return ()=>controller.abort();
   },[awayTeam,homeTeam,profileWeek,requestKey,season]);
@@ -888,17 +950,13 @@ function TeamMark({ name, size = "md", logo, genericLabel, variant = "primary" }
   const hasLogo = Boolean(logoSource);
   const usingFcsFallback = logoSource==="/fcs-logo.png";
   return (
-    <span
+    <TeamLink team={name}
       className={`team-mark team-mark-${size} ${hasLogo ? "has-logo" : "fallback-mark"} ${genericLabel||usingFcsFallback?"generic-fcs-mark":""}`}
       data-logo-variant={variant}
-      style={hasLogo ? undefined : {
-        background: genericLabel ? "#172019" : team?.color || "#334155",
-        borderColor: genericLabel ? "#dce3d9" : team?.altColor || "#ffffff",
-      }}
-      aria-hidden="true"
+      style={{...teamIdentityStyle(name,genericLabel?"#172019":team?.color),background:hasLogo?"transparent":genericLabel?"#172019":team?.color||"#687a85",color:"var(--team-ink)"}}
     >
       {hasLogo ? <>{/* Remote school marks come from the season identity feed. */}<img src={logoSource} alt="" onError={() => setFailedSources((sources)=>sources.includes(logoSource!)?sources:[...sources,logoSource!])} /></> : <span>{initials}</span>}
-    </span>
+    </TeamLink>
   );
 }
 
@@ -1099,9 +1157,9 @@ function PositionBattleCard({
   const defenseName=defense.name.replace(/^\d{4} /,"");
   return <article className={`position-battle-card ${tone}`} style={{"--battle-grade":`${meterValue}%`} as CSSProperties}>
     <header>
-      <div><TeamMark name={offenseName} size="sm" logo={offense.logo}/><span><small>{offenseName}</small><b>{battle.offenseLabel}</b></span></div>
+      <div className="team-identity-surface" style={teamIdentityStyle(offenseName)}><TeamMark name={offenseName} size="sm" logo={offense.logo}/><span><small>{offenseName}</small><b>{battle.offenseLabel}</b></span></div>
       <em>VS</em>
-      <div><span><small>{defenseName}</small><b>{battle.defenseLabel}</b></span><TeamMark name={defenseName} size="sm" logo={defense.logo}/></div>
+      <div className="team-identity-surface" style={teamIdentityStyle(defenseName)}><span><small>{defenseName}</small><b>{battle.defenseLabel}</b></span><TeamMark name={defenseName} size="sm" logo={defense.logo}/></div>
     </header>
     <div className="position-battle-score">
       <div className="position-battle-grade"><strong>{battle.grade??"—"}</strong><span>{tone==="offense"?`${offenseName} edge`:tone==="defense"?`${defenseName} edge`:"Even matchup"}</span></div>
@@ -1140,8 +1198,8 @@ function PositionMatchupComparison({
       <div className="position-matchup-legend"><span>0</span><i/><b>50 · EVEN</b><i/><span>100</span></div>
     </header>
     <div className="position-battle-team-head">
-      <div><TeamMark name={home.name.replace(/^\d{4} /,"")} size="sm" logo={home.logo}/><span><small>{home.name}</small><b>OFFENSE vs {away.name.replace(/^\d{4} /,"")} DEFENSE</b></span></div>
-      <div><span><small>{away.name}</small><b>OFFENSE vs {home.name.replace(/^\d{4} /,"")} DEFENSE</b></span><TeamMark name={away.name.replace(/^\d{4} /,"")} size="sm" logo={away.logo}/></div>
+      <div className="team-identity-surface" style={teamIdentityStyle(home.name.replace(/^\d{4} /,""))}><TeamMark name={home.name.replace(/^\d{4} /,"")} size="sm" logo={home.logo}/><span><small>{home.name}</small><b>OFFENSE vs {away.name.replace(/^\d{4} /,"")} DEFENSE</b></span></div>
+      <div className="team-identity-surface" style={teamIdentityStyle(away.name.replace(/^\d{4} /,""))}><span><small>{away.name}</small><b>OFFENSE vs {home.name.replace(/^\d{4} /,"")} DEFENSE</b></span><TeamMark name={away.name.replace(/^\d{4} /,"")} size="sm" logo={away.logo}/></div>
     </div>
     <div className="position-battle-list">{homeBattles.map((homeBattle,index)=>{
       const awayBattle=awayBattles[index];
@@ -1178,8 +1236,8 @@ function MatchupIntelligencePanel({board,home,away,mode="summary"}:{board:Matchu
       <aside><small>CONTROL</small><strong>{board.controlTeam??"BALANCED"}</strong><span>{board.gameShape} game</span></aside>
     </header>
     <div className="intelligence-advantage-matrix">
-      <section><header><TeamMark name={home.name} size="sm" logo={home.logo}/><span><small>{home.name}</small><strong>OFFENSE vs {away.name} DEFENSE</strong></span></header>{board.homeCards.map((card)=><MatchupAdvantageTile key={card.id} card={card} offense={home} defense={away}/>)}</section>
-      <section><header><TeamMark name={away.name} size="sm" logo={away.logo}/><span><small>{away.name}</small><strong>OFFENSE vs {home.name} DEFENSE</strong></span></header>{board.awayCards.map((card)=><MatchupAdvantageTile key={card.id} card={card} offense={away} defense={home}/>)}</section>
+      <section><header className="team-identity-surface" style={teamIdentityStyle(home.name)}><TeamMark name={home.name} size="sm" logo={home.logo}/><span><small>{home.name}</small><strong>OFFENSE vs {away.name} DEFENSE</strong></span></header>{board.homeCards.map((card)=><MatchupAdvantageTile key={card.id} card={card} offense={home} defense={away}/>)}</section>
+      <section><header className="team-identity-surface" style={teamIdentityStyle(away.name)}><TeamMark name={away.name} size="sm" logo={away.logo}/><span><small>{away.name}</small><strong>OFFENSE vs {home.name} DEFENSE</strong></span></header>{board.awayCards.map((card)=><MatchupAdvantageTile key={card.id} card={card} offense={away} defense={home}/>)}</section>
       {board.uncertainties.length?<aside><b>WHAT COULD MOVE THE READ</b>{board.uncertainties.map((uncertainty)=><span key={uncertainty}>{uncertainty}</span>)}</aside>:null}
     </div>
   </section>;
@@ -1190,14 +1248,14 @@ function MatchupIntelligencePanel({board,home,away,mode="summary"}:{board:Matchu
     </header>
     <div className="style-clash-grid">
       <article>
-        <div><TeamMark name={home.name} size="sm" logo={home.logo}/><span><small>{home.name} OFFENSE</small><strong>{board.homeIdentity.offense.label}</strong></span></div>
+        <div className="team-identity-surface" style={teamIdentityStyle(home.name)}><TeamMark name={home.name} size="sm" logo={home.logo}/><span><small>{home.name} OFFENSE</small><strong>{board.homeIdentity.offense.label}</strong></span></div>
         <b>VS</b>
-        <div><span><small>{away.name} DEFENSE</small><strong>{board.awayIdentity.defense.label}</strong></span><TeamMark name={away.name} size="sm" logo={away.logo}/></div>
+        <div className="team-identity-surface" style={teamIdentityStyle(away.name)}><span><small>{away.name} DEFENSE</small><strong>{board.awayIdentity.defense.label}</strong></span><TeamMark name={away.name} size="sm" logo={away.logo}/></div>
       </article>
       <article>
-        <div><TeamMark name={away.name} size="sm" logo={away.logo}/><span><small>{away.name} OFFENSE</small><strong>{board.awayIdentity.offense.label}</strong></span></div>
+        <div className="team-identity-surface" style={teamIdentityStyle(away.name)}><TeamMark name={away.name} size="sm" logo={away.logo}/><span><small>{away.name} OFFENSE</small><strong>{board.awayIdentity.offense.label}</strong></span></div>
         <b>VS</b>
-        <div><span><small>{home.name} DEFENSE</small><strong>{board.homeIdentity.defense.label}</strong></span><TeamMark name={home.name} size="sm" logo={home.logo}/></div>
+        <div className="team-identity-surface" style={teamIdentityStyle(home.name)}><span><small>{home.name} DEFENSE</small><strong>{board.homeIdentity.defense.label}</strong></span><TeamMark name={home.name} size="sm" logo={home.logo}/></div>
       </article>
     </div>
     <div className="intelligence-control-strip">
@@ -1267,7 +1325,7 @@ function formatComponentIndex(value:number|null) {
 
 function ComponentMatchupPanel({ offense, defense, projection, offenseProfile, defenseProfile }: { offense:TeamModel;defense:TeamModel;projection:AdvancedSideProjection;offenseProfile:AdvancedProfile;defenseProfile:AdvancedProfile }) {
   return <article className="component-matchup-panel">
-    <header><div><TeamMark name={offense.name} size="sm" logo={offense.logo} /><span><strong>{offense.name} offense</strong><small>vs {defense.name} defense</small></span></div><b>{projection.run.adjustedYpc.toFixed(2)} YPC · {projection.pass.adjustedYpa.toFixed(2)} YPA</b></header>
+    <header><div className="team-identity-surface" style={teamIdentityStyle(offense.name)}><TeamMark name={offense.name} size="sm" logo={offense.logo} /><span><strong>{offense.name} offense</strong><small>vs {defense.name} defense</small></span></div><b>{projection.run.adjustedYpc.toFixed(2)} YPC · {projection.pass.adjustedYpa.toFixed(2)} YPA</b></header>
     <div className="component-table-head"><span>COMPONENT</span><span>PROJ</span><span>OFF %</span><span>DEF ALLOW %</span></div>
     <h4>GAME CONTROL · DRIVE EFFICIENCY</h4>
     {overallComponents.map((metric)=><div className="component-row" key={metric.key}><span><strong><StatLabel label={metric.label} /></strong><small>{metric.note}</small></span><b>{formatComponentValue(metric.projected(projection),metric.format)}</b><em className={(offenseProfile.offense.index[metric.key] ?? 1)>=1?"positive":"negative"}>{formatComponentIndex(offenseProfile.offense.index[metric.key])}</em><em className={(defenseProfile.defense.index[metric.key] ?? 1)<=1?"positive":"negative"}>{formatComponentIndex(defenseProfile.defense.index[metric.key])}</em></div>)}
@@ -1432,7 +1490,7 @@ function TacticalPuck({team,side,starter,x,y,tokenClass}:{
     style={{left:`${x}%`,top:`${y}%`}}
     aria-label={`${team.name} ${side} player · number ${jersey} · ${recruiting} · ${ratingSource} · model-projected starter`}
   >
-    <span className="puck-school-mark" aria-hidden="true"><TeamMark name={teamName} size="sm" logo={team.logo} /></span>
+    <span className="puck-school-mark team-identity-surface" aria-hidden="true" style={teamIdentityStyle(teamName)}><TeamMark name={teamName} size="sm" logo={team.logo} /></span>
     <span className="puck-jersey" aria-hidden="true">{jersey}</span>
     <span className="puck-stars" aria-hidden="true">{recruiting}</span>
   </span>;
@@ -1472,7 +1530,7 @@ function TacticalField({ offense,defense,offenseIsHome,analysis,offensePlayers,d
     "--defense-secondary":defensePalette.secondary,
     "--defense-ink":defensePalette.ink,
   } as CSSProperties}>
-    <header><div><TeamMark name={offense.name.replace(/^\d{4} /,"")} size="sm" logo={offense.logo} /><span><i>{offenseIsHome?"HOME":"AWAY"}</i><b>{offenseLabel} OFFENSE</b><small>{plan.formationLabel} · {(plan.passRate*100).toFixed(0)}% projected pass</small></span></div><em>VS</em><div><span><i>{offenseIsHome?"AWAY":"HOME"}</i><b>{defenseLabel} DEFENSE</b><small>{plan.defensiveLook}</small></span><TeamMark name={defense.name.replace(/^\d{4} /,"")} size="sm" logo={defense.logo} /></div></header>
+    <header><div className="team-identity-surface" style={teamIdentityStyle(offense.name.replace(/^\d{4} /,""))}><TeamMark name={offense.name.replace(/^\d{4} /,"")} size="sm" logo={offense.logo} /><span><i>{offenseIsHome?"HOME":"AWAY"}</i><b>{offenseLabel} OFFENSE</b><small>{plan.formationLabel} · {(plan.passRate*100).toFixed(0)}% projected pass</small></span></div><em>VS</em><div className="team-identity-surface" style={teamIdentityStyle(defense.name.replace(/^\d{4} /,""))}><span><i>{offenseIsHome?"AWAY":"HOME"}</i><b>{defenseLabel} DEFENSE</b><small>{plan.defensiveLook}</small></span><TeamMark name={defense.name.replace(/^\d{4} /,"")} size="sm" logo={defense.logo} /></div></header>
     <div className="tactical-play-call"><div><span>OFFENSE CALL {plan.importance?`· ${plan.importance.toUpperCase()}`:""}</span><strong>{plan.playName}</strong>{plan.analystCall?<small>{plan.analystCall} · {plan.confidence} confidence</small>:null}</div><div className="diagram-legend"><span className="attacking-direction">↑ OFFENSE</span><span><i className="primary"/>First read</span><span><i className="route"/>Route</span><span><i className="block"/>Block</span><span><i className="action"/>Fake / read</span></div></div>
     <div className="chalk-field">
       <HeatZone zone={zone("deep")} placement="heat-deep" />
@@ -1537,7 +1595,7 @@ function CrossEraLogicCard({home,away,projection,neutral}:{home:TeamModel;away:T
   return <section className={`cross-era-logic matchup-tab-surface ${projection.all137Aligned?"aligned":"not-aligned"}`} data-surface="Cross-era score receipt" data-model-path="All137 scoring path">
     <header className="matchup-tab-panel-heading"><div><span>CROSS-ERA</span><h2>Score receipt</h2><p>{receiptStatus}</p></div><aside><small>MODEL EDGE</small><strong>{edgeLabel(projection.margin)}</strong></aside></header>
     <div className="analysis-disclosure-body matchup-tab-body">
-      <div className="cross-era-team-strip"><div><TeamMark name={home.name.replace(/^\d{4} /,"")} size="sm" logo={home.logo}/><span><b>{home.name}</b><small>{home.seasonRecord??"Weekly snapshot"}{home.nationalChampion?" · NATIONAL CHAMPION":""}</small></span></div><em>VS</em><div><span><b>{away.name}</b><small>{away.seasonRecord??"Weekly snapshot"}{away.nationalChampion?" · NATIONAL CHAMPION":""}</small></span><TeamMark name={away.name.replace(/^\d{4} /,"")} size="sm" logo={away.logo}/></div></div>
+      <div className="cross-era-team-strip"><div className="team-identity-surface" style={teamIdentityStyle(home.name.replace(/^\d{4} /,""))}><TeamMark name={home.name.replace(/^\d{4} /,"")} size="sm" logo={home.logo}/><span><b>{home.name}</b><small>{home.seasonRecord??"Weekly snapshot"}{home.nationalChampion?" · NATIONAL CHAMPION":""}</small></span></div><em>VS</em><div className="team-identity-surface" style={teamIdentityStyle(away.name.replace(/^\d{4} /,""))}><span><b>{away.name}</b><small>{away.seasonRecord??"Weekly snapshot"}{away.nationalChampion?" · NATIONAL CHAMPION":""}</small></span><TeamMark name={away.name.replace(/^\d{4} /,"")} size="sm" logo={away.logo}/></div></div>
       <div className="score-receipt-grid">{components.map(([label,value,note])=><article key={label}><span>{label}</span><b>{edgeLabel(value)}</b><small>{note}</small></article>)}</div>
       <p>{projection.all137Aligned
         ? "FINAL snapshots + neutral site are active. Matchup Engine v2.1 uses the same final efficiency, offensive-viability, schedule-proof and résumé inputs that feed the Every Season field."
@@ -1616,7 +1674,7 @@ function useRankingTeamSchedule(team:string,season:number,enabled:boolean){
     if(!enabled||result.key===requestKey)return;
     const controller=new AbortController();
     const params=new URLSearchParams({view:"schedule",season:String(season),team,compactSchedule:"1",includeGameTimeRanks:"1"});
-    fetch(`/api/data?${params}`,{signal:controller.signal})
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal})
       .then((response)=>readJsonBody<{rows?:ScheduleRow[]}>(response))
       .then((payload)=>setResult({key:requestKey,rows:(payload.rows??[]).sort((left,right)=>compareScheduleRows(left,right,"date"))}))
       .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setResult({key:requestKey,rows:[]});});
@@ -1687,14 +1745,14 @@ function RankingSchedulePanel({team,season,rows,simulatedRows,logoByTeam,loading
     return {id:game.gameId,week:game.week,label:scheduleGameLabel(detailRow),opponent,opponentLogo,opponentIsFcs,location,teamScore,opponentScore,result,record,status:completed?"FINAL":"H+ PROJ",teamRank,opponentRank,detailRow};
   });
   return <div className="ranking-schedule-panel">
-    <header><strong>{team} SCHEDULE</strong><span>{season} · {games.length} GAMES</span></header>
-    {loading?<p>Loading schedule…</p>:games.length?<div className="ranking-schedule-list schedule-column-grid" style={scheduleColumnGridStyle(games.length)}>{games.map((game)=><button type="button" className={`ranking-schedule-game schedule-field-card ${game.result==="L"?"loss":""}`} key={game.id} onClick={()=>onSelectGame?.(game.detailRow)} aria-label={`Open ${team} ${game.opponent} game details`}>
+    <header><strong><TeamAccent name={team}/> SCHEDULE</strong><span>{season} · {games.length} GAMES</span></header>
+    {loading?<p>Loading schedule…</p>:games.length?<div className="ranking-schedule-list schedule-column-grid" style={scheduleColumnGridStyle(games.length)}>{games.map((game)=><TeamAction type="button" className={`ranking-schedule-game schedule-field-card ${game.result==="L"?"loss":""}`} key={game.id} onClick={()=>onSelectGame?.(game.detailRow)} aria-label={`Open ${team} ${game.opponent} game details`}>
       <span className="ranking-schedule-week">{game.label}</span>
       <TeamMark name={game.opponent} size="sm" logo={game.opponentLogo} genericLabel={game.opponentIsFcs?"FCS":undefined} variant="helmet"/>
-      <span className="ranking-schedule-opponent"><small>{game.location}</small><strong>{game.opponent}{game.opponentRank&&game.opponentRank<=25?<em className="schedule-game-rank">#{game.opponentRank}</em>:null}</strong><em>{game.status}{game.teamRank&&game.teamRank<=25?` · ${team} #${game.teamRank}`:""}</em></span>
+      <span className="ranking-schedule-opponent"><small>{game.location}</small><strong><TeamAccent name={game.opponent}/>{game.opponentRank&&game.opponentRank<=25?<em className="schedule-game-rank">#{game.opponentRank}</em>:null}</strong><em>{game.status}{game.teamRank&&game.teamRank<=25?` · ${team} #${game.teamRank}`:""}</em></span>
       <b className={game.result==="W"?"positive":game.result==="L"?"negative":""}>{game.result||"—"} {game.teamScore??"—"}–{game.opponentScore??"—"}</b>
       <small className="ranking-schedule-record">{game.record??"—"}</small>
-    </button>)}</div>:<p>No schedule is available for this team-season.</p>}
+    </TeamAction>)}</div>:<p>No schedule is available for this team-season.</p>}
   </div>;
 }
 
@@ -1702,11 +1760,15 @@ function UnifiedRankingEntry({rank,team,logo,subtitle,highlights,metrics,season,
   const [scheduleOpen,setScheduleOpen]=useState(false);
   const schedule=useRankingTeamSchedule(team,season,showSchedule&&scheduleOpen&&!simulatedSchedule);
   const panelId=`ranking-schedule-${season}-${team.toLowerCase().replace(/[^a-z0-9]+/g,"-")}`;
-  const teamIdentity=<><TeamMark name={team} size="sm" logo={logo}/><span><strong>{team}</strong><small>{subtitle}</small>{highlights.map((item)=><small className={item.className} key={`${item.label}:${item.value}`}><b>{item.label}</b>{item.value}</small>)}</span><i aria-hidden="true">›</i></>;
+  const teamIdentity=<><TeamMark name={team} size="sm" logo={logo}/><span><strong><TeamAccent name={team}/></strong><small>{subtitle}</small>{highlights.map((item)=>{
+    const names=item.value.split(/,\s*/);
+    const colored=names.length>0&&names.every((name)=>teamMap.has(name));
+    return <small className={item.className} key={`${item.label}:${item.value}`}><b>{item.label}</b>{colored?names.map((name,index)=><span key={name}>{index?", ":null}<TeamAccent name={name}/></span>):item.value}</small>;
+  })}</span><i aria-hidden="true">›</i></>;
   return <article className={`unified-ranking-entry ${className} ${showSchedule&&scheduleOpen?"schedule-open":""} ${showSchedule?"":"no-schedule"}`}>
-    <div className="ranking-row unified-ranking-row">
+    <div className="ranking-row unified-ranking-row team-colored-row" style={teamIdentityStyle(team)}>
       <strong className="ranking-number">{rank}</strong>
-      {onSelectTeam?<button type="button" className="ranking-team ranking-team-link" onClick={()=>onSelectTeam(team)} aria-label={`Open ${team} team page`}>{teamIdentity}</button>:<div className="ranking-team">{teamIdentity}</div>}
+      {onSelectTeam?<TeamAction type="button" className="ranking-team ranking-team-link team-identity-surface" style={teamIdentityStyle(team)} onClick={()=>onSelectTeam(team)} aria-label={`Open ${team} team page`}>{teamIdentity}</TeamAction>:<div className="ranking-team team-identity-surface" style={teamIdentityStyle(team)}>{teamIdentity}</div>}
       <div className="ranking-metrics">{metrics}</div>
       {showSchedule?<button className="ranking-schedule-toggle" type="button" aria-expanded={scheduleOpen} aria-controls={panelId} onClick={()=>setScheduleOpen((open)=>!open)}><span>SCHEDULE</span><i aria-hidden="true">⌄</i></button>:null}
     </div>
@@ -1716,7 +1778,7 @@ function UnifiedRankingEntry({rank,team,logo,subtitle,highlights,metrics,season,
 
 function WeeklyProjectedRankingsTable({rows,season,loading=false,onSelectTeam}:{rows:ProjectedFinalRankingRow[];season:number;loading?:boolean;onSelectTeam?:(team:string)=>void}){
   return <div className="rankings-shell unified-rankings-shell weekly-projected-rankings-shell">
-    <div className="rankings-head weekly-projected-ranking-head"><span>RK</span><span>TEAM / PROJECTED RESULTS</span><span>FINAL RECORD</span><span>EXP W</span><span>SOS</span><span>TEAM STRENGTH</span><span>CFP</span></div>
+    <div className="rankings-head weekly-projected-ranking-head"><span>RK</span><span>TEAM / PROJECTED RESULTS</span><span>FINAL RECORD</span><span>EXP W</span><span>SOS</span><span>SOR</span><span>TEAM STRENGTH</span><span>CFP</span></div>
     {loading&&!rows.length?<div className="rankings-loading">Projecting the remaining schedule and final H+ order…</div>:rows.map((row)=><UnifiedRankingEntry
       key={row.team}
       className="simulation-ranking-entry weekly-projected-ranking-entry"
@@ -1732,6 +1794,7 @@ function WeeklyProjectedRankingsTable({rows,season,loading=false,onSelectTeam}:{
         <span className="ranking-record-pair" data-label="FINAL RECORD"><b>{row.projectedRecord}</b><small>{row.conferenceRecord||"—"} CONF</small></span>
         <strong data-label="EXP W">{row.expectedWins.toFixed(1)}</strong>
         <span data-label="SOS">#{row.sosRank}</span>
+        <span data-label="SOR">#{row.sorRank}</span>
         <strong data-label="TEAM STRENGTH">#{row.powerRank}</strong>
         <span data-label="CFP">{row.playoffSeed?<b className="seed-pill">#{row.playoffSeed}</b>:row.conferenceChampion?<b className="champ-pill">CHAMP</b>:"—"}</span>
       </>}
@@ -1744,7 +1807,7 @@ function WeeklyProjectedRankingsTable({rows,season,loading=false,onSelectTeam}:{
 
 function ResultsOnlyRankingsTable({rows,season,loading=false,onSelectTeam,onSelectGame}:{rows:SeasonRankingRow[];season:number;loading?:boolean;onSelectTeam?:(team:string)=>void;onSelectGame?:RankingGameSelectHandler}){
   return <div className="rankings-shell unified-rankings-shell top25-unified-shell results-only-rankings-shell">
-    <div className="rankings-head results-only-ranking-head"><span>RK</span><span>TEAM / COMPLETED RESULTS</span><span>OVERALL / CONF</span><span>H+ SCORE</span><span>RESULTS</span><span>H2H</span><span>SOS</span><span>GAME STRENGTH</span><span>SCHEDULE</span></div>
+    <div className="rankings-head results-only-ranking-head"><span>RK</span><span>TEAM / RESULTS</span><span>RECORD</span><span>H+ SCORE</span><span>RESULTS</span><span>H2H</span><span>SOS</span><span>STRENGTH</span><span title="Offense rank: 75% opponent adjusted efficiency and 25% raw yards per play, pass, and rush">OFF RK</span><span title="Defense rank: 75% opponent adjusted efficiency allowed and 25% raw yards allowed per play, pass, and rush">DEF RK</span><span>SCHEDULE</span></div>
     {loading&&!rows.length?<div className="rankings-loading">Ranking completed games from the prior-week snapshot…</div>:rows.slice(0,25).map((entry)=><UnifiedRankingEntry
       key={entry.team}
       className="results-only-ranking-entry"
@@ -1757,12 +1820,14 @@ function ResultsOnlyRankingsTable({rows,season,loading=false,onSelectTeam,onSele
         {label:"WORST COMPLETED LOSS",value:entry.lossesTo?.[0]??"None",className:"ranking-losses"},
       ]}
       metrics={<>
-        <span className="ranking-record-pair" data-label="OVERALL / CONF"><b>{entry.record}</b><small>{entry.conferenceRecord||"—"} CONF</small></span>
+        <span className="ranking-record-pair" data-label="RECORD"><b>{entry.record}</b><small>{entry.conferenceRecord||"—"} CONF</small></span>
         <strong data-label="H+ SCORE">{(entry.bcsScore*100).toFixed(1)}</strong>
         <span data-label="RESULTS">{(entry.resultsScore*100).toFixed(0)}</span>
         <strong data-label="H2H">#{entry.headToHeadRank}</strong>
         <strong data-label="SOS">#{entry.sosRank}</strong>
-        <strong data-label="GAME STRENGTH">#{entry.powerRank}</strong>
+        <strong data-label="STRENGTH">#{entry.powerRank}</strong>
+        <strong data-label="OFF RK">{entry.offenseRank?`#${entry.offenseRank}`:"—"}</strong>
+        <strong data-label="DEF RK">{entry.defenseRank?`#${entry.defenseRank}`:"—"}</strong>
       </>}
       season={season}
       onSelectTeam={onSelectTeam}
@@ -1776,8 +1841,8 @@ function ResultsRankingsPage({season,week,setSeason,setWeek,onSelectTeam,onSelec
   const rankings=useSeasonRankings(season,snapshotWeek);
   const data=rankings.data;
   const effectiveWeek=data?.effectiveWeek??snapshotWeek;
-  const enteringLabel=week===0?"PRESEASON":`ENTERING WEEK ${week}`;
-  const evidenceLabel=effectiveWeek===0?"WEEK 0 / PRESEASON STATE":`COMPLETED THROUGH WEEK ${effectiveWeek}`;
+  const enteringLabel=week===0?"PRESEASON":`ENTERING ${weekLabel(week,"upper")}`;
+  const evidenceLabel=effectiveWeek===0?"WEEK 0 / PRESEASON STATE":`COMPLETED THROUGH ${weekLabel(effectiveWeek,"upper")}`;
   return <section className="page-section rankings-page results-rankings-page">
     <div className="section-kicker">RESULTS-ONLY TOP 25 · NO FUTURE PROJECTIONS</div>
     <div className="section-title-row">
@@ -1813,22 +1878,22 @@ function ConferenceStandingsPage({season,week,setSeason,setWeek,onSelectTeam}:{s
     </div>
     <div className="standings-conference-control">
       <label htmlFor="standings-conference"><span>CONFERENCE</span><select id="standings-conference" aria-label="Select conference standings" value={conference} onChange={(event)=>setConference(event.target.value)}><option value="">Choose a conference</option>{standings.conferences.map((option)=><option key={option}>{option}</option>)}</select></label>
-      <span>{conference?`${season} · THROUGH WEEK ${week}`:"A conference selection is required"}</span>
+      <span>{conference?`${season} · THROUGH ${weekLabel(week,"upper")}`:"A conference selection is required"}</span>
     </div>
-    {!conference?<div className="standings-empty"><strong>Choose a conference.</strong><span>The table will load league records, title-game positions, and the conference-specific tiebreak path.</span></div>:standings.loading?<div className="standings-empty"><strong>Building {conference} standings…</strong><span>Applying completed conference results through Week {week}.</span></div>:!rules?<div className="standings-empty"><strong>Standings are unavailable.</strong><span>{data?.message??`No ${conference} membership was found for ${season}.`}</span></div>:<>
-      <aside className="standings-rules" aria-label={`${conference} standings rules`}>
+    {!conference?<div className="standings-empty"><strong>Choose a conference.</strong><span>The table will load league records, title-game positions, and the conference-specific tiebreak path.</span></div>:standings.loading?<div className="standings-empty"><strong>Building {conference} standings…</strong><span>Applying completed conference results through {weekLabel(week)}.</span></div>:!rules?<div className="standings-empty"><strong>Standings are unavailable.</strong><span>{data?.message??`No ${conference} membership was found for ${season}.`}</span></div>:<>
+      <details className="standings-rules-disclosure"><summary>{conference} tiebreak order <span>{rules.format} · {rules.steps.length} steps</span></summary><aside className="standings-rules" aria-label={`${conference} standings rules`}>
         <header><span>{rules.format}</span><h2>{conference} tiebreak order</h2><p>{rules.qualification}</p></header>
         <ol>{rules.steps.map((step,index)=><li key={step}><b>{String(index+1).padStart(2,"0")}</b><span>{step}</span></li>)}</ol>
         <footer><p>{rules.note} When an official proprietary ranking or random draw cannot be reproduced, Harper+ rank is shown as the deterministic final proxy.</p>{rules.sourceUrl?<a href={rules.sourceUrl} target="_blank" rel="noopener noreferrer">OFFICIAL POLICY <span aria-hidden="true">↗</span></a>:null}</footer>
-      </aside>
-      {!hasConferenceGames?<p className="standings-provisional">No completed conference games are included through Week {week}. The temporary order uses Harper+ rank and is not an official tiebreak result.</p>:null}
+      </aside></details>
+      {!hasConferenceGames?<p className="standings-provisional">No completed conference games are included through {weekLabel(week)}. The temporary order uses Harper+ rank and is not an official tiebreak result.</p>:null}
       <div className="standings-tables">
         {groups.map((group)=><section className="standings-table" key={group.division} aria-label={rules.usesDivisions?`${conference} ${group.division} standings`:`${conference} standings`}>
           {rules.usesDivisions?<header className="standings-division-head"><span>{group.division.toUpperCase()} DIVISION</span><strong>{group.rows.length} TEAMS</strong></header>:null}
           <div className="standings-head"><span>RK</span><span>TEAM</span><span>CONF</span><span>OVERALL</span><span>PCT</span><span>H+ RK</span><span>TIEBREAK</span><span>POSITION</span></div>
           {group.rows.map((row)=><article className={`standings-row ${row.titleGamePosition?"title-position":""}`} key={row.team}>
             <strong className="standings-rank">{row.divisionRank??row.rank}</strong>
-            <button type="button" className="standings-team" onClick={()=>onSelectTeam(row.team)} aria-label={`Open ${row.team} team page`}><TeamMark name={row.team} size="sm" logo={row.logo??undefined}/><span><strong>{row.team}</strong><small>{row.division?`${row.division} · `:""}{row.mascot||conference}</small></span><i aria-hidden="true">›</i></button>
+            <TeamAction type="button" className="standings-team team-identity-surface" style={teamIdentityStyle(row.team)} onClick={()=>onSelectTeam(row.team)} aria-label={`Open ${row.team} team page`}><TeamMark name={row.team} size="sm" logo={row.logo??undefined}/><span><strong><TeamAccent name={row.team}/></strong><small>{row.division?`${row.division} · `:""}{row.mascot||conference}</small></span><i aria-hidden="true">›</i></TeamAction>
             <span className="standings-record" data-label="CONF"><b>{row.conferenceRecord}</b><small>H {row.homeConferenceRecord} · A {row.awayConferenceRecord}</small></span>
             <strong data-label="OVERALL">{row.overallRecord}</strong>
             <b data-label="PCT">{pctLabel(row)}</b>
@@ -1870,7 +1935,7 @@ function BackfillBanner() {
           if (!cancelled) setState({ status:"running",message:`Automatic player archive: ${importing} ${playerStage} · ${playerStatus?.progressPercent ?? 0}%` });
           return;
         }
-        if (!missing.length && payload.playerProductionBaseline?.status !== "ready") {
+        if (!missing.length && payload.playerProductionBaseline && payload.playerProductionBaseline.status !== "ready") {
           if (!cancelled) setState({ status:"running",message:`Building historical player production scale · ${payload.playerProductionBaseline?.detail ?? "queued"}` });
           return;
         }
@@ -1994,17 +2059,18 @@ function MatchupLab({ season, week, setSeason, setWeek }: ModelVintageProps) {
 
   return (
     <section className="page-section matchup-page">
-      <div className="section-kicker">MATCHUP SNAPSHOTS · <span className={`data-source ${homeDynamic.source}`}>HOME: {sourceLabel(homeDynamic.source, season)}</span> · <span className={`data-source ${awayDynamic.source}`}>AWAY: {sourceLabel(awayDynamic.source, awaySeason)}</span> · <span className={`data-source ${homePlayerLayer.payload?.status==="ready"&&awayPlayerLayer.payload?.status==="ready"?"database":"loading"}`}>PLAYERS: {season} {homePlayerLayer.payload?.status==="ready"?"READY":`${homePlayerLayer.payload?.sync?.progressPercent??0}%`} · {awaySeason} {awayPlayerLayer.payload?.status==="ready"?"READY":`${awayPlayerLayer.payload?.sync?.progressPercent??0}%`}</span></div>
+      {projection&&home&&away?<ScoreExplanation data={projection.scoreExplanation} home={home.name} away={away.name}/>:null}
+      <div className="section-kicker">MATCHUP SNAPSHOTS · <span className={`data-source ${homeDynamic.source}`}>HOME: {`${sourceLabel(homeDynamic.source, season)}${homeDynamic.effectiveWeek!=null?` · STATS THROUGH ${weekLabel(homeDynamic.effectiveWeek,"upper")}`:""}`}</span> · <span className={`data-source ${awayDynamic.source}`}>AWAY: {`${sourceLabel(awayDynamic.source, awaySeason)}${awayDynamic.effectiveWeek!=null?` · STATS THROUGH ${weekLabel(awayDynamic.effectiveWeek,"upper")}`:""}`}</span> · <span className={`data-source ${homePlayerLayer.payload?.status==="ready"&&awayPlayerLayer.payload?.status==="ready"?"database":"loading"}`}>PLAYERS: {season} {homePlayerLayer.payload?.status==="ready"?"READY":`${homePlayerLayer.payload?.sync?.progressPercent??0}%`} · {awaySeason} {awayPlayerLayer.payload?.status==="ready"?"READY":`${awayPlayerLayer.payload?.sync?.progressPercent??0}%`}</span></div>
       <div className="section-title-row">
         <div><h1>Matchup Lab</h1><p>See which position groups control the game, then open the coordinator board for the play-call answer.</p></div>
       </div>
 
-      {!home || !away ? <div className="data-empty"><strong>A selected model snapshot is not loaded yet.</strong><span>Home: {season} week {week}. Away: {awaySeason} week {awayWeek}. The automatic historical loader will add each vintage as its archive stage completes.</span></div> : <>
+      {!home || !away ? <div className="data-empty"><strong>A selected model snapshot is not loaded yet.</strong><span>Home: {season} {weekLabel(week)}. Away: {awaySeason} {weekLabel(awayWeek)}. The automatic historical loader will add each vintage as its archive stage completes.</span></div> : <>
         <div className="matchup-board">
-          <div className="matchup-side">
+          <div className="matchup-side team-identity-surface" style={teamIdentityStyle(home.name)}>
             <span className="side-label">HOME PROFILE</span>
             <VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} finalWeek idPrefix="matchup-home" />
-            <span className="matchup-vintage-tag">{season} · {week===16?"FINAL RÉSUMÉ":`WEEK ${week}`}</span>
+            <span className="matchup-vintage-tag">{season} · {week===16?"FINAL RÉSUMÉ":weekLabel(week,"upper")}</span>
             <TeamMark name={home.name} size="lg" logo={home.logo} />
             <select aria-label="Home team" value={home.name} onChange={(event) => setHomeName(event.target.value)}>{homeTeams.map((team) => <option key={`${season}-${team.name}`}>{team.name}</option>)}</select>
             <small>{home.conference} · {home.mascot}</small>
@@ -2020,10 +2086,10 @@ function MatchupLab({ season, week, setSeason, setWeek }: ModelVintageProps) {
             <label className="toggle-row"><input type="checkbox" checked={neutral} onChange={(event) => setNeutral(event.target.checked)} /><span>Neutral site · All137 standard</span></label>
           </div>
 
-          <div className="matchup-side">
+          <div className="matchup-side team-identity-surface" style={teamIdentityStyle(away.name)}>
             <span className="side-label">AWAY PROFILE</span>
             <VintageControl season={awaySeason} week={awayWeek} setSeason={setAwaySeason} setWeek={setAwayWeek} finalWeek idPrefix="matchup-away" />
-            <span className="matchup-vintage-tag">{awaySeason} · {awayWeek===16?"FINAL RÉSUMÉ":`WEEK ${awayWeek}`}</span>
+            <span className="matchup-vintage-tag">{awaySeason} · {awayWeek===16?"FINAL RÉSUMÉ":weekLabel(awayWeek,"upper")}</span>
             <TeamMark name={away.name} size="lg" logo={away.logo} />
             <select aria-label="Away team" value={away.name} onChange={(event) => setAwayName(event.target.value)}>{awayTeams.map((team) => <option key={`${awaySeason}-${team.name}`}>{team.name}</option>)}</select>
             <small>{away.conference} · {away.mascot}</small>
@@ -2033,10 +2099,10 @@ function MatchupLab({ season, week, setSeason, setWeek }: ModelVintageProps) {
         </div>
 
         {projection?<section className="matchup-summary-card"><span>GAME LINE</span><div>
-          <article><small>SPREAD</small>{spreadTeam?<div className="summary-team-pick" role="group" aria-label={`${spreadTeam.name} favored by ${Math.abs(projection.margin).toFixed(1)}`}><TeamMark name={spreadTeam.name} size="sm" logo={spreadTeam.logo}/><strong>-{Math.abs(projection.margin).toFixed(1)}</strong></div>:<strong>—</strong>}</article>
+          <article><small>SPREAD</small>{spreadTeam?<div className="summary-team-pick team-identity-surface" role="group" aria-label={`${spreadTeam.name} favored by ${Math.abs(projection.margin).toFixed(1)}`} style={teamIdentityStyle(spreadTeam.name)}><TeamMark name={spreadTeam.name} size="sm" logo={spreadTeam.logo}/><strong>-{Math.abs(projection.margin).toFixed(1)}</strong></div>:<strong>—</strong>}</article>
           <article><small>TOTAL</small><strong>{projection.total.toFixed(1)}</strong></article>
-          <article><small>WIN %</small>{winTeam?<div className="summary-team-pick" role="group" aria-label={`${winTeam.name} win probability ${(Math.max(projection.homeWin,1-projection.homeWin)*100).toFixed(0)} percent`}><TeamMark name={winTeam.name} size="sm" logo={winTeam.logo}/><strong>{(Math.max(projection.homeWin,1-projection.homeWin)*100).toFixed(0)}%</strong></div>:<strong>—</strong>}</article>
-          <article><small>MARKET</small>{marketRow&&marketRow.vegasSpread!==null?<div className="summary-team-pick market-team-pick" role="group" aria-label={`${marketRow.homeTeam} market spread ${signed(marketRow.vegasSpread)}`}><TeamMark name={marketRow.homeTeam} size="sm" logo={marketTeam?.logo}/><strong>{signed(marketRow.vegasSpread)}</strong></div>:<strong>—</strong>}<em>{marketRow?.vegasTotal===null||marketRow?.vegasTotal===undefined?"No total":"O/U "+marketRow.vegasTotal.toFixed(1)}</em></article>
+          <article><small>WIN %</small>{winTeam?<div className="summary-team-pick team-identity-surface" role="group" aria-label={`${winTeam.name} win probability ${(Math.max(projection.homeWin,1-projection.homeWin)*100).toFixed(0)} percent`} style={teamIdentityStyle(winTeam.name)}><TeamMark name={winTeam.name} size="sm" logo={winTeam.logo}/><strong>{(Math.max(projection.homeWin,1-projection.homeWin)*100).toFixed(0)}%</strong></div>:<strong>—</strong>}</article>
+          <article><small>MARKET</small>{marketRow&&marketRow.vegasSpread!==null?<div className="summary-team-pick market-team-pick team-identity-surface" role="group" aria-label={`${marketRow.homeTeam} market spread ${signed(marketRow.vegasSpread)}`} style={teamIdentityStyle(marketRow.homeTeam)}><TeamMark name={marketRow.homeTeam} size="sm" logo={marketTeam?.logo}/><strong>{signed(marketRow.vegasSpread)}</strong></div>:<strong>—</strong>}<em>{marketRow?.vegasTotal===null||marketRow?.vegasTotal===undefined?"No total":"O/U "+marketRow.vegasTotal.toFixed(1)}</em></article>
           <article><small>ATS EDGE</small><strong>{marketRow&&marketRow.vegasSpread!==null?signed((marketRow.homeTeam===home.name?marketRow.vegasSpread:-marketRow.vegasSpread)-(-projection.margin)):"—"}</strong></article>
           <article><small>CONFIDENCE</small><strong>{projection.edgeAnalysis.intelligence?.confidence??projection.edgeAnalysis.confidence}</strong></article>
         </div>{projectionWarnings.length?<aside>{projectionWarnings.map((warning)=><span key={warning}>{warning}</span>)}</aside>:null}</section>:null}
@@ -2117,8 +2183,8 @@ function useMatchupLabContext(season:number,week:number,homeTeam:string|undefine
   useEffect(()=>{
     if(!requestKey||!homeTeam||!awayTeam)return;
     const controller=new AbortController();
-    const params=new URLSearchParams({view:"matchup-context",season:String(season),week:String(week),homeTeam,awayTeam});
-    fetch(`/api/data?${params}`,{signal:controller.signal})
+    const params=new URLSearchParams({view:"matchup-context",season:String(season),week:String(week),homeTeam,awayTeam,opponents:"all-v2"});
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal})
       .then((response)=>readJsonBody<MatchupContextPayload&{message?:string}>(response).then((payload)=>({response,payload})))
       .then(({response,payload})=>setResult({key:requestKey,payload:response.ok?payload:null,error:response.ok?"":payload.message??"Matchup history is unavailable."}))
       .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setResult({key:requestKey,payload:null,error:"Matchup history is temporarily unavailable."});});
@@ -2134,7 +2200,7 @@ function OpponentImpactPanel({team,context,logo}:{team:TeamModel;context:Matchup
   const lanes:MatchupContextLaneId[]=["rushOffense","passOffense","rushDefense","passDefense"];
   const laneLabels:Record<MatchupContextLaneId,string>={rushOffense:"RUSH OFFENSE",passOffense:"PASS OFFENSE",rushDefense:"RUSH DEFENSE",passDefense:"PASS DEFENSE"};
   return <article className="mlab-impact-team">
-    <header><TeamMark name={team.name} size="sm" logo={logo??team.logo}/><span><strong>{team.name}</strong><small>SEASON-TO-DATE OPPONENT EFFECT</small></span></header>
+    <header className="team-identity-surface" style={teamIdentityStyle(team.name,team.color)}><TeamMark name={team.name} size="sm" logo={logo??team.logo}/><span><strong><TeamAccent name={team.name} color={team.color}/></strong><small>SEASON-TO-DATE OPPONENT EFFECT</small></span></header>
     <div>{lanes.map((lane)=>{
       const impact=context?.impacts[lane];
       const tone=impactTone(impact?.value??null);
@@ -2150,45 +2216,22 @@ function OpponentImpactPanel({team,context,logo}:{team:TeamModel;context:Matchup
 }
 
 function AnalogLaneCard({lane}:{lane:MatchupAnalogLane}){
-  const primary=lane.candidates[0],secondary=lane.candidates[1];
+  const primary=lane.candidates.find((candidate)=>candidate.similarity!==null);
+  const remaining=lane.candidates.filter((candidate)=>candidate!==primary);
   return <article className="mlab-analog-card">
     <header><span>{lane.label}</span><small>Closest to {lane.targetTeam}</small></header>
     {primary?<>
-      <div className="mlab-analog-primary"><TeamMark name={primary.opponent} size="sm" logo={primary.logo}/><span><strong>{primary.opponent}</strong><small>Week {primary.week} · {primary.result} {primary.score}</small></span><b>{primary.similarity}%</b></div>
+      <div className="mlab-analog-primary team-identity-surface" style={teamIdentityStyle(primary.opponent)}><TeamMark name={primary.opponent} size="sm" logo={primary.logo}/><span><strong>{primary.opponent}</strong><small>{weekLabel(primary.week)} · {primary.result} {primary.score}</small></span><b>{primary.similarity}%</b></div>
       <p className={impactTone(primary.delta)}>{primary.performance}</p>
       <div className="mlab-analog-comparison"><span><small>ACTUAL</small><strong>{primary.actual===null?"—":primary.actual.toFixed(1)}</strong></span><i>VS</i><span><small>EXPECTED {primary.unit}</small><strong>{primary.expected===null?"—":primary.expected.toFixed(1)}</strong></span></div>
-      {secondary?<div className="mlab-analog-secondary"><TeamMark name={secondary.opponent} size="sm" logo={secondary.logo}/><span>{secondary.opponent}</span><b>{secondary.similarity}%</b></div>:null}
     </>:<div className="mlab-no-sample">No completed comparable opponent is available.</div>}
-  </article>;
-}
-
-function MatchupFieldPanel({offense,defense,map}:{offense:TeamModel;defense:TeamModel;map:MatchupFieldMap|null}){
-  if(!map)return <article className="mlab-field-card"><div className="mlab-no-sample">Advanced field-zone evidence is unavailable for this direction.</div></article>;
-  const front=["LT","LG","C","RG","RT","TE"] as const;
-  return <article className="mlab-field-card">
-    <header><div><TeamMark name={offense.name} size="sm" logo={offense.logo}/><span><strong>{offense.name} OFFENSE</strong><small>VS {defense.name.toUpperCase()} DEFENSE</small></span></div><b>{map.source}</b></header>
-    <div className="mlab-field-art" aria-label={`${offense.name} expected field success map against ${defense.name}`}>
-      <div className="mlab-field-endzone"><span>PROJECTED PASS WINDOWS</span></div>
-      <div className="mlab-pass-field">
-        <div className="mlab-field-markings" aria-hidden="true"><span data-yard="30"/><span data-yard="20"/><span data-yard="10"/></div>
-        <div className="mlab-field-zones">{map.zones.map((zone)=><div className={`mlab-field-zone ${zone.depth} ${zone.tone}`} key={zone.id} title={zone.detail}><small>{zone.label}</small><strong>{zone.score}</strong><span>{zone.tone==="strong"?"ATTACK":zone.tone==="weak"?"AVOID":"MIXED"}</span></div>)}</div>
-      </div>
-      <div className="mlab-field-los"><span>LINE OF SCRIMMAGE</span></div>
-      <div className="mlab-offensive-front" aria-label="Five offensive linemen and one tight end with projected run gaps">
-        {map.gaps.map((gap,index)=><div className="mlab-front-pair" key={gap.id}>
-          <div className={`mlab-run-gap ${gap.tone}`} title={gap.detail}><small>{gap.side}</small><strong>{gap.label}</strong><b>{gap.score}</b></div>
-          <div className={`mlab-front-player ${front[index]==="TE"?"tight-end":""}`}><i aria-hidden="true"/><strong>{front[index]}</strong></div>
-        </div>)}
-      </div>
-      <div className="mlab-field-backfield"><span>RUN-GAP OUTLOOK · OFFENSE MOVING UPFIELD</span></div>
-    </div>
-    <div className="mlab-field-legend"><div><span className="strong">58+ ATTACK</span><span className="mixed">44–57 MIXED</span><span className="weak">BELOW 44 AVOID</span></div><p>{map.note}</p></div>
+    {remaining.length?<ul className="mlab-analog-list" aria-label="Other comparable opponents">{remaining.map((candidate)=><li className="mlab-analog-secondary" key={`${candidate.opponent}:${candidate.week}:${candidate.startDate??""}`}><TeamMark name={candidate.opponent} size="sm" logo={candidate.logo}/><span>{candidate.opponent}</span><b aria-label={candidate.similarity===null?"Similarity unavailable":`${candidate.similarity} percent similar`}>{candidate.similarity===null?"—":`${candidate.similarity}%`}</b></li>)}</ul>:null}
   </article>;
 }
 
 function AnalogTeamPanel({team,target,context}:{team:TeamModel;target:TeamModel;context:MatchupTeamContext|null}){
   return <article className="mlab-analogs-team">
-    <header><div><TeamMark name={team.name} size="sm" logo={team.logo}/><span><strong>{team.name}</strong><small>HOW PRIOR MATCHUPS TRANSLATE TO {target.name.toUpperCase()}</small></span></div></header>
+    <header><div className="team-identity-surface" style={teamIdentityStyle(team.name)}><TeamMark name={team.name} size="sm" logo={team.logo}/><span><strong><TeamAccent name={team.name} color={team.color}/></strong><small>HOW PRIOR MATCHUPS TRANSLATE TO {target.name.toUpperCase()}</small></span></div></header>
     <div>{context?.analogs.map((lane)=><AnalogLaneCard key={lane.id} lane={lane}/>)??<div className="mlab-no-sample">Comparable-game data is loading.</div>}</div>
   </article>;
 }
@@ -2196,15 +2239,15 @@ function AnalogTeamPanel({team,target,context}:{team:TeamModel;target:TeamModel;
 function ExpectationPanel({team,context}:{team:TeamModel;context:MatchupTeamContext|null}){
   const expectation=context?.expectation;
   return <article className="mlab-expectation-team">
-    <header><TeamMark name={team.name} size="sm" logo={team.logo}/><span><strong>{team.name}</strong><small>ACTUAL PERFORMANCE VS PREGAME MODEL</small></span></header>
+    <header className="team-identity-surface" style={teamIdentityStyle(team.name,team.color)}><TeamMark name={team.name} size="sm" logo={team.logo}/><span><strong><TeamAccent name={team.name} color={team.color}/></strong><small>ACTUAL PERFORMANCE VS PREGAME MODEL</small></span></header>
     <div className="mlab-expectation-summary">
-      <span><small>AVG MARGIN VS EXPECTED</small><strong className={impactTone((expectation?.averageMarginDelta??0)/10)}>{expectation?.averageMarginDelta===null||expectation?.averageMarginDelta===undefined?"—":signedNumber(expectation.averageMarginDelta)}</strong></span>
+      <span><small>AVG MARGIN VS EXPECTED · FBS</small><strong className={impactTone((expectation?.averageMarginDelta??0)/10)}>{expectation?.averageMarginDelta===null||expectation?.averageMarginDelta===undefined?"—":signedNumber(expectation.averageMarginDelta)}</strong></span>
       <span><small>OFFENSE VS EXPECTED</small><strong className={impactTone((expectation?.averageOffenseDelta??0)/10)}>{expectation?.averageOffenseDelta===null||expectation?.averageOffenseDelta===undefined?"—":signedNumber(expectation.averageOffenseDelta)}</strong></span>
       <span><small>DEFENSE VS EXPECTED</small><strong className={impactTone((expectation?.averageDefenseDelta??0)/10)}>{expectation?.averageDefenseDelta===null||expectation?.averageDefenseDelta===undefined?"—":signedNumber(expectation.averageDefenseDelta)}</strong></span>
       <span><small>BEAT EXPECTATION</small><strong>{expectation?.sample?`${expectation.aboveExpected}/${expectation.sample}`:"—"}</strong></span>
     </div>
-    <div className="mlab-expectation-games">{expectation?.games.length?expectation.games.map((game)=><div key={game.gameId}>
-      <TeamMark name={game.opponent} size="sm" logo={game.logo}/><span><small>W{game.week}</small><strong>{game.opponent}</strong></span><b className={game.result==="W"?"positive":game.result==="L"?"negative":"neutral"}>{game.result} {game.actual}</b><em>EXP {game.expected}</em><strong className={impactTone(game.marginDelta/10)}>{signedNumber(game.marginDelta)}</strong>
+    <div className="mlab-expectation-games">{expectation?.games.length?expectation.games.map((game)=><div key={game.gameId} className="team-identity-surface" style={teamIdentityStyle(game.opponent)}>
+      <TeamMark name={game.opponent} size="sm" logo={game.logo}/><span><small>{weekLabel(game.week,"compact")}</small><strong>{game.opponent}</strong></span><b className={game.result==="W"?"positive":game.result==="L"?"negative":"neutral"}>{game.result} {game.actual}</b><em>EXP {game.expected}</em><strong className={impactTone(game.marginDelta/10)}>{signedNumber(game.marginDelta)}</strong>
     </div>):<p>No completed games with a pregame model receipt are available.</p>}</div>
   </article>;
 }
@@ -2216,7 +2259,7 @@ function ViabilityPanel({team,viability}:{team:TeamModel;viability:OffensiveViab
   const threshold=primary?Math.max(0,Math.min(100,primary.threshold/scaleMaximum*100)):50;
   const cushion=primary?(primary.higherIsBetter?primary.projected-primary.threshold:primary.threshold-primary.projected):null;
   return <article className={`mlab-viability ${viability.status.toLowerCase().replaceAll(" ","-")}`}>
-    <header><TeamMark name={team.name} size="sm" logo={team.logo}/><span><strong>{team.name}</strong><small>OFFENSIVE STALL POINT</small></span><b>{viability.status}</b></header>
+    <header className="team-identity-surface" style={teamIdentityStyle(team.name,team.color)}><TeamMark name={team.name} size="sm" logo={team.logo}/><span><strong><TeamAccent name={team.name} color={team.color}/></strong><small>OFFENSIVE STALL POINT</small></span><b>{viability.status}</b></header>
     {primary?<>
       <div className="mlab-threshold-head"><span><small>PRIMARY REQUIREMENT</small><strong>{primary.label}</strong></span><b className={cushion!==null&&cushion>=0?"positive":"negative"}>{cushion===null?"—":`${cushion>=0?"+":""}${(cushion*100).toFixed(1)} pts`}</b></div>
       <div className="mlab-threshold-meter" style={{"--projected":`${projected}%`,"--threshold":`${threshold}%`} as CSSProperties}><i/><b/></div>
@@ -2262,7 +2305,7 @@ function advancedIndexTone(value:number|null|undefined,defense=false){return val
 function AdvancedDirectionPanel({offense,defense,offenseProfile,defenseProfile,projection}:{offense:TeamModel;defense:TeamModel;offenseProfile:AdvancedProfile|null|undefined;defenseProfile:AdvancedProfile|null|undefined;projection:AdvancedSideProjection|null|undefined}){
   const available=matchupAdvancedMetrics.filter((metric)=>(offenseProfile?.offense.raw[metric.key]??null)!==null||(defenseProfile?.defense.raw[metric.key]??null)!==null||(projection?metric.projected(projection)!==null:false));
   return <article className="mlab-advanced-direction">
-    <header><div><TeamMark name={offense.name} size="sm" logo={offense.logo}/><span><strong>{offense.name} OFFENSE</strong><small>VS {defense.name.toUpperCase()} DEFENSE</small></span></div><TeamMark name={defense.name} size="sm" logo={defense.logo}/></header>
+    <header className="team-identity-surface" style={teamIdentityStyle(defense.name)}><div className="team-identity-surface" style={teamIdentityStyle(offense.name)}><TeamMark name={offense.name} size="sm" logo={offense.logo}/><span><strong>{offense.name} OFFENSE</strong><small>VS {defense.name.toUpperCase()} DEFENSE</small></span></div><TeamMark name={defense.name} size="sm" logo={defense.logo}/></header>
     <div className="mlab-advanced-labels"><span>CFBD METRIC</span><span>{offense.abbr} OFF</span><span>{defense.abbr} DEF</span><span>PROJECTED</span></div>
     <div>{available.map((metric,index)=>{
       const groupChanged=index===0||metric.group!==available[index-1]?.group;
@@ -2289,7 +2332,7 @@ function conditionBaseline(condition:WinCondition){
 
 function WinConditionTeamPanel({team,logo,analysis,values}:{team:TeamModel;logo?:string;analysis:WinConditionTeamAnalysis;values?:Record<string,number>}){
   return <article className="wc-team-panel">
-    <header><TeamMark name={team.name} size="sm" logo={logo??team.logo}/><span><small>{team.abbr} WIN CONDITIONS</small><strong>{team.name}</strong></span></header>
+    <header className="team-identity-surface" style={teamIdentityStyle(team.name,team.color)}><TeamMark name={team.name} size="sm" logo={logo??team.logo}/><span><small>{team.abbr} WIN CONDITIONS</small><strong><TeamAccent name={team.name} color={team.color}/></strong></span></header>
     <div className="wc-condition-list">{analysis.conditions.map((condition)=>{
       const current=values?.[condition.variableKey];
       const achieved=current===undefined?null:condition.higherIsBetter?current>=condition.threshold:current<=condition.threshold;
@@ -2304,7 +2347,7 @@ function WinConditionTeamPanel({team,logo,analysis,values}:{team:TeamModel;logo?
 
 function WinConditionPaths({team,logo,analysis,homeTeam,awayTeam}:{team:TeamModel;logo?:string;analysis:WinConditionTeamAnalysis;homeTeam:string;awayTeam:string}){
   return <article className="wc-path-team">
-    <header><TeamMark name={team.name} size="sm" logo={logo??team.logo}/><span><small>REALISTIC WINNING SCRIPTS</small><strong>{team.name}</strong></span></header>
+    <header className="team-identity-surface" style={teamIdentityStyle(team.name,team.color)}><TeamMark name={team.name} size="sm" logo={logo??team.logo}/><span><small>REALISTIC WINNING SCRIPTS</small><strong><TeamAccent name={team.name} color={team.color}/></strong></span></header>
     <div>{analysis.paths.length?analysis.paths.map((path)=><article key={path.id}>
       <header><span>{path.label}</span><strong>{Math.round(path.occurrenceProbability*100)}% OF ALL SIMS</strong></header>
       <p>{path.explanation}</p>
@@ -2368,7 +2411,7 @@ function WinConditionScenarioLab({analysis}:{analysis:WinConditionAnalysis}){
   </section>;
 }
 
-function WinConditionsWorkspace({request,first,second,homeSeason,awaySeason,homeWeek,awayWeek,market}:{request:WinConditionRequest;first:TeamModel;second:TeamModel;homeSeason:number;awaySeason:number;homeWeek:number;awayWeek:number;market:ScheduleRow|null}){
+function WinConditionsWorkspace({request,first,second,homeSeason,awaySeason,homeWeek,awayWeek,market,siteLabel}:{request:WinConditionRequest;first:TeamModel;second:TeamModel;homeSeason:number;awaySeason:number;homeWeek:number;awayWeek:number;market:ScheduleRow|null;siteLabel:string}){
   const winConditions=useWinConditions(request,true);
   const homeRanks=useProjectedFinalRanks(homeSeason,homeWeek);
   const awayRanks=useProjectedFinalRanks(awaySeason,awayWeek);
@@ -2384,12 +2427,12 @@ function WinConditionsWorkspace({request,first,second,homeSeason,awaySeason,home
   const metric=(teamAnalysis:WinConditionTeamAnalysis,label:"pathWidth"|"fragility")=>teamAnalysis[label]===null?"—":teamAnalysis[label];
   return <div className="win-conditions-workspace">
     <section className="wc-summary">
-      <article><TeamMark name={first.name} size="lg" logo={first.logo}/><span>{homeRank&&homeRank<=25?<em>H+ #{homeRank}</em>:null}<strong data-compact-name={first.abbr} title={first.name}>{first.name}</strong><small title={`${homeSeason} · ${homeIdentity?.record??homeRankRow?.projectedRecord??"—"} · ${first.conference}`}>{homeSeason} · {homeIdentity?.record??homeRankRow?.projectedRecord??"—"} · {first.conference}</small></span><b>{baseline.homeScore.toFixed(1)}</b></article>
-      <div><span>H+ MATCHUP PROJECTION</span><strong>{modelFavorite.abbr} -{Math.abs(baseline.modelHomeSpread).toFixed(1)}</strong><small>Total {baseline.modelTotal.toFixed(1)} · {baseline.neutralSite?"Neutral site":`${first.name} home`}</small><p>{baseline.interpretation}</p><em>MARKET {marketRead}</em></div>
-      <article><b>{baseline.awayScore.toFixed(1)}</b><span>{awayRank&&awayRank<=25?<em>H+ #{awayRank}</em>:null}<strong data-compact-name={second.abbr} title={second.name}>{second.name}</strong><small title={`${awaySeason} · ${awayIdentity?.record??awayRankRow?.projectedRecord??"—"} · ${second.conference}`}>{awaySeason} · {awayIdentity?.record??awayRankRow?.projectedRecord??"—"} · {second.conference}</small></span><TeamMark name={second.name} size="lg" logo={second.logo}/></article>
+      <article className="team-identity-surface" style={teamIdentityStyle(first.name)}><TeamMark name={first.name} size="lg" logo={first.logo}/><span>{homeRank&&homeRank<=25?<em>H+ #{homeRank}</em>:null}<strong data-compact-name={first.abbr} title={first.name}>{first.name}</strong><small title={`${homeSeason} · ${homeIdentity?.record??homeRankRow?.projectedRecord??"—"} · ${first.conference}`}>{homeSeason} · {homeIdentity?.record??homeRankRow?.projectedRecord??"—"} · {first.conference}</small></span><b>{baseline.homeScore.toFixed(1)}</b></article>
+      <div><span>H+ MATCHUP PROJECTION</span><strong>{modelFavorite.abbr} -{Math.abs(baseline.modelHomeSpread).toFixed(1)}</strong><small>Total {baseline.modelTotal.toFixed(1)} · {siteLabel}</small><p>{baseline.interpretation}</p><em>MARKET {marketRead}</em></div>
+      <article className="team-identity-surface" style={teamIdentityStyle(second.name)}><b>{baseline.awayScore.toFixed(1)}</b><span>{awayRank&&awayRank<=25?<em>H+ #{awayRank}</em>:null}<strong data-compact-name={second.abbr} title={second.name}>{second.name}</strong><small title={`${awaySeason} · ${awayIdentity?.record??awayRankRow?.projectedRecord??"—"} · ${second.conference}`}>{awaySeason} · {awayIdentity?.record??awayRankRow?.projectedRecord??"—"} · {second.conference}</small></span><TeamMark name={second.name} size="lg" logo={second.logo}/></article>
     </section>
     <section className="wc-core-metrics">
-      {[analysis.home,analysis.away].map((teamAnalysis,index)=><article key={teamAnalysis.side}><header><TeamMark name={teamAnalysis.team} size="sm" logo={index===0?first.logo:second.logo}/><strong>{teamAnalysis.team}</strong></header><div><span><small>WIN PROBABILITY<StatHelp label="Win probability" explanation="How often this team wins across the H+ correlated matchup distribution."/></small><b>{Math.round(teamAnalysis.winProbability*100)}%</b></span><span><small>H+ PATH WIDTH<StatHelp label="H+ Path Width" explanation="A 0–100 score for the breadth and diversity of materially different, realistic winning scripts. It is conditional on how the team wins, so it does not mirror win probability."/></small><b>{metric(teamAnalysis,"pathWidth")}</b></span><span><small>H+ FRAGILITY<StatHelp label="H+ Fragility" explanation="A 0–100 local stress score measuring how quickly the projected edge deteriorates when important variables move 0.75 historical standard deviations against the team."/></small><b>{metric(teamAnalysis,"fragility")}</b></span></div></article>)}
+      {[analysis.home,analysis.away].map((teamAnalysis,index)=><article key={teamAnalysis.side}><header className="team-identity-surface" style={teamIdentityStyle(teamAnalysis.team)}><TeamMark name={teamAnalysis.team} size="sm" logo={index===0?first.logo:second.logo}/><strong>{teamAnalysis.team}</strong></header><div><span><small>WIN PROBABILITY<StatHelp label="Win probability" explanation="How often this team wins across the H+ correlated matchup distribution."/></small><b>{Math.round(teamAnalysis.winProbability*100)}%</b></span><span><small>H+ PATH WIDTH<StatHelp label="H+ Path Width" explanation="A 0–100 score for the breadth and diversity of materially different, realistic winning scripts. It is conditional on how the team wins, so it does not mirror win probability."/></small><b>{metric(teamAnalysis,"pathWidth")}</b></span><span><small>H+ FRAGILITY<StatHelp label="H+ Fragility" explanation="A 0–100 local stress score measuring how quickly the projected edge deteriorates when important variables move 0.75 historical standard deviations against the team."/></small><b>{metric(teamAnalysis,"fragility")}</b></span></div></article>)}
     </section>
     {analysis.dataQuality!=="full"?<p className="wc-quality-note"><strong>{analysis.dataQuality==="baseline-only"?"BASELINE PROJECTION ONLY":"LIMITED WIN-CONDITION SAMPLE"}</strong> {analysis.dataQuality==="baseline-only"?"The selected snapshot does not contain enough reliable team-game vectors to force thresholds or clusters.":"Thresholds are available, but the selected point-in-time sample is thinner than the full H+ standard."}</p>:null}
     {analysis.easiestUpsetPath?<section className="wc-upset-path"><header><span>03 · EASIEST REALISTIC UPSET PATH</span><h2>{analysis.easiestUpsetPath.underdog}: the most attainable flip</h2></header><div><strong>{Math.round(analysis.easiestUpsetPath.scenarioWinProbability*100)}% WIN</strong><span>TYPICAL {Math.round(analysis.easiestUpsetPath.typicalHomeScore)}–{Math.round(analysis.easiestUpsetPath.typicalAwayScore)}</span><span>{Math.max(1,Math.round(analysis.easiestUpsetPath.estimatedOccurrenceProbability*100))}% EST. OCCURRENCE</span></div><ul>{analysis.easiestUpsetPath.conditions.map((condition)=><li key={condition.label}><span>{condition.label}</span><b>{formatWinConditionValue(condition.value,condition.unit)}</b><small>from {formatWinConditionValue(condition.baseline,condition.unit)} · {condition.standardDeviations.toFixed(1)}σ</small></li>)}</ul><p>{analysis.easiestUpsetPath.explanation}</p></section>:null}
@@ -2401,7 +2444,7 @@ function WinConditionsWorkspace({request,first,second,homeSeason,awaySeason,home
       <WinConditionScenarioLab analysis={analysis}/><GameScriptMap analysis={analysis}/>
     </>:null}
     <details className="wc-methodology"><summary>FORMULAS + ASSUMPTIONS</summary><p>{analysis.methodology}</p><code>Path Width = 55% winning-script entropy + 25% effective number of winning clusters + 20% attainable condition-family breadth.</code><code>Fragility = 60% largest local win-probability loss + 40% mean of the three largest losses under adverse 0.75σ stresses.</code></details>
-    <p className="wc-sample-note">{analysis.simulationCount.toLocaleString()} deterministic Monte Carlo draws · historical samples {analysis.historicalSampleSize.home}/{analysis.historicalSampleSize.away} · generated from Week {analysis.generatedFromWeek.home}/Week {analysis.generatedFromWeek.away}</p>
+    <p className="wc-sample-note">{analysis.simulationCount.toLocaleString()} deterministic Monte Carlo draws · historical samples {analysis.historicalSampleSize.home}/{analysis.historicalSampleSize.away} · generated from {weekLabel(analysis.generatedFromWeek.home)}/{weekLabel(analysis.generatedFromWeek.away)}</p>
   </div>;
 }
 
@@ -2410,11 +2453,20 @@ function MatchupLabV2({season,week,setSeason,setWeek,launch}:{season:number;week
   const [secondName,setSecondName]=useState(launch?.awayTeam??"Ohio State");
   const [secondSeason,setSecondSeason]=useState(season);
   const [secondWeek,setSecondWeek]=useState(week);
-  const [neutral,setNeutral]=useState(launch?.neutralSite??true);
-  const [activeWorkspaceTab,setActiveWorkspaceTab]=useState<"analysis"|"win-conditions">(launch?"win-conditions":"analysis");
+  const [site,setSite]=useState<MatchupSite>(launch?(launch.neutralSite?"neutral":"home"):"neutral");
+  const [linkedSnapshots,setLinkedSnapshots]=useState(true);
+  const neutral=site==="neutral";
+  const [siteIsManual,setSiteIsManual]=useState(false);
+  const [activeWorkspaceTab,setActiveWorkspaceTab]=useState<"analysis"|"field"|"evidence"|"win-conditions">("analysis");
   const [launchedGameId,setLaunchedGameId]=useState<string|null>(launch?.gameId??null);
-  const firstDynamic=useDynamicProfiles(season,week);
-  const secondDynamic=useDynamicProfiles(secondSeason,secondWeek);
+  const [selectionReady,setSelectionReady]=useState(false);
+  useEffect(()=>{const params=new URLSearchParams(window.location.hash.split("?")[1]??"");if(!launch){if(params.get("a"))setFirstName(params.get("a")!);if(params.get("b"))setSecondName(params.get("b")!);if(["home","away","neutral"].includes(params.get("site")??"")){setSite(params.get("site") as MatchupSite);setSiteIsManual(true);}if(params.get("compare")==="1"){setLinkedSnapshots(false);const otherSeason=Number(params.get("awaySeason")),otherWeek=Number(params.get("awayWeek"));if(otherSeason>=2014&&otherSeason<=activeModelSeason)setSecondSeason(otherSeason);if(Number.isInteger(otherWeek)&&otherWeek>=0&&otherWeek<=16)setSecondWeek(otherWeek);}}setSelectionReady(true);},[]);
+  useEffect(()=>{if(linkedSnapshots){setSecondSeason(season);setSecondWeek(week);}},[linkedSnapshots,season,week]);
+  useEffect(()=>{if(!selectionReady)return;const params=new URLSearchParams(window.location.hash.split("?")[1]??"");params.set("a",firstName);params.set("b",secondName);params.set("site",site);params.set("compare",linkedSnapshots?"0":"1");params.set("awaySeason",String(secondSeason));params.set("awayWeek",String(secondWeek));window.history.replaceState(null,"",`#matchup?${params}`);},[selectionReady,firstName,secondName,site,linkedSnapshots,secondSeason,secondWeek]);
+  const firstSnapshotWeek=enteringWeekSnapshotWeek(week);
+  const secondSnapshotWeek=enteringWeekSnapshotWeek(secondWeek);
+  const firstDynamic=useDynamicProfiles(season,firstSnapshotWeek);
+  const secondDynamic=useDynamicProfiles(secondSeason,secondSnapshotWeek);
   const firstLookup=useMemo(()=>new Map(firstDynamic.teams.map((team)=>[team.name,team])),[firstDynamic.teams]);
   const secondLookup=useMemo(()=>new Map(secondDynamic.teams.map((team)=>[team.name,team])),[secondDynamic.teams]);
   const sameVintage=season===secondSeason&&week===secondWeek;
@@ -2426,26 +2478,24 @@ function MatchupLabV2({season,week,setSeason,setWeek,launch}:{season:number;week
       ? "Ohio State"
       : secondDynamic.teams.find((team)=>!sameVintage||team.name!==firstResolved)?.name;
   const first=firstResolved?firstLookup.get(firstResolved):undefined,second=secondResolved?secondLookup.get(secondResolved):undefined;
-  const projection=useMemo(()=>first&&second?projectMatchup(first,second,week,neutral,secondWeek,{home:first.name,away:second.name}):null,[first,neutral,second,secondWeek,week]);
-  const firstRow=first?(firstDynamic.rows.find((row)=>row.team===first.name)??modelTeamProfileRow(first,season,week)):null;
-  const secondRow=second?(secondDynamic.rows.find((row)=>row.team===second.name)??modelTeamProfileRow(second,secondSeason,secondWeek)):null;
-  const intelligence=useMemo(()=>projection?.homeStats.advanced&&projection.awayStats.advanced&&firstRow&&secondRow?deriveMatchupIntelligence({homeTeam:firstRow.team,awayTeam:secondRow.team,homeProjection:projection.homeStats.advanced,awayProjection:projection.awayStats.advanced,homeProfile:firstRow,awayProfile:secondRow}):null,[firstRow,projection,secondRow]);
-  const context=useMatchupLabContext(season,week,sameVintage?first?.name:undefined,sameVintage?second?.name:undefined);
-  const firstPffEligible=season===2025&&week>=16;
-  const secondPffEligible=secondSeason===2025&&secondWeek>=16;
-  const pffFieldEligible=firstPffEligible||secondPffEligible;
-  const pffPassingDepth=usePffTable("passing-depth",pffFieldEligible);
-  const pffRunBlocking=usePffTable("run-blockng",pffFieldEligible);
   const market=useMatchupMarket(Boolean(first&&second&&sameVintage),season,week,first?.name,second?.name);
-  const winConditionRequest=useMemo<WinConditionRequest|null>(()=>first&&second?(launchedGameId?{kind:"game",season,gameId:launchedGameId}:{kind:"matchup",homeTeam:first.name,awayTeam:second.name,homeSeason:season,awaySeason:secondSeason,homeWeek:week,awayWeek:secondWeek,neutralSite:neutral}):null,[first,launchedGameId,neutral,season,second,secondSeason,secondWeek,week]);
-  const swap=()=>{if(!firstResolved||!secondResolved)return;setLaunchedGameId(null);const priorSeason=season,priorWeek=week;setFirstName(secondResolved);setSecondName(firstResolved);setSeason(secondSeason);setWeek(secondWeek);setSecondSeason(priorSeason);setSecondWeek(priorWeek);};
+  const projection=useMemo(()=>first&&second?projectMatchup(first,second,firstSnapshotWeek,neutral,secondSnapshotWeek,{home:first.name,away:second.name},site==="away"):null,[first,neutral,second,secondSnapshotWeek,site,firstSnapshotWeek]);
+  const firstRow=first?(firstDynamic.rows.find((row)=>row.team===first.name)??modelTeamProfileRow(first,season,firstSnapshotWeek)):null;
+  const secondRow=second?(secondDynamic.rows.find((row)=>row.team===second.name)??modelTeamProfileRow(second,secondSeason,secondSnapshotWeek)):null;
+  const intelligence=useMemo(()=>projection?.homeStats.advanced&&projection.awayStats.advanced&&firstRow&&secondRow?deriveMatchupIntelligence({homeTeam:firstRow.team,awayTeam:secondRow.team,homeProjection:projection.homeStats.advanced,awayProjection:projection.awayStats.advanced,homeProfile:firstRow,awayProfile:secondRow}):null,[firstRow,projection,secondRow]);
+  const context=useMatchupLabContext(season,firstSnapshotWeek,sameVintage&&activeWorkspaceTab==="evidence"?first?.name:undefined,sameVintage&&activeWorkspaceTab==="evidence"?second?.name:undefined);
+  useEffect(()=>{
+    if(siteIsManual||!sameVintage||!market)return;
+    const firstIsHome=market.homeTeam===first?.name&&market.awayTeam===second?.name;
+    const secondIsHome=market.homeTeam===second?.name&&market.awayTeam===first?.name;
+    if(firstIsHome||secondIsHome)setSite(market.neutralSite?"neutral":firstIsHome?"home":"away");
+  },[first?.name,market,sameVintage,second?.name,siteIsManual]);
+  const winConditionRequest=useMemo<WinConditionRequest|null>(()=>first&&second?(launchedGameId?{kind:"game",season,gameId:launchedGameId}:{kind:"matchup",homeTeam:first.name,awayTeam:second.name,homeSeason:season,awaySeason:secondSeason,homeWeek:firstSnapshotWeek,awayWeek:secondSnapshotWeek,neutralSite:neutral,awayHome:site==="away"}):null,[first,launchedGameId,neutral,season,second,secondSeason,secondWeek,site,week]);
+  const swap=()=>{if(!firstResolved||!secondResolved)return;setLaunchedGameId(null);setSiteIsManual(true);setSite(site==="home"?"away":site==="away"?"home":"neutral");const priorSeason=season,priorWeek=week;setFirstName(secondResolved);setSecondName(firstResolved);setSeason(secondSeason);setWeek(secondWeek);setSecondSeason(priorSeason);setSecondWeek(priorWeek);};
   const favored=projection&&first&&second?(projection.margin>=0?first:second):undefined;
   const underdog=projection&&first&&second?(projection.margin>=0?second:first):undefined;
-  const favoredLabel=favored===first?`${season} ${first?.name??""}`:`${secondSeason} ${second?.name??""}`;
-  const favoredWin=projection?Math.max(projection.homeWin,1-projection.homeWin):0;
   const favoredCards=intelligence&&favored?[...intelligence.homeCards,...intelligence.awayCards].filter((card)=>card.edgeTeam===favored.name).sort((left,right)=>Math.abs(right.score-50)-Math.abs(left.score-50)):[];
   const winningEdge=favoredCards[0];
-  const underdogViability=projection&&underdog?(underdog===first?projection.homeStats.viability:projection.awayStats.viability):null;
   const favoredStats=projection&&favored?(favored===first?projection.homeStats:projection.awayStats):null;
   const underdogStats=projection&&underdog?(underdog===first?projection.homeStats:projection.awayStats):null;
   const fallbackWhy=favored&&underdog&&favoredStats&&underdogStats
@@ -2454,99 +2504,98 @@ function MatchupLabV2({season,week,setSeason,setWeek,launch}:{season:number;week
       : `${favored.name} is favored because its run game projects to keep the offense ahead of the chains against ${underdog.name}'s front, protecting the preferred game script.`
     : projection?.edgeAnalysis.summary??"Select two teams with a loaded weekly profile.";
   const why=favored&&projection
-    ? winningEdge
+    ? season===2026&&secondSeason===2026
+      ? `${projection.edgeAnalysis.summary} Expected efficiency: ${first?.name} ${projection.homeStats.ypa.toFixed(1)} pass YPA and ${projection.homeStats.ypc.toFixed(1)} rush YPC; ${second?.name} ${projection.awayStats.ypa.toFixed(1)} pass YPA and ${projection.awayStats.ypc.toFixed(1)} rush YPC.`
+    : winningEdge
       ? `${favored.name} is favored because ${winningEdge.label.toLowerCase()} gives it the clearest football advantage. ${winningEdge.impact} ${winningEdge.drivers.slice(0,2).join(" · ")}.`
       : fallbackWhy
     : "Select two teams with a loaded weekly profile.";
-  const edgeIds=["run","pass","comfort","explosive","third"];
-  const edgeLanes=intelligence?edgeIds.flatMap((id)=>{
-    const firstCard=intelligence.homeCards.find((card)=>card.id===id),secondCard=intelligence.awayCards.find((card)=>card.id===id);
-    return firstCard&&secondCard?[{id,label:firstCard.label,firstCard,secondCard,edge:firstCard.score-secondCard.score}]:[];
-  }):[];
-  const biggest=intelligence?[...intelligence.homeCards,...intelligence.awayCards].sort((left,right)=>Math.abs(right.score-50)-Math.abs(left.score-50))[0]:null;
   const projectedRows=projection?[{label:"TOTAL YARDS",first:projection.homeStats.ypp*(projection.homeStats.patt+projection.homeStats.ratt),second:projection.awayStats.ypp*(projection.awayStats.patt+projection.awayStats.ratt),digits:0},{label:"YARDS / PLAY",first:projection.homeStats.ypp,second:projection.awayStats.ypp,digits:1},{label:"PASS YPA",first:projection.homeStats.ypa,second:projection.awayStats.ypa,digits:1},{label:"RUSH YPC",first:projection.homeStats.ypc,second:projection.awayStats.ypc,digits:1},{label:"PASS ATT",first:projection.homeStats.patt,second:projection.awayStats.patt,digits:0},{label:"RUSH ATT",first:projection.homeStats.ratt,second:projection.awayStats.ratt,digits:0}]:[];
-  const firstPffDirectory=useMemo(()=>firstDynamic.rows.map((row)=>({team:row.team,abbreviation:row.abbreviation,conference:row.conference,color:row.color,altColor:row.altColor,logo:row.logo})),[firstDynamic.rows]);
-  const secondPffDirectory=useMemo(()=>secondDynamic.rows.map((row)=>({team:row.team,abbreviation:row.abbreviation,conference:row.conference,color:row.color,altColor:row.altColor,logo:row.logo})),[secondDynamic.rows]);
-  const firstPffField=useMemo(()=>first&&firstPffEligible?buildPffFieldTendency(first.name,firstPffDirectory,pffPassingDepth.payload,pffRunBlocking.payload):null,[first,firstPffDirectory,firstPffEligible,pffPassingDepth.payload,pffRunBlocking.payload]);
-  const secondPffField=useMemo(()=>second&&secondPffEligible?buildPffFieldTendency(second.name,secondPffDirectory,pffPassingDepth.payload,pffRunBlocking.payload):null,[secondPffDirectory,pffPassingDepth.payload,pffRunBlocking.payload,second,secondPffEligible]);
-  const firstFieldMap=useMemo(()=>projection?.homeStats.advanced?buildMatchupFieldMap(projection.homeStats.advanced,firstPffField):null,[firstPffField,projection]);
-  const secondFieldMap=useMemo(()=>projection?.awayStats.advanced?buildMatchupFieldMap(projection.awayStats.advanced,secondPffField):null,[projection,secondPffField]);
-  const selectFirstTeam=(name:string)=>{setLaunchedGameId(null);setFirstName(name);};
-  const selectSecondTeam=(name:string)=>{setLaunchedGameId(null);setSecondName(name);};
+  const selectFirstTeam=(name:string)=>{setLaunchedGameId(null);setSiteIsManual(false);setSite("neutral");setFirstName(name);};
+  const selectSecondTeam=(name:string)=>{setLaunchedGameId(null);setSiteIsManual(false);setSite("neutral");setSecondName(name);};
 
-  return <section className="page-section matchup-page matchup-lab-v2">
-    <header className="mlab-title"><div><span>CFBD ADVANCED · HARPER+ MATCHUP ENGINE</span><h1>Matchup Lab</h1><p>See the projected result, the decisive football matchup, and the prior-game evidence that supports it.</p></div></header>
-    <div className="mlab-controls">
-      <label className="mlab-vintage-select"><span>YEAR 1</span><select aria-label="Team 1 season" value={season} onChange={(event)=>{setLaunchedGameId(null);setSeason(Number(event.target.value));}}>{seasonOptions.map((value)=><option key={value}>{value}</option>)}</select></label>
-      <label className="mlab-vintage-select"><span>WEEK 1</span><select aria-label="Team 1 week" value={week} onChange={(event)=>{setLaunchedGameId(null);setWeek(Number(event.target.value));}}>{Array.from({length:17},(_,index)=><option value={index} key={index}>{index===16?"Final":`Week ${index}`}</option>)}</select></label>
-      <label className="mlab-team-select mlab-first-team"><span>TEAM 1</span><select className="mlab-team-name-full" aria-label="Team 1" value={first?.name??""} onChange={(event)=>selectFirstTeam(event.target.value)}>{firstDynamic.teams.map((team)=><option key={team.name} value={team.name} disabled={sameVintage&&team.name===second?.name}>{team.name}</option>)}</select><select className="mlab-team-name-short" aria-label="Team 1 abbreviation" title={first?.name} value={first?.name??""} onChange={(event)=>selectFirstTeam(event.target.value)}>{firstDynamic.teams.map((team)=><option key={team.name} value={team.name} disabled={sameVintage&&team.name===second?.name}>{team.abbr||gameTeamCode(team.name)}</option>)}</select></label>
-      <button type="button" onClick={swap} aria-label="Swap teams">⇄</button>
-      <label className="mlab-vintage-select"><span>YEAR 2</span><select aria-label="Team 2 season" value={secondSeason} onChange={(event)=>{setLaunchedGameId(null);setSecondSeason(Number(event.target.value));}}>{seasonOptions.map((value)=><option key={value}>{value}</option>)}</select></label>
-      <label className="mlab-vintage-select"><span>WEEK 2</span><select aria-label="Team 2 week" value={secondWeek} onChange={(event)=>{setLaunchedGameId(null);setSecondWeek(Number(event.target.value));}}>{Array.from({length:17},(_,index)=><option value={index} key={index}>{index===16?"Final":`Week ${index}`}</option>)}</select></label>
-      <label className="mlab-team-select mlab-second-team"><span>TEAM 2</span><select className="mlab-team-name-full" aria-label="Team 2" value={second?.name??""} onChange={(event)=>selectSecondTeam(event.target.value)}>{secondDynamic.teams.map((team)=><option key={team.name} value={team.name} disabled={sameVintage&&team.name===first?.name}>{team.name}</option>)}</select><select className="mlab-team-name-short" aria-label="Team 2 abbreviation" title={second?.name} value={second?.name??""} onChange={(event)=>selectSecondTeam(event.target.value)}>{secondDynamic.teams.map((team)=><option key={team.name} value={team.name} disabled={sameVintage&&team.name===first?.name}>{team.abbr||gameTeamCode(team.name)}</option>)}</select></label>
-      <label className="mlab-site-toggle"><input type="checkbox" aria-label="Neutral site" checked={neutral} onChange={(event)=>{setLaunchedGameId(null);setNeutral(event.target.checked);}}/><span>NEUTRAL SITE</span></label>
-    </div>
-    <nav className="mlab-workspace-tabs" role="tablist" aria-label="Matchup Lab views"><button type="button" role="tab" aria-selected={activeWorkspaceTab==="analysis"} onClick={()=>setActiveWorkspaceTab("analysis")}><span>MATCHUP ANALYSIS</span><small>Edges, evidence, advanced profile</small></button><button type="button" role="tab" aria-selected={activeWorkspaceTab==="win-conditions"} onClick={()=>setActiveWorkspaceTab("win-conditions")}><span>WIN CONDITIONS</span><small>Paths, scenarios, script map</small></button></nav>
-    {firstDynamic.loading||secondDynamic.loading||!first||!second?<div className="data-empty"><strong>The selected weekly snapshots are loading.</strong><span>Matchup analysis appears when both team profiles are ready.</span></div>:projection?activeWorkspaceTab==="win-conditions"&&winConditionRequest?<WinConditionsWorkspace request={winConditionRequest} first={first} second={second} homeSeason={season} awaySeason={secondSeason} homeWeek={week} awayWeek={secondWeek} market={market}/>:<>
-      <section className="mlab-scoreboard">
-        <article><div className="mlab-team-lockup"><TeamMark name={first.name} size="lg" logo={first.logo}/><strong>{first.name}</strong><small>{season} · {context.payload?.home.record??`W${week} SNAPSHOT`} · {first.conference}</small></div><span className="mlab-score"><b>{projection.homeScore.toFixed(0)}</b><em>{(projection.homeWin*100).toFixed(0)}%</em></span></article>
-        <div><span>PROJECTED</span><strong>{favoredLabel} by {Math.abs(projection.margin).toFixed(1)}</strong><small>{neutral?"Neutral site":`${season} ${first.name} home`} · Total {projection.total.toFixed(1)}</small><i>{projection.edgeAnalysis.intelligence?.confidence??projection.edgeAnalysis.confidence} confidence</i></div>
-        <article><div className="mlab-team-lockup"><TeamMark name={second.name} size="lg" logo={second.logo}/><strong>{second.name}</strong><small>{secondSeason} · {context.payload?.away.record??`W${secondWeek} SNAPSHOT`} · {second.conference}</small></div><span className="mlab-score"><b>{projection.awayScore.toFixed(0)}</b><em>{((1-projection.homeWin)*100).toFixed(0)}%</em></span></article>
-        <p><strong>WHY {favored?.name.toUpperCase()}</strong> {why}{underdogViability&&(underdogViability.status==="At Risk"||underdogViability.status==="Critical")?` ${underdog?.name}'s offense also projects near a functional stall point.`:""}</p>
-        <footer><span><small>MODEL SPREAD</small><b>{favored?.abbr} -{Math.abs(projection.margin).toFixed(1)}</b></span><span><small>WIN PROBABILITY</small><b>{(favoredWin*100).toFixed(0)}%</b></span><span><small>MARKET</small><b>{market?compactMarketSpreadLabel(market):"—"}</b></span><span><small>GAME SHAPE</small><b>{intelligence?.gameShape??"BALANCED"}</b></span></footer>
+  return <section className="page-section matchup-page matchup-lab-v2 matchup-hub" style={{"--mlab-first-color":normalizeTeamColor(first?.color,"#6b7370"),"--mlab-second-color":normalizeTeamColor(second?.color,"#6b7370")} as CSSProperties}>
+    <header className="mlab-title"><div><span>HARPER+ / THE MATCHUP DESK</span><h1>Matchup Lab</h1><p>Pick a game. Find the advantage. Build the plan.</p></div></header>
+    <section className="hub-setup" aria-label="Set up your matchup">
+      <div className="hub-vintage"><label><span>Year</span><select aria-label="Matchup year" value={season} onChange={event=>{setLaunchedGameId(null);setSiteIsManual(false);setSite("neutral");setSeason(Number(event.target.value));if(linkedSnapshots)setSecondSeason(Number(event.target.value));}}>{seasonOptions.map(value=><option key={value}>{value}</option>)}</select></label><label><span>Stats through</span><select aria-label="Matchup week" value={week} onChange={event=>{setLaunchedGameId(null);setSiteIsManual(false);setSite("neutral");setWeek(Number(event.target.value));if(linkedSnapshots)setSecondWeek(Number(event.target.value));}}>{Array.from({length:17},(_,index)=><option value={index} key={index}>{index===16?"Final":weekLabel(index)}</option>)}</select></label><label className="hub-compare"><input type="checkbox" checked={!linkedSnapshots} onChange={event=>{setLaunchedGameId(null);setSiteIsManual(false);setSite("neutral");setLinkedSnapshots(!event.target.checked);if(!event.target.checked){setSecondSeason(season);setSecondWeek(week);}}}/>Compare different years / weeks</label></div>
+      <div className="hub-team-selectors"><label style={teamIdentityStyle(first?.name??"",first?.color)}><span>First team</span><SearchSelect label="First team" value={first?.name??""} onChange={selectFirstTeam} options={firstDynamic.teams.map(team=>({value:team.name,label:team.name,disabled:sameVintage&&team.name===second?.name}))}/></label><button type="button" className="hub-swap" onClick={swap} aria-label="Swap teams">⇄</button><label style={teamIdentityStyle(second?.name??"",second?.color)}><span>Second team</span><SearchSelect label="Second team" value={second?.name??""} onChange={selectSecondTeam} options={secondDynamic.teams.map(team=>({value:team.name,label:team.name,disabled:sameVintage&&team.name===first?.name}))}/></label></div>
+      {!linkedSnapshots?<div className="hub-vintage hub-historical"><strong>{second?.name} snapshot</strong><label><span>Year</span><select aria-label="Second team year" value={secondSeason} onChange={event=>{setLaunchedGameId(null);setSiteIsManual(false);setSite("neutral");setSecondSeason(Number(event.target.value));}}>{seasonOptions.map(value=><option key={value}>{value}</option>)}</select></label><label><span>Stats through</span><select aria-label="Second team week" value={secondWeek} onChange={event=>{setLaunchedGameId(null);setSiteIsManual(false);setSite("neutral");setSecondWeek(Number(event.target.value));}}>{Array.from({length:17},(_,index)=><option value={index} key={index}>{index===16?"Final":weekLabel(index)}</option>)}</select></label></div>:null}
+      <fieldset className="hub-site"><legend>Where is the game?</legend>{([{value:"home",label:`${first?.abbr??"First team"} at home`},{value:"neutral",label:"Neutral site"},{value:"away",label:`${second?.abbr??"Second team"} at home`}]).map(option=><label key={option.value} data-selected={site===option.value}><input type="radio" name="matchup-game-site" value={option.value} checked={site===option.value} onChange={()=>{setLaunchedGameId(null);setSiteIsManual(true);setSite(option.value as MatchupSite);}}/>{option.label}</label>)}</fieldset>
+      <p className="hub-setup-note">Uses stats available through the selected week. {siteIsManual?"Game site selected by you.":market&&sameVintage?"Game site matched to the schedule; you can change it.":"Choose home field or neutral for this matchup."}</p>
+    </section>
+    <p className="hub-data-note">Prediction inputs: {weekLabel(week)} uses completed stats through {weekLabel(firstSnapshotWeek)}; {weekLabel(secondWeek)} uses completed stats through {weekLabel(secondSnapshotWeek)}.</p>
+    {firstDynamic.loading||secondDynamic.loading||!first||!second?<div className="data-empty"><strong>{firstDynamic.loading||secondDynamic.loading?"The selected weekly snapshots are loading.":"Team data is unavailable for this selection."}</strong><span>{firstDynamic.loading||secondDynamic.loading?"Matchup analysis appears when both team profiles are ready.":"Try another year or week."}</span></div>:projection?<>
+      {firstDynamic.source==="embedded"||secondDynamic.source==="embedded"?<p className="hub-data-note" role="status">Live weekly profiles are unavailable. This view is using the saved model snapshot.</p>:firstDynamic.effectiveWeek!==null&&firstDynamic.effectiveWeek!==firstSnapshotWeek||secondDynamic.effectiveWeek!==null&&secondDynamic.effectiveWeek!==secondSnapshotWeek?<p className="hub-data-note">Latest available data: {first.name} through {weekLabel(firstDynamic.effectiveWeek??firstSnapshotWeek)}; {second.name} through {weekLabel(secondDynamic.effectiveWeek??secondSnapshotWeek)}.</p>:null}
+      <section className="hub-scoreboard" aria-label="Predicted score">
+       <div className="hub-score-label"><span>H+ PREDICTION</span><span>{neutral?"NEUTRAL SITE":`${site==="away"?second.name:first.name} AT HOME`}</span></div>
+       <div className="hub-score-teams">{[{team:first,score:projection.homeScore,win:projection.homeWin,year:season,snapshot:week,record:context.payload?.home.record,role:neutral?"NEUTRAL":site==="home"?"HOME":"AWAY"},{team:second,score:projection.awayScore,win:1-projection.homeWin,year:secondSeason,snapshot:secondWeek,record:context.payload?.away.record,role:neutral?"NEUTRAL":site==="away"?"HOME":"AWAY"}].map((side,index)=><article key={index} style={teamIdentityStyle(side.team.name,side.team.color)}><div className="hub-score-identity"><TeamMark name={side.team.name} logo={side.team.logo} size="lg"/><span><small>{side.role} · {side.year}</small><strong>{side.team.name}</strong><small>{side.record??weekLabel(side.snapshot)} · {side.team.conference}</small></span></div><div className="hub-score-number"><b>{side.score.toFixed(0)}</b><span>{Math.round(side.win*100)}% win chance</span></div></article>)}</div>
+       <div className="hub-verdict"><strong>{Math.abs(projection.margin)<.05?"Too close to call":`${favored?.name} by ${Math.abs(projection.margin).toFixed(1)}`}</strong><span>Projected total {projection.total.toFixed(1)} · {projection.edgeAnalysis.intelligence?.confidence??projection.edgeAnalysis.confidence} confidence</span></div>
+       <details className="hub-score-explain"><summary>Why this score?</summary><p>{why}</p><p>Win chance is the model’s probability of winning, not a guarantee. Scores are rounded; the margin uses unrounded projections.</p>{market?<p>Market comparison: {compactMarketSpreadLabel(market)} · {marketTotalLabel(market)}</p>:null}</details>
       </section>
+      <nav className="hub-navigation" aria-label="Matchup analysis views">{([{id:"analysis",name:"Game overview",note:"Who has the edge?"},{id:"field",name:"Attack the field",note:"Where to run & throw"},{id:"evidence",name:"Stats & evidence",note:"Check every matchup"},{id:"win-conditions",name:"What could change",note:"Paths to a win"}] as const).map(tab=><button type="button" key={tab.id} aria-pressed={activeWorkspaceTab===tab.id} onClick={()=>setActiveWorkspaceTab(tab.id)}><strong>{tab.name}</strong><small>{tab.note}</small></button>)}</nav>
+      <div className="hub-view" key={`${first.name}:${second.name}:${season}:${week}:${secondSeason}:${secondWeek}:${site}:${activeWorkspaceTab}`}>
+      {activeWorkspaceTab==="analysis"?<MatchupBriefing firstSnapshot={{season,week:firstRow?.week??firstSnapshotWeek}} secondSnapshot={{season:secondSeason,week:secondRow?.week??secondSnapshotWeek}} first={first} second={second} board={intelligence} analysis={projection.edgeAnalysis} home={projection.homeStats} away={projection.awayStats} homeScore={projection.homeScore} awayScore={projection.awayScore} onField={()=>setActiveWorkspaceTab("field")} onEvidence={()=>setActiveWorkspaceTab("evidence")}/>:null}
+      {activeWorkspaceTab==="win-conditions"&&winConditionRequest?<WinConditionsWorkspace request={winConditionRequest} first={first} second={second} homeSeason={season} awaySeason={secondSeason} homeWeek={firstSnapshotWeek} awayWeek={secondSnapshotWeek} market={market} siteLabel={neutral?"Neutral site":`${site==="away"?second.name:first.name} home`}/>:null}
+      {activeWorkspaceTab==="field"?<>
+      <DirectionalMatchupArt briefing first={{name:first.name,abbr:first.abbr,logo:first.logo,color:first.color,season,week:firstRow?.week??firstSnapshotWeek,directional:firstRow?.advancedProfile?.directional}} second={{name:second.name,abbr:second.abbr,logo:second.logo,color:second.color,season:secondSeason,week:secondRow?.week??secondSnapshotWeek,directional:secondRow?.advancedProfile?.directional}}/>
 
-      <section className="mlab-section mlab-edge-section">
-        <header><div><span>01 · MATCHUP CONTROL</span><h2>Which offense controls each part of the game?</h2><p>Every row includes both offensive matchups. Left is {first.name} offense against {second.name} defense; right is {second.name} offense against {first.name} defense. The two control shares always total 100.</p></div>{biggest?<aside><small>BIGGEST SINGLE ADVANTAGE</small><strong>{biggest.edgeTeam??"EVEN"}</strong><span>{biggest.label} · {biggest.magnitude}</span></aside>:null}</header>
-        <div className="mlab-edge-key"><span><TeamMark name={first.name} size="sm" logo={first.logo}/><b>{first.abbr} OFF</b><small>vs {second.abbr} DEF</small></span><strong>100% CONTROL SHARE</strong><span><small>vs {first.abbr} DEF</small><b>{second.abbr} OFF</b><TeamMark name={second.name} size="sm" logo={second.logo}/></span></div>
-        <div className="mlab-edge-lanes">{edgeLanes.map((lane)=>{
-          const total=Math.max(1,lane.firstCard.score+lane.secondCard.score);
-          const firstShare=Math.round(100*lane.firstCard.score/total),secondShare=100-firstShare;
-          const edgeTeam=Math.abs(firstShare-secondShare)<4?null:firstShare>secondShare?first:second;
-          const winningCard=firstShare>=secondShare?lane.firstCard:lane.secondCard;
-          return <article key={lane.id} style={{"--edge-position":`${Math.max(6,Math.min(94,secondShare))}%`} as CSSProperties}>
-            <div><TeamMark name={first.name} size="sm" logo={first.logo}/><strong>{firstShare}%</strong></div><span><small>{lane.label}</small><i><b/></i><em>{edgeTeam?`${edgeTeam.name} edge`:"Even"}</em><p>{winningCard.impact}</p></span><div><strong>{secondShare}%</strong><TeamMark name={second.name} size="sm" logo={second.logo}/></div>
-          </article>;
-        })}</div>
-      </section>
-
+      </>:null}
+      {activeWorkspaceTab==="evidence"?<div className="hub-evidence"><header className="brief-heading"><div><span>THE EVIDENCE ROOM</span><h2>Go as deep as you need</h2><p>Projected production, opponent adjustments, and the games behind the grades.</p></div></header>
+      <ScoreExplanation data={projection.scoreExplanation} home={first.name} away={second.name}/>
+      <details className="mlab-evidence-fold"><summary>Opponent impact</summary>
       <section className="mlab-section">
         <header><div><span>02 · OPPONENT EFFECT</span><h2>What each team makes opponents become</h2><p>Actual production is measured against what each opponent normally gains or allows. Positive values mean the team changed the game in its favor.</p></div></header>
         <div className="mlab-two-column"><OpponentImpactPanel team={first} context={context.payload?.home??null}/><OpponentImpactPanel team={second} context={context.payload?.away??null}/></div>
       </section>
+      </details>
 
+      <details className="mlab-evidence-fold"><summary>Comparable opponents</summary>
       <section className="mlab-section">
         <header><div><span>03 · COMPARABLE OPPONENTS</span><h2>Has either team already seen this matchup?</h2><p>The closest prior opponent is found separately for pass offense, rush offense, pass defense, and rush defense. The result shows whether the team beat expectation against that style.</p></div></header>
         <div className="mlab-two-column"><AnalogTeamPanel team={first} target={second} context={context.payload?.home??null}/><AnalogTeamPanel team={second} target={first} context={context.payload?.away??null}/></div>
       </section>
+      </details>
 
       <section className="mlab-section">
-        <header><div><span>04 · PROJECTED GAME PROFILE</span><h2>The box score shape behind the score</h2><p>Volume and efficiency are projected together so selective passing teams and high-tempo teams are not evaluated as if they play the same game.</p></div></header>
-        <div className="mlab-projected-profile"><header><span><TeamMark name={first.name} size="sm" logo={first.logo}/>{first.abbr}</span><b>PROJECTED STAT</b><span>{second.abbr}<TeamMark name={second.name} size="sm" logo={second.logo}/></span></header>{projectedRows.map((row)=><div key={row.label}><strong className={row.first>row.second?"positive":""}>{row.first.toFixed(row.digits)}</strong><span>{row.label}</span><strong className={row.second>row.first?"positive":""}>{row.second.toFixed(row.digits)}</strong></div>)}</div>
+        <header><div><span>PROJECTED PRODUCTION</span><h2>Projected game profile</h2><p>Volume and efficiency are projected together so selective passing teams and high-tempo teams are not evaluated as if they play the same game.</p></div></header>
+        <div className="mlab-projected-profile"><header><span className="team-identity-surface" style={teamIdentityStyle(first.name)}><TeamMark name={first.name} size="sm" logo={first.logo}/>{first.abbr}</span><b>PROJECTED STAT</b><span className="team-identity-surface" style={teamIdentityStyle(second.name)}>{second.abbr}<TeamMark name={second.name} size="sm" logo={second.logo}/></span></header>{projectedRows.map((row)=><div key={row.label}><strong className={row.first>row.second?"positive":""}>{row.first.toFixed(row.digits)}</strong><span>{row.label}</span><strong className={row.second>row.first?"positive":""}>{row.second.toFixed(row.digits)}</strong></div>)}</div>
+        {season===2026&&secondSeason===2026?<div className="mlab-two-column">
+          {([{team:first,stats:projection.homeStats,profile:projection.homeAdvancedProfile,opponent:second},{team:second,stats:projection.awayStats,profile:projection.awayAdvancedProfile,opponent:first}]).map(({team,stats,profile,opponent})=><article key={team.name} className="mlab-signal-card">
+            <h3><TeamAccent name={team.name} color={team.color}/> vs <TeamAccent name={opponent.name} color={opponent.color}/></h3>
+            <p>Opponent adjusted: {stats.ypa.toFixed(1)} net yards per dropback, {stats.ypc.toFixed(1)} yards per designed rush. Passing includes sacks; rushing excludes them.</p>
+            {profile?.rushingPersonnel?<p>Running backs: {profile.rushingPersonnel.rbYpc.toFixed(1)} yards on {profile.rushingPersonnel.rbCarries} carries. Quarterbacks: {profile.rushingPersonnel.qbYpc===null?"—":profile.rushingPersonnel.qbYpc.toFixed(1)} yards on {profile.rushingPersonnel.qbCarries} non-sack carries, including scrambles. QB rushing remains in team rushing efficiency; the RB adjustment applies only to RB share.</p>:<p>RB and QB rushing split is unavailable for this snapshot; team rushing remains the input.</p>}
+            <p>{stats.ypa/Math.max(1,baselines.ypa)>stats.ypc/Math.max(1,baselines.ypc)*1.12?"Passing is the stronger path; a weak rushing game raises late lead protection risk.":stats.ypc/Math.max(1,baselines.ypc)>stats.ypa/Math.max(1,baselines.ypa)*1.12?"Rushing is the stronger path; a limited passing game makes comeback drives fragile.":"Both passing and rushing can sustain drives in this matchup."}</p>
+          </article>)}
+        </div>:null}
+        {projection.turnoverScenario?<p className="mlab-turnover-note">Turnover exposure: {first.name} {projection.turnoverScenario.homeExpected.toFixed(1)}, {second.name} {projection.turnoverScenario.awayExpected.toFixed(1)} expected giveaways. If {first.name} plays nearly turnover free, its margin rises to {projection.turnoverScenario.homeCleanMargin.toFixed(1)}; if {second.name} does, {first.name}&apos;s margin falls to {projection.turnoverScenario.awayCleanMargin.toFixed(1)}. These are conditional scenarios, not the main pick. Actual turnover surprises are discounted when learning from earlier scores.</p>:null}
       </section>
 
+      <details className="mlab-evidence-fold"><summary>Stall points</summary>
       <section className="mlab-section">
         <header><div><span>05 · STALL POINTS</span><h2>Can both offenses remain functional?</h2><p>These thresholds are learned from archived CFBD team-games at the largest points-per-drive drop, not manually assigned.</p></div></header>
         <div className="mlab-two-column"><ViabilityPanel team={first} viability={projection.homeStats.viability}/><ViabilityPanel team={second} viability={projection.awayStats.viability}/></div>
       </section>
+      </details>
 
+      <details className="mlab-evidence-fold"><summary>Performance audit</summary>
       <section className="mlab-section">
         <header><div><span>06 · PERFORMANCE AUDIT</span><h2>Actual results compared with pregame expectation</h2><p>Positive margin means the team outperformed the score the model expected before that game.</p></div></header>
         <div className="mlab-two-column"><ExpectationPanel team={first} context={context.payload?.home??null}/><ExpectationPanel team={second} context={context.payload?.away??null}/></div>
       </section>
+      </details>
 
+      <details className="mlab-evidence-fold"><summary>Advanced metrics</summary>
       <section className="mlab-section mlab-advanced-section">
         <header><div><span>07 · CFBD ADVANCED METRICS</span><h2>Full evidence behind each offensive projection</h2><p>Season offense, opposing defense allowed, and the matchup-specific projection are shown together. CFBD line yards are a front-control proxy, not literal yards before contact.</p></div></header>
         <div className="mlab-two-column"><AdvancedDirectionPanel offense={first} defense={second} offenseProfile={firstRow?.advancedProfile} defenseProfile={secondRow?.advancedProfile} projection={projection.homeStats.advanced}/><AdvancedDirectionPanel offense={second} defense={first} offenseProfile={secondRow?.advancedProfile} defenseProfile={firstRow?.advancedProfile} projection={projection.awayStats.advanced}/></div>
       </section>
+      </details>
 
-      <section className="mlab-section mlab-field-section">
-        <header><div><span>08 · PLAY ART</span><h2>Where each offense should attack the field</h2><p>Nine passing windows and six run gaps show the projected attack, mixed, and avoid areas. Final 2025 uses the supplied PFF offensive location and blocking splits; every other point-in-time snapshot uses a clearly labeled CFBD pseudo-map.</p></div></header>
-        <div className="mlab-two-column"><MatchupFieldPanel offense={first} defense={second} map={firstFieldMap}/><MatchupFieldPanel offense={second} defense={first} map={secondFieldMap}/></div>
-        <p className="mlab-pff-disclaimer"><strong>PFF DATA NOTICE</strong> PFF metrics are reproduced from a user-supplied 2025 export. Harper+ is not affiliated with Pro Football Focus. PFF is not applied to earlier weekly snapshots because the available export is a full-season file.</p>
-      </section>
       {context.error?<p className="mlab-context-error">Historical opponent comparisons are temporarily unavailable; the projection and CFBD matchup profile remain active.</p>:null}
+      </div>:null}
+      </div>
     </>:<div className="data-empty"><strong>No model projection is available.</strong><span>Select another season, week, or team.</span></div>}
+
   </section>;
 }
 
@@ -2611,7 +2660,7 @@ function BorrowedScheduleWhatIf(){
     </section>
     {loading||!player||!scheduleTeam?<div className="data-empty"><strong>Building the borrowed schedule…</strong><span>The full-season team profiles and donor schedule are loading.</span></div>:scenario.games.length?<>
       <section className="what-if-summary">
-        <article className="what-if-summary-matchup"><div><TeamMark name={player.name} size="md" logo={player.logo}/><span><small>{playerSeason} TEAM</small><strong>{player.name}</strong></span></div><i>PLAYS</i><div><TeamMark name={scheduleTeam.name} size="md" logo={scheduleTeam.logo}/><span><small>{scheduleSeason} SCHEDULE</small><strong>{scheduleTeam.name}</strong></span></div></article>
+        <article className="what-if-summary-matchup"><div className="team-identity-surface" style={teamIdentityStyle(player.name)}><TeamMark name={player.name} size="md" logo={player.logo}/><span><small>{playerSeason} TEAM</small><strong>{player.name}</strong></span></div><i>PLAYS</i><div className="team-identity-surface" style={teamIdentityStyle(scheduleTeam.name)}><TeamMark name={scheduleTeam.name} size="md" logo={scheduleTeam.logo}/><span><small>{scheduleSeason} SCHEDULE</small><strong>{scheduleTeam.name}</strong></span></div></article>
         <article><span>PROJECTED RECORD</span><strong>{scenario.wins}–{scenario.losses}</strong><small>{scenario.games.length} modeled games</small></article>
         <article><span>EXPECTED WINS</span><strong>{scenario.expectedWins.toFixed(1)}</strong><small>sum of game win probabilities</small></article>
         <article><span>TOUGHEST GAME</span><strong>{hardest?.opponent??"—"}</strong><small>{hardest?`${(hardest.winProbability*100).toFixed(0)}% win chance · ${hardest.location}`:"—"}</small></article>
@@ -2619,8 +2668,8 @@ function BorrowedScheduleWhatIf(){
       <section className="what-if-schedule" aria-label="Projected borrowed schedule">
         <header><span>WK</span><span>OPPONENT</span><span>SITE</span><span>RESULT</span><span>SCORE</span><span>MARGIN</span><span>WIN CHANCE</span><span>RECORD</span></header>
         {scenario.games.map((game)=><article key={game.gameId}>
-          <b className="what-if-week">{game.seasonType==="postseason"?"POST":game.week}</b>
-          <div className="what-if-opponent"><TeamMark name={game.opponent} size="sm" logo={game.opponentLogo}/><strong>{game.opponent}</strong></div>
+          <b className="what-if-week">{game.seasonType==="postseason"?"POST":weekLabel(game.week,"compact")}</b>
+          <div className="what-if-opponent team-identity-surface" style={teamIdentityStyle(game.opponent)}><TeamMark name={game.opponent} size="sm" logo={game.opponentLogo}/><strong>{game.opponent}</strong></div>
           <small className="what-if-site">{game.location}</small>
           <i className={`what-if-result ${game.result==="W"?"win":"loss"}`}>{game.result}</i>
           <strong className="what-if-score">{game.teamScore.toFixed(0)}–{game.opponentScore.toFixed(0)}</strong>
@@ -2665,7 +2714,7 @@ function ScenarioMiniBracket({label,format,champion,games,logoByTeam,changedTeam
     {games.length?<div className={`scenario-mini-rounds format-${format}`}>{rounds.map((round)=><section key={round}>
       <h4>{round.replace("First Round","ROUND 1").replace("Quarterfinal","QUARTERS").replace("Semifinal","SEMIS").toUpperCase()}</h4>
       <div>{games.filter((game)=>game.round===round).map((game)=><article key={game.id}>
-        {([[game.firstTeam,game.firstSeed,game.firstScore],[game.secondTeam,game.secondSeed,game.secondScore]] as Array<[string,number,number]>).map(([team,seed,score])=><div key={team} className={`${game.winner===team?"winner":""}${changedTeams.has(team)?" changed":""}`}>
+        {([[game.firstTeam,game.firstSeed,game.firstScore],[game.secondTeam,game.secondSeed,game.secondScore]] as Array<[string,number,number]>).map(([team,seed,score])=><div key={team} className={[`${game.winner===team?"winner":""}${changedTeams.has(team)?" changed":""}`,"team-identity-surface"].join(" ")} style={teamIdentityStyle(team)}>
           <b>{seed}</b><TeamMark name={team} size="sm" logo={logoByTeam.get(team)}/><strong>{team}</strong><em>{score}</em>
         </div>)}
       </article>)}</div>
@@ -2736,11 +2785,11 @@ function GameFlipWhatIf(){
   return <div className="what-if-tab-panel scenario-flip-panel">
     <section className="scenario-flip-controls" aria-label="Game flip scenario controls">
       <label><span>SEASON</span><select value={season} onChange={(event)=>{setSeason(Number(event.target.value));setOverrides({});}}>{seasonOptions.map((value)=><option key={value}>{value}</option>)}</select></label>
-      <label><span>ENTERING WEEK</span><select value={enteringWeek} onChange={(event)=>{setEnteringWeek(Number(event.target.value));setOverrides({});}}>{Array.from({length:17},(_,week)=><option key={week} value={week}>{week===0?"Preseason":`Week ${week}`}</option>)}</select></label>
+      <label><span>ENTERING WEEK</span><select value={enteringWeek} onChange={(event)=>{setEnteringWeek(Number(event.target.value));setOverrides({});}}>{Array.from({length:17},(_,week)=><option key={week} value={week}>{week===0?"Preseason":weekLabel(week)}</option>)}</select></label>
       <label><span>TEAM</span><select value={resolvedTeam} onChange={(event)=>{setTeamName(event.target.value);setOverrides({});}}>{dynamic.teams.map((team)=><option key={team.name}>{team.name}</option>)}</select></label>
       <button type="button" onClick={()=>setOverrides({})} disabled={!overrideRows.length}>RESET SCENARIO</button>
     </section>
-    <div className="scenario-freeze-note" role="note"><span>{enteringWeek===0?"PRESEASON FORECAST":`ENTERING WEEK ${enteringWeek}`}</span><strong>{snapshotWeek?`DATA THROUGH WEEK ${snapshotWeek}`:"WEEK 0 STATE"}</strong><p>Completed and projected regular-season results can be changed. If the selected team reaches its conference championship, Week 15 appears too. This branch never rewrites Scores or the normal Season Sim.</p></div>
+    <div className="scenario-freeze-note" role="note"><span>{enteringWeek===0?"PRESEASON FORECAST":`ENTERING ${weekLabel(enteringWeek,"upper")}`}</span><strong>{snapshotWeek?`DATA THROUGH ${weekLabel(snapshotWeek,"upper")}`:"WEEK 0 STATE"}</strong><p>Completed and projected regular-season results can be changed. If the selected team reaches its conference championship, CC appears too. This branch never rewrites Scores or the normal Season Sim.</p></div>
 
     {dynamic.loading&&!data?<div className="data-empty"><strong>Loading the selected team snapshot…</strong><span>The scenario will appear when the weekly team profiles are ready.</span></div>:null}
     {!dynamic.loading&&simulation.loading&&!data?<div className="data-empty"><strong>Running the baseline season…</strong><span>Every remaining game, conference race and playoff path is being simulated.</span></div>:null}
@@ -2748,7 +2797,7 @@ function GameFlipWhatIf(){
 
     {data&&selectedBaseline&&selectedScenario?<>
       <section className="scenario-flip-summary">
-        <article className="scenario-team-card"><TeamMark name={resolvedTeam} size="md" logo={selectedScenario.logo}/><div><span>SELECTED TEAM</span><strong>{resolvedTeam}</strong><small>{data.appliedOverrides.length?`${data.appliedOverrides.length} result ${data.appliedOverrides.length===1?"change":"changes"}`:"SEASON BASELINE"}</small></div></article>
+        <article className="scenario-team-card team-identity-surface" style={teamIdentityStyle(resolvedTeam)}><TeamMark name={resolvedTeam} size="md" logo={selectedScenario.logo}/><div><span>SELECTED TEAM</span><strong>{resolvedTeam}</strong><small>{data.appliedOverrides.length?`${data.appliedOverrides.length} result ${data.appliedOverrides.length===1?"change":"changes"}`:"SEASON BASELINE"}</small></div></article>
         <article><span>SEASON SIM RANK</span><div><s>#{selectedBaseline.rank}</s><b>→ #{selectedScenario.rank}</b><em className={selectedMovement?.tone}>{selectedMovement?.label}</em></div><small>projected final H+ rank</small></article>
         <article><span>PROJECTED RECORD</span><div><s>{selectedBaseline.projectedRecord}</s><b>→ {selectedScenario.projectedRecord}</b></div><small>{selectedScenario.expectedWins.toFixed(1)} scenario expected wins</small></article>
         <article><span>POSTSEASON</span><div><s>{scenarioPostseasonLabel(selectedBaseline)}</s><b>→ {scenarioPostseasonLabel(selectedScenario)}</b></div><small>{data.baseline.champion??"No champion"} → {data.scenario.champion??"No champion"}</small></article>
@@ -2768,8 +2817,8 @@ function GameFlipWhatIf(){
             ?game.modelHomeSpread!==null||game.modelTotal!==null?`${(winProbability*100).toFixed(0)}% pregame win chance`:"completed result"
             :`${(winProbability*100).toFixed(0)}% win chance`;
           return <article className={wasFlipped?"flipped":""} key={game.gameId}>
-            <div className="scenario-game-week"><span>{game.seasonType==="conference-championship"?"TITLE":"WK"}</span><b>{game.week}</b></div>
-            <div className="scenario-game-opponent"><TeamMark name={game.opponent} size="sm" logo={baselineByTeam.get(game.opponent)?.logo??scenarioByTeam.get(game.opponent)?.logo}/><span><small>{game.seasonType==="conference-championship"?"CONFERENCE CHAMPIONSHIP":game.location}</small><strong>{game.opponent}</strong></span></div>
+            <div className="scenario-game-week"><span>{game.seasonType==="conference-championship"?"TITLE":"WK"}</span><b>{weekLabel(game.week,"compact")}</b></div>
+            <div className="scenario-game-opponent team-identity-surface" style={teamIdentityStyle(game.opponent)}><TeamMark name={game.opponent} size="sm" logo={baselineByTeam.get(game.opponent)?.logo??scenarioByTeam.get(game.opponent)?.logo}/><span><small>{game.seasonType==="conference-championship"?"CONFERENCE CHAMPIONSHIP":game.location}</small><strong>{game.opponent}</strong></span></div>
             <div className="scenario-game-model"><span>{baselineLabel}</span><b className={modelResult==="W"?"win":"loss"}>{modelResult} {game.teamScore}–{game.opponentScore}</b><small>{probabilityLabel}</small></div>
             <div className="scenario-outcome-toggle" role="group" aria-label={`Choose ${resolvedTeam} outcome against ${game.opponent}`}>
               <button type="button" className={!selectedWinner?"active":""} onClick={()=>chooseOutcome(game,"model")}>KEEP</button>
@@ -2787,8 +2836,8 @@ function GameFlipWhatIf(){
       </section>
 
       {overrideRows.length?<section className="scenario-impact-grid">
-        <article><header><span>DIRECT OPPONENT EFFECT</span><strong>Every flipped opponent</strong></header><div>{opponentImpacts.map(({name,baseline,scenario,movement})=><div key={name}><TeamMark name={name} size="sm" logo={scenario.logo}/><span><strong>{name}</strong><small>{baseline.projectedRecord} → {scenario.projectedRecord} · {scenarioPostseasonLabel(scenario)}</small></span><b>#{baseline.rank} → #{scenario.rank}</b><em className={movement.tone}>{movement.label}</em></div>)}</div></article>
-        <article><header><span>NATIONAL RIPPLE</span><strong>Largest changes elsewhere</strong></header><div>{nationalRipple.length?nationalRipple.map(({baseline,scenario,movement})=><div key={scenario.team}><TeamMark name={scenario.team} size="sm" logo={scenario.logo}/><span><strong>{scenario.team}</strong><small>{baseline.projectedRecord} → {scenario.projectedRecord} · {scenarioPostseasonLabel(scenario)}</small></span><b>#{baseline.rank} → #{scenario.rank}</b><em className={movement.tone}>{movement.label}</em></div>):<p>No other team changes rank, record, conference-title status or playoff seed in this scenario.</p>}</div></article>
+        <article><header><span>DIRECT OPPONENT EFFECT</span><strong>Every flipped opponent</strong></header><div>{opponentImpacts.map(({name,baseline,scenario,movement})=><div key={name} className="team-identity-surface" style={teamIdentityStyle(name)}><TeamMark name={name} size="sm" logo={scenario.logo}/><span><strong>{name}</strong><small>{baseline.projectedRecord} → {scenario.projectedRecord} · {scenarioPostseasonLabel(scenario)}</small></span><b>#{baseline.rank} → #{scenario.rank}</b><em className={movement.tone}>{movement.label}</em></div>)}</div></article>
+        <article><header><span>NATIONAL RIPPLE</span><strong>Largest changes elsewhere</strong></header><div>{nationalRipple.length?nationalRipple.map(({baseline,scenario,movement})=><div key={scenario.team} className="team-identity-surface" style={teamIdentityStyle(scenario.team)}><TeamMark name={scenario.team} size="sm" logo={scenario.logo}/><span><strong>{scenario.team}</strong><small>{baseline.projectedRecord} → {scenario.projectedRecord} · {scenarioPostseasonLabel(scenario)}</small></span><b>#{baseline.rank} → #{scenario.rank}</b><em className={movement.tone}>{movement.label}</em></div>):<p>No other team changes rank, record, conference-title status or playoff seed in this scenario.</p>}</div></article>
       </section>:<div className="scenario-impact-empty"><strong>Choose a result to reveal the ripple.</strong><span>The full season will be rebuilt for the selected team, its opponent, conference races, projected Top 25 and playoff field.</span></div>}
       <p className="scenario-method-note">Forced upsets and forced losses preserve the game&apos;s scoring environment, then use a realistic 3–7 point margin based on the original pregame probability when available. {data.methodology}</p>
     </>:null}
@@ -2809,6 +2858,17 @@ function WhatIfPage({season,week,setSeason,setWeek,onSelectTeam,onSelectGame}:Mo
   </section>;
 }
 
+function roundRobinProfilesForSeason(teams:TeamModel[],season:number,week:number):RoundRobinProfile[]{
+  return teams.flatMap(team=>{const profile=latestProfile(team,week);if(!profile)return [];
+    return [{id:team.name,team:team.name,season,week,conference:team.conference,conferenceAdjustment:team.conferenceAdjustment,logo:team.logo,color:team.color,abbreviation:team.abbr,rating:team.rating,resumeScore:team.resumeScore,seasonRecord:team.seasonRecord,nationalChampion:team.nationalChampion,evidence:profile.evidence,offense:profile.o,defense:profile.d,advanced:profile.advanced,roster:profile.roster}];
+  });
+}
+function ConferenceRatingVisualizer({season,week,setSeason,setWeek}:ModelVintageProps){
+  const dynamic=useDynamicProfiles(season,week);
+  const profiles=useMemo(()=>roundRobinProfilesForSeason(dynamic.teams,season,week),[dynamic.teams,season,week]);
+  return <ConferenceRatingChart profiles={profiles} effectiveWeek={dynamic.effectiveWeek} loading={dynamic.loading} season={season} week={week} controls={<VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} idPrefix="conference-ratings"/>}/>;
+}
+
 function All137({ season, week, setSeason, setWeek, onSelectTeam, onSelectGame }: ModelVintageProps & {onSelectTeam?:(team:string)=>void;onSelectGame?:RankingGameSelectHandler}) {
   const [query, setQuery] = useState("");
   const [fieldMode, setFieldMode] = useState<"season"|"every-season">("season");
@@ -2816,17 +2876,7 @@ function All137({ season, week, setSeason, setWeek, onSelectTeam, onSelectGame }
   const dynamic = useDynamicProfiles(season, week);
   const everySeason = useEverySeasonProfiles(fieldMode === "every-season");
   const availableTeams = dynamic.teams;
-  const seasonProfiles = useMemo<RoundRobinProfile[]>(() => availableTeams.flatMap((team) => {
-    const profile=latestProfile(team,week);
-    if(!profile) return [];
-    return [{id:team.name,team:team.name,season,week,conference:team.conference,logo:team.logo,rating:team.rating,resumeScore:team.resumeScore,seasonRecord:team.seasonRecord,nationalChampion:team.nationalChampion,evidence:profile.evidence,offense:profile.o,defense:profile.d,advanced:profile.advanced}];
-  }),[availableTeams,season,week]);
-  // Each neutral matchup is calculated once and credited to both teams. The
-  // previous UI loop built the full X-ray twice for every pairing.
-  const seasonRows = useMemo(() => buildRoundRobinStandings(seasonProfiles).map((row)=>({
-    id:row.profile.id,name:row.profile.team,season:null as number|null,conference:row.profile.conference||"FBS",secondary:row.profile.conference||"FBS",logo:row.profile.logo||undefined,
-    wins:row.wins,losses:row.losses,games:row.games,expectedWins:row.expectedWins,winPct:row.winPct,averageMargin:row.averageMargin,bestUnit:row.bestUnit,unitWins:row.unitWins,rank:row.rank,
-  })),[seasonProfiles]);
+  const seasonProfiles = useMemo(() => dynamic.rows.length?roundRobinProfilesFromRows(dynamic.rows as unknown as Record<string,unknown>[],season,week):roundRobinProfilesForSeason(availableTeams,season,week),[dynamic.rows,availableTeams,season,week]);
   const everySeasonProfiles = useMemo<RoundRobinProfile[]>(() => everySeason.rows.map((row) => ({
     id:`${row.season}:${row.team}`,
     team:row.team,
@@ -2835,23 +2885,36 @@ function All137({ season, week, setSeason, setWeek, onSelectTeam, onSelectGame }
     conference:row.conference,
     logo:row.logo,
     rating:row.crossEraRating??row.eloRating,
+    conferenceAdjustment:row.conferenceAdjustment,
     resumeScore:row.resumeScore,
     seasonRecord:row.seasonRecord,
     nationalChampion:row.nationalChampion,
     evidence:{
       gamesPlayed:row.gamesPlayed,scheduleStrength:row.scheduleStrength??0.5,bestOpponentStrength:row.bestOpponentStrength??0.5,
-      qualityWinStrength:row.qualityWinStrength??0.35,reliability:row.matchupReliability??0.72,
+      qualityWinStrength:row.qualityWinStrength??0.35,reliability:row.matchupReliability??0.72,...scoringEvidenceFields(row),
     },
     offense:[row.offYppIndex,row.offYpaIndex,row.offYpcIndex,row.offPattIndex,row.offRattIndex],
     defense:[row.defYppIndex,row.defYpaIndex,row.defYpcIndex,row.defPattIndex,row.defRattIndex],
-    advanced:row.advancedProfile,
+    advanced:row.advancedProfile,roster:row.roster,
   })), [everySeason.rows]);
-  const everySeasonRows = useMemo(() => buildRoundRobinStandings(everySeasonProfiles).map((row) => ({
-    id:row.profile.id,name:row.profile.team,season:row.profile.season,conference:row.profile.conference||"FBS",
-    secondary:`${row.profile.seasonRecord??`final W${row.profile.week}`} · ${row.profile.conference||"FBS"}${row.profile.nationalChampion?" · NATIONAL CHAMPION":""}`,logo:row.profile.logo||undefined,
+  const activeProfiles=fieldMode==="every-season"?everySeasonProfiles:seasonProfiles;
+  const published=useQuery({queryKey:["background-output",season],enabled:fieldMode==="season",queryFn:async()=>{const response=await fetch(`/api/background/result?season=${season}`);return response.status===200?await response.json() as ModelOutput:null;}});
+  const prepared=fieldMode==="season"&&published.data?.formulaRevision===currentMatchupFormulaRevision&&published.data.inputHash===profileFingerprint(activeProfiles)?published.data:null;
+  const [calculation,setCalculation]=useState<{profiles:readonly RoundRobinProfile[];rows:RoundRobinStanding[];progress:number;done:boolean;error:string}>({profiles:[],rows:[],progress:0,done:false,error:""});
+  useEffect(()=>{
+    const controller=new AbortController();
+    setCalculation({profiles:activeProfiles,rows:[],progress:0,done:false,error:""});
+    if(prepared){setCalculation({profiles:activeProfiles,rows:prepared.roundRobin,progress:activeProfiles.length*(activeProfiles.length-1)/2,done:true,error:""});return()=>controller.abort();}
+    buildRoundRobinStandingsAsync(activeProfiles,controller.signal,progress=>setCalculation(current=>({...current,progress})))
+      .then(rows=>{if(!controller.signal.aborted)setCalculation({profiles:activeProfiles,rows,progress:activeProfiles.length*(activeProfiles.length-1)/2,done:true,error:""});})
+      .catch(e=>{if(e.name!=="AbortError")setCalculation({profiles:activeProfiles,rows:[],progress:0,done:true,error:"Power ratings could not be calculated."});});
+    return()=>controller.abort();
+  },[activeProfiles,prepared]);
+  const calculating=calculation.profiles!==activeProfiles||!calculation.done;
+  const rows=useMemo(()=>(calculation.profiles===activeProfiles?calculation.rows:[]).map(row=>({
+    id:row.profile.id,name:row.profile.team,season:fieldMode==="every-season"?row.profile.season:null,conference:row.profile.conference||"FBS",logo:row.profile.logo||undefined,
     wins:row.wins,losses:row.losses,games:row.games,expectedWins:row.expectedWins,winPct:row.winPct,averageMargin:row.averageMargin,bestUnit:row.bestUnit,unitWins:row.unitWins,rank:row.rank,
-  })), [everySeasonProfiles]);
-  const rows = fieldMode === "every-season" ? everySeasonRows : seasonRows;
+  })),[activeProfiles,calculation,fieldMode]);
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = rows.filter((row) => `${row.name} ${row.conference} ${row.season ?? ""}`.toLowerCase().includes(normalizedQuery));
   const shownRows = filtered.slice(0, visibleCount);
@@ -2859,14 +2922,14 @@ function All137({ season, week, setSeason, setWeek, onSelectTeam, onSelectGame }
   const fieldSize = fieldMode === "every-season" ? everySeasonProfiles.length : availableTeams.length;
   const uniqueMatchups = (fieldSize * (fieldSize - 1)) / 2;
   return <section className="page-section all137-page">
-    <div className="section-kicker">NEUTRAL-FIELD ROUND ROBIN · <span className={`data-source ${fieldMode === "every-season" ? everySeason.loading ? "loading" : "database" : dynamic.source}`}>{fieldMode === "every-season" ? everySeason.loading ? "LOADING CROSS-ERA FIELD" : "FINAL SEASON SNAPSHOTS" : sourceLabel(dynamic.source, season)}</span></div>
-    <div className="section-title-row"><div><h1>All137</h1><p>{fieldMode === "every-season" ? "Every model-ready team-season plays every other team-season once, creating one cross-era ranking from 2014 forward." : "Every model-ready FBS team plays every other team once. Teams rank by projected wins, then expected wins and average margin."}</p></div><div className="all137-controls"><div className="all137-field-control"><label htmlFor="all137-field">FIELD</label><select id="all137-field" value={fieldMode} onChange={(event)=>{ setFieldMode(event.target.value as "season"|"every-season"); setVisibleCount(100); }}><option value="season">Single Season</option><option value="every-season">Every Season</option></select></div>{fieldMode === "season" ? <VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} idPrefix="all137" /> : null}</div></div>
-    {!leader ? <div className="data-empty"><strong>{everySeason.loading ? "Building the cross-era field…" : "No All137 field exists for this selection yet."}</strong><span>{fieldMode === "every-season" ? "Completed historical team profiles will appear here as the archive finishes." : "Select a populated season and week, or activate the historical sync."}</span></div> : <>
+    <div className="section-kicker">PREDICTIVE POWER RATINGS · <span className={`data-source ${fieldMode === "every-season" ? everySeason.loading ? "loading" : "database" : dynamic.source}`}>{fieldMode === "every-season" ? everySeason.loading ? "LOADING CROSS-ERA FIELD" : "FINAL SEASON SNAPSHOTS" : sourceLabel(dynamic.source, season)}</span></div>
+    <div className="section-title-row"><div><h1>All137</h1><p>{fieldMode === "every-season" ? "Every model-ready team-season plays every other team-season on a neutral field using the shared game prediction formula. Power rank follows expected wins, then average margin." : "Power ratings from the same prediction formula as Matchup Lab and Scores. Every model-ready FBS team plays every other team on a neutral field; teams rank by expected wins, then average margin and projected wins."}</p></div><div className="all137-controls"><div className="all137-field-control"><label htmlFor="all137-field">FIELD</label><select id="all137-field" value={fieldMode} onChange={(event)=>{ setFieldMode(event.target.value as "season"|"every-season"); setVisibleCount(100); }}><option value="season">Single Season</option><option value="every-season">Every Season</option></select></div>{fieldMode === "season" ? <VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} idPrefix="all137" /> : null}</div></div>
+    {!leader ? <div className="data-empty"><strong>{calculation.error||((calculating||dynamic.loading||everySeason.loading)?"Calculating shared-formula power ratings…":"No All137 field exists for this selection yet.")}</strong><span>{calculating&&activeProfiles.length>1?`${Math.min(100,Math.round(calculation.progress/Math.max(1,uniqueMatchups)*100))}% · ${uniqueMatchups.toLocaleString()} neutral matchups`:fieldMode === "every-season" ? "Completed historical team profiles will appear here as the archive finishes." : "Select a populated season and week, or activate the historical sync."}</span></div> : <>
       <div className="all137-summary">
-        <article><span>ROUND-ROBIN LEADER</span><div><TeamMark name={leader.name} size="md" logo={leader.logo} /><strong>{leader.season ? `${leader.season} ${leader.name}` : leader.name}</strong></div><b>{leader.wins}–{leader.losses}</b></article>
+        <article><span>ROUND-ROBIN LEADER</span><div className="team-identity-surface" style={teamIdentityStyle(leader.name)}><TeamMark name={leader.name} size="md" logo={leader.logo} /><strong>{leader.season ? `${leader.season} ${leader.name}` : leader.name}</strong></div><b>{leader.wins}–{leader.losses}</b></article>
         <article><span>{fieldMode === "every-season" ? "TEAM-SEASONS" : "TEAMS LOADED"}</span><strong>{fieldSize}</strong><small>{fieldMode === "every-season" ? `${everySeason.seasons.length} seasons currently ready` : `${season} model-ready profiles`}</small></article>
         <article><span>UNIQUE MATCHUPS</span><strong>{uniqueMatchups.toLocaleString()}</strong><small>neutral-field simulations</small></article>
-        <article><span>MODEL VINTAGE</span><strong>{fieldMode === "every-season" ? "ALL" : `W${week}`}</strong><small>{fieldMode === "every-season" ? `${everySeason.seasons[0] ?? 2014}–${everySeason.seasons.at(-1) ?? season}` : `${season} snapshot`}</small></article>
+        <article><span>MODEL VINTAGE</span><strong>{fieldMode === "every-season" ? "ALL" : weekLabel(week,"compact")}</strong><small>{fieldMode === "every-season" ? `${everySeason.seasons[0] ?? 2014}–${everySeason.seasons.at(-1) ?? season}` : `${season} · stats through ${weekLabel(dynamic.effectiveWeek??week)}`}</small></article>
       </div>
       <div className="all137-toolbar"><div><strong>{fieldMode === "every-season" ? "Cross-era standings" : "Round-robin standings"}</strong><span>Each record contains {fieldSize - 1} neutral-field games.</span></div><input value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(100); }} placeholder={fieldMode === "every-season" ? "Search team, conference or year" : "Search team or conference"} aria-label="Search All137 rankings" /></div>
       <div className="rankings-shell unified-rankings-shell all137-unified-shell">
@@ -2919,6 +2982,7 @@ function TeamStatsPage({ season, week, setSeason, setWeek }: ModelVintageProps) 
   const rows = dynamic.rows.length ? dynamic.rows : fallbackRows;
   const conferences = useMemo(() => [...new Set(rows.map((row) => row.conference || "FBS"))].sort(), [rows]);
   const visibleColumns = useMemo(() => teamStatsColumns(statGroup, advancedView), [advancedView, statGroup]);
+  const columnRanks = useMemo(() => teamStatsColumnRanks(rows, visibleColumns), [rows, visibleColumns]);
   const filtered = useMemo(() => sortTeamStatsRows(rows.filter((row) =>
     matchesConferenceFilter(row.conference,conference)
     && `${row.team} ${row.conference}`.toLowerCase().includes(query.toLowerCase())
@@ -2929,8 +2993,8 @@ function TeamStatsPage({ season, week, setSeason, setWeek }: ModelVintageProps) 
   const activeSort = visibleColumns.find((column) => column.key === sortKey) ?? visibleColumns[2] ?? visibleColumns[0];
   const groupLabel = TEAM_STATS_GROUPS.find((group) => group.key === statGroup)?.label ?? "Core Efficiency";
   const statsGridStyle = {
-    "--stats-grid": `minmax(230px,1.35fr) 58px repeat(${Math.max(0, visibleColumns.length - 2)},minmax(108px,.72fr))`,
-    "--stats-min-width": `${Math.max(920, 288 + Math.max(0, visibleColumns.length - 2) * 114)}px`,
+    "--stats-grid": `minmax(210px,1.4fr) 64px repeat(${Math.max(0, visibleColumns.length - 2)},minmax(92px,.7fr))`,
+    "--stats-min-width": `${274 + Math.max(0, visibleColumns.length - 2) * 92}px`,
   } as CSSProperties;
   const changeSort = (nextKey:TeamStatsSortKey) => {
     if (nextKey === sortKey) {
@@ -2958,10 +3022,10 @@ function TeamStatsPage({ season, week, setSeason, setWeek }: ModelVintageProps) 
   return <section className="page-section stats-page">
     <div className="section-kicker">TEAM STAT DATABASE · <span className={`data-source ${dynamic.source}`}>{sourceLabel(dynamic.source, season)}</span></div>
     <div className="section-title-row"><div><h1>Team Stats</h1><p>Weekly cumulative team production, raw defensive allowances and opponent-adjusted efficiency indices frozen after each week.</p></div><VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} /></div>
-    {!rows.length ? <div className="data-empty"><strong>No team-stat snapshot is available for {season}, week {week}.</strong><span>Historical seasons populate automatically when the data pipeline is activated.</span></div> : <>
+    {!rows.length ? <div className="data-empty"><strong>No team-stat snapshot is available for {season}, {weekLabel(week)}.</strong><span>Historical seasons populate automatically when the data pipeline is activated.</span></div> : <>
       <div className="stats-summary stats-leader-summary">
-        {topOffense?<article><TeamMark name={topOffense.team} size="sm" logo={topOffense.logo}/><div><span>TOP OFFENSE</span><strong>{topOffense.team}</strong><small>{(average([topOffense.offYppIndex,topOffense.offYpaIndex,topOffense.offYpcIndex])*100).toFixed(0)} INDEX</small></div></article>:null}
-        {topDefense?<article><TeamMark name={topDefense.team} size="sm" logo={topDefense.logo}/><div><span>TOP DEFENSE</span><strong>{topDefense.team}</strong><small>{(average([topDefense.defYppIndex,topDefense.defYpaIndex,topDefense.defYpcIndex])*100).toFixed(0)}% ALLOWED</small></div></article>:null}
+        {topOffense?<article className="team-identity-surface" style={teamIdentityStyle(topOffense.team)}><TeamMark name={topOffense.team} size="sm" logo={topOffense.logo}/><div><span>TOP OFFENSE</span><strong>{topOffense.team}</strong><small>{(average([topOffense.offYppIndex,topOffense.offYpaIndex,topOffense.offYpcIndex])*100).toFixed(0)} INDEX</small></div></article>:null}
+        {topDefense?<article className="team-identity-surface" style={teamIdentityStyle(topDefense.team)}><TeamMark name={topDefense.team} size="sm" logo={topDefense.logo}/><div><span>TOP DEFENSE</span><strong>{topDefense.team}</strong><small>{(average([topDefense.defYppIndex,topDefense.defYpaIndex,topDefense.defYpcIndex])*100).toFixed(0)}% ALLOWED</small></div></article>:null}
       </div>
       <details className="stats-filter-drawer team-stats-filter-drawer">
         <summary><span><strong>Filters</strong><small>{groupLabel} · {conferenceFilterDisplay(conference)} · {activeSort.label} {sortDirection==="asc"?"↑":"↓"}{statGroup==="core"?"":` · ${advancedCoverage}/${rows.length} advanced`}</small></span><b aria-hidden="true">+</b></summary>
@@ -2979,7 +3043,7 @@ function TeamStatsPage({ season, week, setSeason, setWeek }: ModelVintageProps) 
           const active = column.key === sortKey;
           return <div className="stats-head-cell" role="columnheader" aria-sort={active ? (sortDirection === "asc" ? "ascending" : "descending") : "none"} key={column.key}><button type="button" className={active ? "active" : ""} onClick={() => changeSort(column.key)} aria-label={`Sort by ${column.label}${active ? `, currently ${sortDirection === "asc" ? "ascending" : "descending"}` : ""}`}><span>{column.label}</span><i aria-hidden="true">{active ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</i></button><StatHelp label={column.label} explanation={column.description} /></div>;
         })}</div>
-        {filtered.map((row) => <div className="stats-row" style={statsGridStyle} key={row.team}><div><TeamMark name={row.team} size="sm" logo={row.logo} /><span><strong>{row.team}</strong><small>{row.conference || "FBS"} · {row.advancedProfile ? `${row.advancedProfile.coverage.advancedGames} ADV GAMES` : "CORE PROFILE"}</small></span></div><div className="stats-metrics">{visibleColumns.slice(1).map((column) => <span className={`stats-value ${column.key === sortKey ? "active-value" : ""} ${teamStatsValueTone(row, column.key)}`} data-label={column.dataLabel} key={column.key}>{formatTeamStatsValue(row, column)}</span>)}</div></div>)}
+        {filtered.map((row) => <div className="stats-row" style={statsGridStyle} key={row.team}><div className="team-identity-surface" style={teamIdentityStyle(row.team,row.color)}><TeamMark name={row.team} size="sm" logo={row.logo} /><span><strong><TeamAccent name={row.team} color={row.color}/></strong><small>{row.conference || "FBS"} · {row.advancedProfile ? `${row.advancedProfile.coverage.advancedGames} ADV GAMES` : "CORE PROFILE"}</small></span></div><div className="stats-metrics">{visibleColumns.slice(1).map((column) => <span className={`stats-value ${column.key === sortKey ? "active-value" : ""} ${teamStatsValueTone(row, column.key)}`} data-label={column.dataLabel} key={column.key}><span className="stats-value-line"><span className="stats-value-number">{formatTeamStatsValue(row, column)}</span>{columnRanks.get(column.key)?.get(row.team) ? <small className="stats-value-rank" title={`Full FBS rank for ${column.label}; filters do not change this rank`}>#{columnRanks.get(column.key)?.get(row.team)}</small> : null}</span></span>)}</div></div>)}
       </div>
       <p className="all137-disclaimer">Raw values remain cumulative through the selected week. Adjusted percentages use the iterative opponent network: 100% is the FBS average, above 100% is stronger offense, and below 100% allowed is stronger defense. A dash means the historical source did not supply enough data for that metric.</p>
     </>}
@@ -3005,7 +3069,7 @@ function fullGameDate(value?:string){
 function gameTime(value?:string){
   if(!value)return"TIME TBD";
   const date=new Date(value);
-  return Number.isNaN(date.getTime())?"TIME TBD":new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago",timeZoneName:"short"}).format(date);
+  return Number.isNaN(date.getTime())?"TIME TBD":new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"}).format(date);
 }
 
 function gameDisplayScore(row:ScheduleRow,side:"home"|"away"){
@@ -3038,8 +3102,7 @@ function gameTeamCode(name:string){
 }
 
 function marketSpreadLabel(row:ScheduleRow){
-  if(row.formattedSpread?.trim())return row.formattedSpread.trim();
-  const spread=row.vegasSpread??row.spreadOpen;
+  const spread=row.vegasSpread;
   if(spread===null||spread===undefined||!Number.isFinite(spread))return"—";
   if(Math.abs(spread)<.05)return"PK";
   const favorite=spread<0?row.homeTeam:row.awayTeam;
@@ -3047,25 +3110,14 @@ function marketSpreadLabel(row:ScheduleRow){
 }
 
 function marketTotalLabel(row:ScheduleRow){
-  const total=row.vegasTotal??row.overUnderOpen;
+  const total=row.vegasTotal;
   return total===null||total===undefined||!Number.isFinite(total)?"—":`O/U ${total.toFixed(Number.isInteger(total)?0:1)}`;
 }
 
-function compactMarketSpreadLabel(row:ScheduleRow){
-  const spread=row.vegasSpread??row.spreadOpen;
-  if(spread===null||spread===undefined||!Number.isFinite(spread)){
-    const formatted=row.formattedSpread?.trim();
-    if(!formatted)return"—";
-    const favorite=[row.homeTeam,row.awayTeam].sort((left,right)=>right.length-left.length).find((team)=>formatted.toLowerCase().startsWith(team.toLowerCase()));
-    return favorite?`${gameTeamCode(favorite)}${formatted.slice(favorite.length)}`:formatted;
-  }
-  if(Math.abs(spread)<.05)return"PK";
-  const favorite=spread<0?row.homeTeam:row.awayTeam;
-  return`${gameTeamCode(favorite)} -${Math.abs(spread).toFixed(Number.isInteger(spread)?0:1)}`;
-}
+function compactMarketSpreadLabel(row:ScheduleRow){return marketSpreadLabel(row);}
 
 function compactMarketTotalLabel(row:ScheduleRow){
-  const total=row.vegasTotal??row.overUnderOpen;
+  const total=row.vegasTotal;
   return total===null||total===undefined||!Number.isFinite(total)?"—":total.toFixed(Number.isInteger(total)?0:1);
 }
 
@@ -3101,7 +3153,7 @@ function CompactGameWinConditions({row,onExplore}:{row:ScheduleRow;onExplore:(ro
     {expanded?<div className="score-wc-body">
       {result.loading?<p className="score-wc-loading">Building the correlated game scripts…</p>:analysis?<>
         <div className="score-wc-team-grid">{[analysis.away,analysis.home].map((teamAnalysis)=><article key={teamAnalysis.side}>
-          <header><TeamMark name={teamAnalysis.team} size="sm" logo={teamAnalysis.side==="home"?row.homeLogo:row.awayLogo}/><strong>{teamAnalysis.team}</strong></header>
+          <header className="team-identity-surface" style={teamIdentityStyle(teamAnalysis.team)}><TeamMark name={teamAnalysis.team} size="sm" logo={teamAnalysis.side==="home"?row.homeLogo:row.awayLogo}/><strong>{teamAnalysis.team}</strong></header>
           <div className="score-wc-metrics"><span><small>WIN</small><b>{Math.round(teamAnalysis.winProbability*100)}%</b></span><span><small>WIDTH</small><b>{metric(teamAnalysis.pathWidth)}</b></span><span><small>FRAGILITY</small><b>{metric(teamAnalysis.fragility)}</b></span></div>
           {analysis.dataQuality==="baseline-only"?<p>Baseline projection only — not enough point-in-time data for reliable thresholds.</p>:<ul>{teamAnalysis.conditions.slice(0,3).map((condition)=><li key={condition.id}><span>{condition.label}</span><b>{conditionTarget(condition)}</b></li>)}</ul>}
         </article>)}</div>
@@ -3111,73 +3163,71 @@ function CompactGameWinConditions({row,onExplore}:{row:ScheduleRow;onExplore:(ro
   </section>;
 }
 
-function MobileGameCard({row,onOpen,onExplore,projectedFinalRanks,rankingWeek}:{row:ScheduleRow;onOpen:(row:ScheduleRow)=>void;onExplore:(row:ScheduleRow)=>void;projectedFinalRanks:Map<string,number>;rankingWeek:number}){
-  const completed=Boolean(row.completed);
-  const homeScore=gameDisplayScore(row,"home"),awayScore=gameDisplayScore(row,"away");
-  const rankingEvidence=rankingWeek?`results through week ${rankingWeek}`:"the preseason snapshot";
-  const projectedRank=(team:string,side:"home"|"away")=>{
-    const gameTimeRank=side==="home"?row.homePregameRank:row.awayPregameRank;
-    const rank=gameTimeRank??projectedFinalRanks.get(team);
-    return rank&&rank<=25?<em className="mobile-game-team-rank" aria-label={`Harper Plus entering-week rank ${rank}, projected final order based on ${rankingEvidence}`}>H+ #{rank}</em>:null;
-  };
-  return <article className="mobile-game-card-shell">
-    <button type="button" className="mobile-game-card schedule-field-card" onClick={()=>onOpen(row)} aria-label={`Open ${row.awayTeam} at ${row.homeTeam}`}>
-      <span className="mobile-game-matchup">
-        <span className={`mobile-game-team away-side ${gameTeamResultClass(row,"away")}`}><TeamMark name={row.awayTeam} size="sm" logo={row.awayLogo} genericLabel={isFcsTeam(row.awayTeam,row.awayConference)?"FCS":undefined}/><span><span className="mobile-game-team-title"><strong data-compact-name={gameTeamCode(row.awayTeam)} title={row.awayTeam}>{row.awayTeam}</strong>{projectedRank(row.awayTeam,"away")}</span><small>AWAY · {row.awayRecordAfter??row.awayConference??"FBS"}</small></span><b>{awayScore??"—"}</b></span>
-        <span className="mobile-game-status"><strong>{completed?"FINAL":"H+ PROJ"}</strong><small>{completed?scheduleGameLabel(row):gameTime(row.startDate)}</small><i aria-hidden="true">›</i></span>
-        <span className={`mobile-game-team home-side ${gameTeamResultClass(row,"home")}`}><TeamMark name={row.homeTeam} size="sm" logo={row.homeLogo} genericLabel={isFcsTeam(row.homeTeam,row.homeConference)?"FCS":undefined}/><span><span className="mobile-game-team-title"><strong data-compact-name={gameTeamCode(row.homeTeam)} title={row.homeTeam}>{row.homeTeam}</strong>{projectedRank(row.homeTeam,"home")}</span><small>{row.neutralSite?"DESIGNATED HOME":"HOME"} · {row.homeRecordAfter??row.homeConference??"FBS"}</small></span><b>{homeScore??"—"}</b></span>
-      </span>
-      <span className="mobile-game-market-strip" aria-label="Market and H+ lines"><span><i>MKT SPREAD</i><b>{compactMarketSpreadLabel(row)}</b></span><span><i>H+ SPREAD</i><b>{modelSpreadLabel(row)}</b></span><span><i>MKT TOTAL</i><b>{compactMarketTotalLabel(row)}</b></span><span><i>H+ TOTAL</i><b>{modelTotalLabel(row)}</b></span></span>
-    </button>
-    <CompactGameWinConditions row={row} onExplore={onExplore}/>
-  </article>;
-}
-
-function MobileScoreboard({rows,onOpen,onExplore,projectedFinalRanks,rankingWeek}:{rows:ScheduleRow[];onOpen:(row:ScheduleRow)=>void;onExplore:(row:ScheduleRow)=>void;projectedFinalRanks:Map<string,number>;rankingWeek:number}){
-  const groups=rows.reduce<Array<{label:string;rows:ScheduleRow[]}>>((result,row)=>{
-    const label=fullGameDate(row.startDate);
-    const previous=result.at(-1);
-    if(previous?.label===label)previous.rows.push(row);
-    else result.push({label,rows:[row]});
-    return result;
-  },[]);
-  return <div className="mobile-scoreboard">
-    {groups.map((group)=><section className="mobile-score-day" key={group.label}><h2>{group.label}</h2><div className="schedule-column-grid" style={scheduleColumnGridStyle(group.rows.length)}>{group.rows.map((row)=><MobileGameCard key={row.gameId} row={row} onOpen={onOpen} onExplore={onExplore} projectedFinalRanks={projectedFinalRanks} rankingWeek={rankingWeek}/>)}</div></section>)}
-  </div>;
-}
-
 function compactGameDate(value?:string){
   if(!value)return"TBD";
   const date=new Date(value);
   return Number.isNaN(date.getTime())?value:new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",timeZone:"America/Chicago"}).format(date).toUpperCase();
 }
 
-function TeamScheduleGame({row,team,onOpen}:{row:ScheduleRow;team:string;onOpen:(row:ScheduleRow)=>void}){
+const teamUnitRankColumns:[keyof UnitRanks,string,string][]=[
+  ["offenseRank","OFF","Overall offense"],["rushOffenseRank","R OFF","Rushing offense"],["passOffenseRank","P OFF","Passing offense"],
+  ["defenseRank","DEF","Overall defense"],["rushDefenseRank","R DEF","Rushing defense"],["passDefenseRank","P DEF","Passing defense"],
+];
+
+function unitRankTone(rank:number|null|undefined,fieldSize:number){
+  if(!rank)return "unranked";
+  return rank<=Math.ceil(fieldSize*.25)?"good":rank>Math.floor(fieldSize*.75)?"bad":"average";
+}
+
+function TeamUnitRanks({ranks,fieldSize,className=""}:{ranks?:UnitRanks|null;fieldSize:number;className?:string}){
+  return <span className={`team-unit-ranks ${className}`}>{teamUnitRankColumns.map(([key,label,title])=>{
+    const rank=ranks?.[key];
+    return <span key={key} className={`team-unit-rank ${unitRankTone(rank,fieldSize)}`} title={`${title}: ${rank?`#${rank}`:"unranked"}`}><small>{label}</small><b>{rank?`#${rank}`:"—"}</b></span>;
+  })}</span>;
+}
+
+function signedMargin(value:number|null|undefined){
+  if(value==null||!Number.isFinite(value))return "—";
+  const rounded=Math.round(value);
+  return `${rounded>0?"+":""}${rounded}`;
+}
+
+function marginTone(value:number|null){
+  if(value===null||!Number.isFinite(value))return "unavailable";
+  const rounded=Math.round(value);
+  return rounded>0?"positive":rounded<0?"negative":"average";
+}
+
+function TeamScheduleGame({row,team,fieldSize,onOpen}:{row:ScheduleRow;team:string;fieldSize:number;onOpen:(row:ScheduleRow)=>void}){
   const completed=Boolean(row.completed);
   const homeScore=gameDisplayScore(row,"home"),awayScore=gameDisplayScore(row,"away");
-  const selectedSide=row.homeTeam===team?"home":row.awayTeam===team?"away":null;
-  const selectedTeamLost=selectedSide?gameTeamLost(row,selectedSide):false;
-  const teamLine=(side:"home"|"away")=>{
-    const home=side==="home";
-    const name=home?row.homeTeam:row.awayTeam;
-    const logo=home?row.homeLogo:row.awayLogo;
-    const score=home?homeScore:awayScore;
-    const rank=home?row.homePregameRank:row.awayPregameRank;
-    const conference=home?row.homeConference:row.awayConference;
-    return <span className={`team-schedule-team ${gameTeamResultClass(row,side)}`}>
-      <TeamMark name={name} size="sm" logo={logo} genericLabel={isFcsTeam(name,conference)?"FCS":undefined} variant="helmet"/>
-      <span><strong>{name}</strong>{rank&&rank<=25?<em className="schedule-game-rank" aria-label={`Harper+ entering-week rank ${rank}`}>H+ #{rank}</em>:null}</span>
-      <b>{score??"—"}</b>
-    </span>;
-  };
-  return <button type="button" className={`team-schedule-game schedule-field-card ${selectedTeamLost?"loss":""}`} onClick={()=>onOpen(row)} aria-label={`Open ${row.awayTeam} at ${row.homeTeam}`}>
-    <span className="team-schedule-teams">{teamLine("away")}{teamLine("home")}</span>
-    <span className="team-schedule-status"><strong>{completed?"FINAL":"H+ PROJ"}</strong><small>{scheduleGameLabel(row)} · {compactGameDate(row.startDate)}</small><i aria-hidden="true">›</i></span>
+  const atHome=row.homeTeam===team;
+  const opponent=atHome?row.awayTeam:row.homeTeam;
+  const opponentLogo=atHome?row.awayLogo:row.homeLogo;
+  const opponentConference=atHome?row.awayConference:row.homeConference;
+  const opponentRecord=atHome?row.awayCurrentRecord:row.homeCurrentRecord;
+  const opponentConfRecord=atHome?row.awayCurrentConferenceRecord:row.homeCurrentConferenceRecord;
+  const teamScore=atHome?homeScore:awayScore,opponentScore=atHome?awayScore:homeScore;
+  const predictedTeam=completed?(atHome?row.pregameHomeScore:row.pregameAwayScore):(atHome?row.predictedHomeScore:row.predictedAwayScore);
+  const predictedOpponent=completed?(atHome?row.pregameAwayScore:row.pregameHomeScore):(atHome?row.predictedAwayScore:row.predictedHomeScore);
+  const expectedMargin=predictedTeam!=null&&predictedOpponent!=null?predictedTeam-predictedOpponent:null;
+  const actualMargin=completed&&row.homePoints!=null&&row.awayPoints!=null?(atHome?1:-1)*(row.homePoints-row.awayPoints):null;
+  const result=teamScore===null||opponentScore===null?null:teamScore>opponentScore?"win":teamScore<opponentScore?"loss":"tie";
+  return <button type="button" className={`team-schedule-game compact-team-game ${result??""}`} onClick={()=>onOpen(row)} aria-label={`Open ${row.awayTeam} at ${row.homeTeam}`}>
+    <span className="team-schedule-date"><b>{row.seasonType==="regular"?weekLabel(row.week,"compact"):"POST"}</b><small>{compactGameDate(row.startDate)}</small></span>
+    <span className="team-schedule-opponent"><TeamMark name={opponent} size="sm" logo={opponentLogo} genericLabel={isFcsTeam(opponent,opponentConference)?"FCS":undefined} variant="helmet"/><span className="team-schedule-identity"><strong>{row.neutralSite?"vs":atHome?"vs":"@"} <TeamAccent name={opponent}/></strong><small className="team-schedule-records" title="Latest actual overall and conference records for this season">{opponentRecord??"—"} overall · {opponentConfRecord??"—"} conf</small></span></span>
+    <TeamUnitRanks ranks={row.opponentUnitRanks} fieldSize={fieldSize}/>
+    <span className="team-schedule-margins">
+      <span className="team-schedule-score" title={`${completed?"Final":"Projected"} score · ${team} first`}><small>{completed?"FINAL":"PROJ"}</small><b>{teamScore===null||opponentScore===null?"—":`${Math.round(teamScore)}–${Math.round(opponentScore)}`}</b></span>
+      <span className={`team-schedule-margin ${marginTone(actualMargin)}`} data-label="MOV" title="Margin of victory: actual team points minus opponent points"><small>MOV</small><b>{signedMargin(actualMargin)}</b></span>
+      <span className={`team-schedule-margin team-schedule-expected-margin ${marginTone(expectedMargin)}`} data-label="EXP MOV" title={completed?"Expected margin of victory from the dated pregame prediction":"Expected margin of victory from the current projection"}><small>EXP MOV</small><b>{signedMargin(expectedMargin)}</b></span>
+    </span>
+    <span className={`team-schedule-result ${result??""}`} aria-label={result?`${completed?"Final":"Projected"} ${result}`:"No result available"}>{result==="win"?"WIN":result==="loss"?"LOSS":result==="tie"?"TIE":"—"}</span>
   </button>;
 }
 
-function TeamScheduleList({rows,team,onOpen}:{rows:ScheduleRow[];team:string;onOpen:(row:ScheduleRow)=>void}){
-  return <div className="team-schedule-list schedule-column-grid" style={scheduleColumnGridStyle(rows.length)}>{rows.map((row)=><TeamScheduleGame key={row.gameId} row={row} team={team} onOpen={onOpen}/>)}</div>;
+function TeamScheduleList({rows,team,fieldSize,onOpen}:{rows:ScheduleRow[];team:string;fieldSize:number;onOpen:(row:ScheduleRow)=>void}){
+  return <div className="team-schedule-list compact-team-schedule"><div className="team-schedule-column-head"><span>WK</span><span>OPPONENT</span>{teamUnitRankColumns.map(([key,label,title])=><span key={key} title={title}>{label}</span>)}<span title="Final or projected score, selected team first">SCORE</span><span title="Margin of victory">MOV</span><span title="Expected margin of victory">EXP MOV</span><span>W/L</span></div>{rows.map((row)=><TeamScheduleGame key={row.gameId} row={row} team={team} fieldSize={fieldSize} onOpen={onOpen}/>)}</div>;
 }
 
 function gameStatValue(value:number|null|undefined,digits=0){
@@ -3220,10 +3270,10 @@ function gameStatLeaderSide(away:number|null|undefined,home:number|null|undefine
   return awayBetter?"away":"home";
 }
 
-function GameStatReadout({display,value,average,lowerIsBetter=false,leader}:{display:string;value:number|null|undefined;average:number|null|undefined;lowerIsBetter?:boolean;leader?:GameStatLeader}){
+function GameStatReadout({display,value,average,lowerIsBetter=false,leader,prediction}:{display:string;value:number|null|undefined;average:number|null|undefined;lowerIsBetter?:boolean;leader?:GameStatLeader;prediction?:string}){
   const tone=gameStatTone(value,average,lowerIsBetter);
   const quality=tone==="good"?"above average":tone==="poor"?"below average":tone==="average"?"near average":"unavailable";
-  return <strong className={`game-stat-readout ${tone}`} aria-label={`${display}, ${quality}${leader?`, ${leader.name} led this category`:""}`}>{leader?<TeamMark name={leader.name} size="sm" logo={leader.logo} genericLabel={isFcsTeam(leader.name,leader.conference)?"FCS":undefined} variant="helmet"/>:null}<b>{display}</b></strong>;
+  return <strong className={`game-stat-readout ${tone}`} aria-label={`${display}, ${quality}${prediction?`, Harper Plus predicted ${prediction}`:""}${leader?`, ${leader.name} led this category`:""}`}>{leader?<TeamMark name={leader.name} size="sm" logo={leader.logo} genericLabel={isFcsTeam(leader.name,leader.conference)?"FCS":undefined} variant="helmet"/>:null}<span><b>{display}</b>{prediction?<small className="game-stat-prediction">H+ {prediction}</small>:null}</span></strong>;
 }
 
 function GameStatLegend({benchmarks}:{benchmarks:GameStatBenchmarks}){
@@ -3244,23 +3294,84 @@ function GameStatComparison({row}:{row:ScheduleRow}){
   const statRows:Array<{label:string;away:string;home:string;awayRaw:number|null|undefined;homeRaw:number|null|undefined;average:number|null;averageDisplay:string;lowerIsBetter?:boolean;major?:boolean;sub?:boolean;group?:"passing"|"rushing"}>=[
     {label:"Total Yards",away:gameStatValue(away?.totalYards),home:gameStatValue(home?.totalYards),awayRaw:away?.totalYards,homeRaw:home?.totalYards,average:benchmarks.basic.totalYards,averageDisplay:gameStatValue(benchmarks.basic.totalYards),major:true},
     {label:"Yards per play",away:gameStatValue(away?.yardsPerPlay,1),home:gameStatValue(home?.yardsPerPlay,1),awayRaw:away?.yardsPerPlay,homeRaw:home?.yardsPerPlay,average:benchmarks.basic.yardsPerPlay,averageDisplay:gameStatValue(benchmarks.basic.yardsPerPlay,1),sub:true},
-    {label:"Passing yards",away:gameStatValue(away?.passYards),home:gameStatValue(home?.passYards),awayRaw:away?.passYards,homeRaw:home?.passYards,average:benchmarks.basic.passYards,averageDisplay:gameStatValue(benchmarks.basic.passYards),major:true,group:"passing"},
+    {label:completed?"Passing yards (sacks charged)":"Net passing yards",away:gameStatValue(away?.passYards),home:gameStatValue(home?.passYards),awayRaw:away?.passYards,homeRaw:home?.passYards,average:benchmarks.basic.passYards,averageDisplay:gameStatValue(benchmarks.basic.passYards),major:true,group:"passing"},
     {label:"Comp / Att",away:away?.passCompletions===null||away?.passCompletions===undefined?`— / ${gameStatValue(away?.passAttempts)}`:`${gameStatValue(away.passCompletions)} / ${gameStatValue(away.passAttempts)}`,home:home?.passCompletions===null||home?.passCompletions===undefined?`— / ${gameStatValue(home?.passAttempts)}`:`${gameStatValue(home.passCompletions)} / ${gameStatValue(home.passAttempts)}`,awayRaw:gameRate(away?.passCompletions,away?.passAttempts),homeRaw:gameRate(home?.passCompletions,home?.passAttempts),average:completionAverage,averageDisplay:`${gameStatValue(benchmarks.basic.passCompletions)} / ${gameStatValue(benchmarks.basic.passAttempts)}`,sub:true},
-    {label:"Yards per pass",away:gameStatValue(away?.yardsPerPass,1),home:gameStatValue(home?.yardsPerPass,1),awayRaw:away?.yardsPerPass,homeRaw:home?.yardsPerPass,average:benchmarks.basic.yardsPerPass,averageDisplay:gameStatValue(benchmarks.basic.yardsPerPass,1),sub:true},
-    {label:"Rushing yards",away:gameStatValue(away?.rushYards),home:gameStatValue(home?.rushYards),awayRaw:away?.rushYards,homeRaw:home?.rushYards,average:benchmarks.basic.rushYards,averageDisplay:gameStatValue(benchmarks.basic.rushYards),major:true,group:"rushing"},
+    {label:"Net yards / dropback",away:gameStatValue(away?.yardsPerPass,1),home:gameStatValue(home?.yardsPerPass,1),awayRaw:away?.yardsPerPass,homeRaw:home?.yardsPerPass,average:benchmarks.basic.yardsPerPass,averageDisplay:gameStatValue(benchmarks.basic.yardsPerPass,1),sub:true},
+    ...(completed?[{label:"Sacks allowed",away:gameStatValue(away?.sacksAllowed),home:gameStatValue(home?.sacksAllowed),awayRaw:away?.sacksAllowed,homeRaw:home?.sacksAllowed,average:benchmarks.basic.sacksAllowed,averageDisplay:gameStatValue(benchmarks.basic.sacksAllowed,1),lowerIsBetter:true,sub:true},{label:"Sack yards charged to pass",away:gameStatValue(away?.sackYardsLost),home:gameStatValue(home?.sackYardsLost),awayRaw:away?.sackYardsLost,homeRaw:home?.sackYardsLost,average:benchmarks.basic.sackYardsLost,averageDisplay:gameStatValue(benchmarks.basic.sackYardsLost,1),lowerIsBetter:true,sub:true}]:[]),
+    {label:completed?"Rushing yards (sacks removed)":"Rushing yards",away:gameStatValue(away?.rushYards),home:gameStatValue(home?.rushYards),awayRaw:away?.rushYards,homeRaw:home?.rushYards,average:benchmarks.basic.rushYards,averageDisplay:gameStatValue(benchmarks.basic.rushYards),major:true,group:"rushing"},
     {label:"Rush attempts",away:gameStatValue(away?.rushAttempts),home:gameStatValue(home?.rushAttempts),awayRaw:away?.rushAttempts,homeRaw:home?.rushAttempts,average:benchmarks.basic.rushAttempts,averageDisplay:gameStatValue(benchmarks.basic.rushAttempts),sub:true},
     {label:"Yards per rush",away:gameStatValue(away?.yardsPerRush,1),home:gameStatValue(home?.yardsPerRush,1),awayRaw:away?.yardsPerRush,homeRaw:home?.yardsPerRush,average:benchmarks.basic.yardsPerRush,averageDisplay:gameStatValue(benchmarks.basic.yardsPerRush,1),sub:true},
-    ...(completed?[{label:"Turnovers",away:gameStatValue(away?.turnovers),home:gameStatValue(home?.turnovers),awayRaw:away?.turnovers,homeRaw:home?.turnovers,average:benchmarks.basic.turnovers,averageDisplay:gameStatValue(benchmarks.basic.turnovers,1),lowerIsBetter:true,major:true}]:[]),
+    {label:"Turnovers",away:gameStatValue(away?.turnovers,completed?0:1),home:gameStatValue(home?.turnovers,completed?0:1),awayRaw:away?.turnovers,homeRaw:home?.turnovers,average:benchmarks.basic.turnovers,averageDisplay:gameStatValue(benchmarks.basic.turnovers,1),lowerIsBetter:true,major:true},
   ];
+  const predictedValue=(label:string,profile:GameStatProfile|null|undefined)=>{
+    if(!completed||!profile)return undefined;
+    const key=({"Total Yards":"totalYards","Yards per play":"yardsPerPlay","Passing yards (sacks charged)":"passYards","Net yards / dropback":"yardsPerPass","Rushing yards (sacks removed)":"rushYards","Rush attempts":"rushAttempts","Yards per rush":"yardsPerRush","Turnovers":"turnovers"} as Record<string,keyof GameStatProfile>)[label];
+    if(label==="Comp / Att")return`— / ${gameStatValue(profile.passAttempts)}`;
+    if(!key||profile[key]===null||profile[key]===undefined)return undefined;
+    return gameStatValue(profile[key],label==="Turnovers"||label==="Yards per play"||label==="Net yards / dropback"||label==="Yards per rush"?1:0);
+  };
   return <section className="game-detail-stats">
-    <header><div><span>{completed?"ACTUAL":"MODEL-PROJECTED"}</span><h2>Team Stats</h2></div><p>{completed?"Official game totals":"Expected game profile from the prior-week model"}</p></header>
+    <header><div><span>{completed?"ACTUAL / PREGAME H+":"MODEL-PROJECTED"}</span><h2>Team Stats</h2></div></header>
     <GameStatLegend benchmarks={benchmarks}/>
     <div className="game-stat-head"><b>STAT</b><span>{gameTeamCode(row.awayTeam)}</span><span>{gameTeamCode(row.homeTeam)}</span></div>
     {statRows.map((stat)=>{
       const leader=gameStatLeaderSide(stat.awayRaw,stat.homeRaw,stat.lowerIsBetter);
-      return <div className={`game-stat-row ${stat.major?"major":""} ${stat.group?`category-start ${stat.group}`:""}`} key={stat.label}><span className={stat.sub?"sub":""}>{stat.group?<small>{stat.group}</small>:null}{stat.label}<em>AVG {stat.averageDisplay}</em></span><GameStatReadout display={stat.away} value={stat.awayRaw} average={stat.average} lowerIsBetter={stat.lowerIsBetter} leader={leader==="away"?{name:row.awayTeam,logo:row.awayLogo,conference:row.awayConference}:undefined}/><GameStatReadout display={stat.home} value={stat.homeRaw} average={stat.average} lowerIsBetter={stat.lowerIsBetter} leader={leader==="home"?{name:row.homeTeam,logo:row.homeLogo,conference:row.homeConference}:undefined}/></div>;
+      return <div className={`game-stat-row ${stat.major?"major":""} ${stat.group?`category-start ${stat.group}`:""}`} key={stat.label}><span className={stat.sub?"sub":""}>{stat.group?<small>{stat.group}</small>:null}{stat.label}<em>AVG {stat.averageDisplay}</em></span><GameStatReadout display={stat.away} value={stat.awayRaw} average={stat.average} lowerIsBetter={stat.lowerIsBetter} prediction={predictedValue(stat.label,row.awayPredictedStats)} leader={leader==="away"?{name:row.awayTeam,logo:row.awayLogo,conference:row.awayConference}:undefined}/><GameStatReadout display={stat.home} value={stat.homeRaw} average={stat.average} lowerIsBetter={stat.lowerIsBetter} prediction={predictedValue(stat.label,row.homePredictedStats)} leader={leader==="home"?{name:row.homeTeam,logo:row.homeLogo,conference:row.homeConference}:undefined}/></div>;
     })}
   </section>;
+}
+
+function GameMatchupStats({row}:{row:ScheduleRow}){
+  if(!row.matchupStats)return null;
+  const {away,home}=row.matchupStats;
+  const benchmarks=gameStatBenchmark(row).basic;
+  const number=(value:number|null|undefined,digits=1)=>value==null||!Number.isFinite(value)?"—":value.toFixed(digits);
+  type Cell={value:string;raw:number|null|undefined;rank?:string|null;tone:string;actual?:string;actualTone?:string};
+  type ComparisonRow={group:string;label:string;away:Cell;home:Cell;lowerIsBetter?:boolean;edge?:boolean};
+  const stat=(value:number|null|undefined,rank:number|null|undefined,average:number,digits=1,lowerIsBetter=false):Cell=>({value:number(value,digits),raw:value,rank:rank==null?null:`#${rank}`,tone:gameStatTone(value,average,lowerIsBetter)});
+  const pct=(value:number|null|undefined,defense=false):Cell=>({value:value==null?"—":`${Math.round(value)}%`,raw:value,tone:gameStatTone(value,100,defense)});
+  const rows:ComparisonRow[]=[
+    {group:"Offense",label:"Rush · YPC",away:stat(away.rushing.average,away.rushing.rank,benchmarks.yardsPerRush),home:stat(home.rushing.average,home.rushing.rank,benchmarks.yardsPerRush)},
+    {group:"Offense",label:"Rush forced",away:pct(away.rushing.forcedPercent),home:pct(home.rushing.forcedPercent)},
+    {group:"Offense",label:"Pass · net YPA",away:stat(away.passing.average,away.passing.rank,benchmarks.yardsPerPass),home:stat(home.passing.average,home.passing.rank,benchmarks.yardsPerPass)},
+    {group:"Offense",label:"Pass forced",away:pct(away.passing.forcedPercent),home:pct(home.passing.forcedPercent)},
+    {group:"Defense",label:"Rush · YPC allowed",away:stat(home.rushing.opponentAllowedAverage,home.rushing.opponentAllowedRank,benchmarks.yardsPerRush,1,true),home:stat(away.rushing.opponentAllowedAverage,away.rushing.opponentAllowedRank,benchmarks.yardsPerRush,1,true),lowerIsBetter:true},
+    {group:"Defense",label:"Rush allowed",away:pct(home.rushing.opponentAllowedPercent,true),home:pct(away.rushing.opponentAllowedPercent,true),lowerIsBetter:true},
+    {group:"Defense",label:"Pass · net YPA allowed",away:stat(home.passing.opponentAllowedAverage,home.passing.opponentAllowedRank,benchmarks.yardsPerPass,1,true),home:stat(away.passing.opponentAllowedAverage,away.passing.opponentAllowedRank,benchmarks.yardsPerPass,1,true),lowerIsBetter:true},
+    {group:"Defense",label:"Pass allowed",away:pct(home.passing.opponentAllowedPercent,true),home:pct(away.passing.opponentAllowedPercent,true),lowerIsBetter:true},
+  ];
+  const predicted=(value:number|null|undefined,actual:number|null|undefined,average:number|null,digits=0,lowerIsBetter=false):Cell=>({value:number(value,digits),raw:value,tone:average===null?"unavailable":gameStatTone(value,average,lowerIsBetter),actual:row.completed&&actual!=null?number(actual,digits):undefined,actualTone:average===null?"unavailable":gameStatTone(actual,average,lowerIsBetter)});
+  const projected:ComparisonRow[]=[
+    {group:"Projected game",label:"Rush attempts",away:predicted(row.awayPredictedStats?.rushAttempts,row.awayActualStats?.rushAttempts,benchmarks.rushAttempts),home:predicted(row.homePredictedStats?.rushAttempts,row.homeActualStats?.rushAttempts,benchmarks.rushAttempts),edge:false},
+    {group:"Projected game",label:"Rush yards",away:predicted(row.awayPredictedStats?.rushYards,row.awayActualStats?.rushYards,benchmarks.rushYards),home:predicted(row.homePredictedStats?.rushYards,row.homeActualStats?.rushYards,benchmarks.rushYards)},
+    {group:"Projected game",label:"YPC",away:predicted(away.rushing.expected,row.awayActualStats?.yardsPerRush,benchmarks.yardsPerRush,1),home:predicted(home.rushing.expected,row.homeActualStats?.yardsPerRush,benchmarks.yardsPerRush,1)},
+    {group:"Projected game",label:"Pass attempts",away:predicted(row.awayPredictedStats?.passAttempts,row.awayActualStats?.passAttempts,benchmarks.passAttempts),home:predicted(row.homePredictedStats?.passAttempts,row.homeActualStats?.passAttempts,benchmarks.passAttempts),edge:false},
+    {group:"Projected game",label:"Net pass yards",away:predicted(row.awayPredictedStats?.passYards,row.awayActualStats?.passYards,benchmarks.passYards),home:predicted(row.homePredictedStats?.passYards,row.homeActualStats?.passYards,benchmarks.passYards)},
+    {group:"Projected game",label:"Net YPA",away:predicted(away.passing.expected,row.awayActualStats?.yardsPerPass,benchmarks.yardsPerPass,1),home:predicted(home.passing.expected,row.homeActualStats?.yardsPerPass,benchmarks.yardsPerPass,1)},
+    {group:"Projected game",label:"Total yards",away:predicted(row.awayPredictedStats?.totalYards,row.awayActualStats?.totalYards,benchmarks.totalYards),home:predicted(row.homePredictedStats?.totalYards,row.homeActualStats?.totalYards,benchmarks.totalYards)},
+    {group:"Projected game",label:"Yards / play",away:predicted(row.awayPredictedStats?.yardsPerPlay,row.awayActualStats?.yardsPerPlay,benchmarks.yardsPerPlay,1),home:predicted(row.homePredictedStats?.yardsPerPlay,row.homeActualStats?.yardsPerPlay,benchmarks.yardsPerPlay,1)},
+    {group:"Projected game",label:"Turnovers",away:predicted(row.awayPredictedStats?.turnovers,row.awayActualStats?.turnovers,benchmarks.turnovers,1,true),home:predicted(row.homePredictedStats?.turnovers,row.homeActualStats?.turnovers,benchmarks.turnovers,1,true),lowerIsBetter:true},
+    {group:"Projected game",label:"Score",away:predicted(row.predictedAwayScore,row.awayPoints,null),home:predicted(row.predictedHomeScore,row.homePoints,null)},
+  ];
+  const cell=(value:Cell,leader:boolean,side:"away"|"home")=><span className={`matchup-mirror-value ${value.tone}`}>
+    {leader?<TeamMark name={side==="away"?row.awayTeam:row.homeTeam} logo={side==="away"?row.awayLogo:row.homeLogo} size="sm" variant="helmet"/>:null}
+    <b>{value.value}</b>{value.rank?<small>{value.rank}</small>:null}{value.actual!==undefined?<em className={value.actualTone}>Actual {value.actual}</em>:null}
+  </span>;
+  const group=(name:string,items:ComparisonRow[])=><div className="matchup-mirror-group" key={name}><h3>{name}<small>{name==="Projected game"?(row.completed?"H+ forecast · actual underneath":"H+ forecast"):name==="Offense"?"Forces vs opponent average":"Allows vs opponent average"}</small></h3>{items.map(item=>{
+    const leader=item.edge===false?null:gameStatLeaderSide(item.away.raw,item.home.raw,item.lowerIsBetter);
+    return <div className="matchup-mirror-row" key={item.label}>{cell(item.away,leader==="away","away")}<span className="matchup-mirror-label">{item.label}</span>{cell(item.home,leader==="home","home")}</div>;
+  })}</div>;
+  return <section className="matchup-mirror" aria-label="Pregame rushing and passing matchup">
+    <header><div><small>THROUGH {weekLabel(row.generatedFromWeek??Math.max(0,row.week-1),"upper")} · 100% OPPONENT AVERAGE</small><h2>Matchup comparison</h2></div><p>Helmet: category edge · green: above average · yellow: average · red: below average</p></header>
+    <div className="matchup-mirror-teams"><strong title={row.awayTeam}><TeamAccent name={row.awayTeam}>{gameTeamCode(row.awayTeam)}</TeamAccent></strong><span>STAT</span><strong title={row.homeTeam}><TeamAccent name={row.homeTeam}>{gameTeamCode(row.homeTeam)}</TeamAccent></strong></div>
+    {group("Offense",rows.filter(item=>item.group==="Offense"))}{group("Defense",rows.filter(item=>item.group==="Defense"))}{group("Projected game",projected)}
+  </section>;
+}
+
+function GameUntestedUnits({row}:{row:ScheduleRow}){
+  const untested=row.matchupTests?.filter(test=>test.credibleTests===0)??[];
+  if(!untested.length)return null;
+  return <section className="game-untested-units" aria-label="Units without a quality test"><h2>Units not yet tested</h2><div>{untested.map(test=><span key={`${test.team}:${test.area}`}><b>{gameTeamCode(test.team)} · {test.area}</b><small>{test.priorOpponents?`0 of ${test.priorOpponents} comparable opponents challenged this unit`:"No comparable completed games"}</small></span>)}</div></section>;
 }
 
 function gameAdvancedValue(value:number|null|undefined,format:"rate"|"number"|"yards"="number"){
@@ -3296,7 +3407,7 @@ function GameAdvancedComparison({row}:{row:ScheduleRow}){
   return <section className="game-detail-stats game-advanced-stats">
     <header><div><span>{completed?"ACTUAL":"MODEL-PROJECTED"}</span><h2>Advanced Stats</h2></div><p>Efficiency, situational play and matchup quality</p></header>
     <GameStatLegend benchmarks={benchmarks}/>
-    <div className="game-stat-head"><b>STAT</b><span>{gameTeamCode(row.awayTeam)}</span><span>{gameTeamCode(row.homeTeam)}</span></div>
+    <div className="game-stat-head"><b>STAT</b><span><TeamAccent name={row.awayTeam}>{gameTeamCode(row.awayTeam)}</TeamAccent></span><span><TeamAccent name={row.homeTeam}>{gameTeamCode(row.homeTeam)}</TeamAccent></span></div>
     {rows.length?rows.map((definition)=>{
       const showGroup=definition.group!==previousGroup;
       previousGroup=definition.group;
@@ -3314,6 +3425,7 @@ function gameFavoriteName(row:ScheduleRow){
 }
 
 function gamePreviewSentence(row:ScheduleRow){
+  if(row.edgeAnalysis?.summary)return row.edgeAnalysis.summary;
   const favorite=gameFavoriteName(row);
   const underdog=favorite===row.homeTeam?row.awayTeam:row.homeTeam;
   const analysis=row.edgeAnalysis;
@@ -3526,39 +3638,47 @@ function GamePlayerStats({row,playerLayer}:{row:ScheduleRow;playerLayer:ReturnTy
   const payloadTeams=new Map((gameStats.payload?.teams??[]).map((team)=>[team.team,team]));
   const sourceReady=gameStats.payload?.status==="ready";
   return <section className="game-player-stats">
-    <header><div><span>{scope==="game"?"OFFICIAL GAME BOX":`${row.season} THROUGH WEEK ${gameStats.payload?.throughWeek??row.week}`}</span><h2>Player Stats</h2></div><div className="game-player-scope" role="group" aria-label="Player statistics timeframe"><button type="button" className={scope==="game"?"active":""} disabled={!completed} onClick={()=>setScope("game")}>This game</button><button type="button" className={scope==="season"?"active":""} onClick={()=>setScope("season")}>Season to date</button></div></header>
+    <header><div><span>{scope==="game"?"OFFICIAL GAME BOX":`${row.season} THROUGH ${weekLabel(gameStats.payload?.throughWeek??row.week,"upper")}`}</span><h2>Player Stats</h2></div><div className="game-player-scope" role="group" aria-label="Player statistics timeframe"><button type="button" className={scope==="game"?"active":""} disabled={!completed} onClick={()=>setScope("game")}>This game</button><button type="button" className={scope==="season"?"active":""} onClick={()=>setScope("season")}>Season to date</button></div></header>
     {gameStats.loading?<div className="game-stats-empty">Loading point-in-time player statistics…</div>:!sourceReady?<div className="game-stats-empty">{gameStats.payload?.message??"Point-in-time player statistics are unavailable for this game."}</div>:<div className="game-player-columns">{teamsForGame.map((team)=>{
       const model=playerLayer.profiles.get(team.name);
       const teamStats=payloadTeams.get(team.name);
       const lines=scope==="game"?(teamStats?.game??[]):(teamStats?.seasonToDate??[]);
       const players=gamePlayerBoxRows(lines,model,scope);
       const rosterCoverage=model?gamePlayerDisplayRows(model,team.name).length:0;
-      return <section key={team.name}><header><TeamMark name={team.name} size="sm" logo={team.logo}/><div><strong>{team.name}</strong><small>{scope==="game"?"GAME CONTRIBUTORS":"SEASON-TO-DATE CONTRIBUTORS"} · {players.length}</small></div></header>{players.length?<div>{players.map((entry)=><article className="game-player-row" key={entry.key}><span><PlayerStatsJersey team={team.name} color={team.color} altColor={team.altColor} jersey={entry.jersey}/><span><strong>{entry.name}</strong><small><span className="game-player-role">{entry.label}</span> · {entry.meta}</small></span></span><span className="game-player-line">{entry.stats.map((stat)=><span key={stat.label}><small>{stat.label}</small><b>{stat.value}</b></span>)}</span></article>)}</div>:<div className="game-player-empty">{scope==="game"&&!completed?"Game stats will appear after kickoff.":`No player box-score stats are available in this timeframe.${rosterCoverage?" The roster profile is loaded, but it is not substituted for point-in-time stats.":""}`}</div>}</section>;
+      return <section key={team.name}><header className="team-identity-surface" style={teamIdentityStyle(team.name,team.color)}><TeamMark name={team.name} size="sm" logo={team.logo}/><div><strong><TeamAccent name={team.name} color={team.color}/></strong><small>{scope==="game"?"GAME CONTRIBUTORS":"SEASON-TO-DATE CONTRIBUTORS"} · {players.length}</small></div></header>{players.length?<div>{players.map((entry)=><article className="game-player-row" key={entry.key}><span><PlayerStatsJersey team={team.name} color={team.color} altColor={team.altColor} jersey={entry.jersey}/><span><strong>{entry.name}</strong><small><span className="game-player-role">{entry.label}</span> · {entry.meta}</small></span></span><span className="game-player-line">{entry.stats.map((stat)=><span key={stat.label}><small>{stat.label}</small><b>{stat.value}</b></span>)}</span></article>)}</div>:<div className="game-player-empty">{scope==="game"&&!completed?"Game stats will appear after kickoff.":`No player box-score stats are available in this timeframe.${rosterCoverage?" The roster profile is loaded, but it is not substituted for point-in-time stats.":""}`}</div>}</section>;
     })}</div>}
   </section>;
+}
+
+function GamePlayerStatsLazy({row}:{row:ScheduleRow}){
+  const playerLayer=usePlayerLayer(row.season,[row.awayTeam,row.homeTeam]);
+  return <GamePlayerStats row={row} playerLayer={playerLayer}/>;
 }
 
 function GameDetailView({row,loading,onBack}:{row:ScheduleRow;loading:boolean;onBack:()=>void}){
   const completed=Boolean(row.completed);
   const awayScore=gameDisplayScore(row,"away"),homeScore=gameDisplayScore(row,"home");
   const [activeView,setActiveView]=useState<"basic"|"advanced"|"players">("basic");
-  const playerLayer=usePlayerLayer(row.season,[row.awayTeam,row.homeTeam]);
-  const gameRank=(rank:number|null|undefined)=>rank&&rank<=25?<em className="game-detail-pregame-rank">H+ #{rank}</em>:null;
+  const gameRank=(rank:number|null|undefined)=>rank&&Number.isInteger(rank)&&rank>0?<em className="game-detail-logo-rank" aria-label={`Harper Plus projected final season rank ${rank}`}>#{rank}</em>:null;
   return <section className="page-section game-detail-page">
-    <header className="game-detail-header"><button type="button" onClick={onBack} aria-label="Back to schedule">‹</button><div><small>{row.season} · {scheduleGameLabel(row)}</small><h1>{row.awayTeam} at {row.homeTeam}</h1></div></header>
+    <header className="game-detail-header"><button type="button" onClick={onBack} aria-label="Back to schedule">‹</button><div><small>{row.season} · {scheduleGameLabel(row)}</small><h1><TeamAccent name={row.awayTeam}/> at <TeamAccent name={row.homeTeam}/></h1></div></header>
     <section className="game-detail-scoreboard">
-      <div><b className="game-team-site-label">AWAY</b><TeamMark name={row.awayTeam} size="lg" logo={row.awayLogo} genericLabel={isFcsTeam(row.awayTeam,row.awayConference)?"FCS":undefined}/><strong>{row.awayTeam}</strong>{gameRank(row.awayPregameRank)}<small>{row.awayRecordAfter??row.awayConference??"FBS"}</small></div>
-      <span><b>{awayScore??"—"}</b><em>{completed?"FINAL":"H+ PROJECTION"}</em><b>{homeScore??"—"}</b></span>
-      <div><b className="game-team-site-label">{row.neutralSite?"DESIGNATED HOME":"HOME"}</b><TeamMark name={row.homeTeam} size="lg" logo={row.homeLogo} genericLabel={isFcsTeam(row.homeTeam,row.homeConference)?"FCS":undefined}/><strong>{row.homeTeam}</strong>{gameRank(row.homePregameRank)}<small>{row.homeRecordAfter??row.homeConference??"FBS"}</small></div>
+      <div className="team-identity-surface" style={teamIdentityStyle(row.awayTeam,row.awayColor)}><b className="game-team-site-label">AWAY</b><span className="game-detail-logo"><TeamMark name={row.awayTeam} size="lg" logo={row.awayLogo} genericLabel={isFcsTeam(row.awayTeam,row.awayConference)?"FCS":undefined}/>{gameRank(row.awayPregameRank)}</span><strong><TeamAccent name={row.awayTeam} color={row.awayColor}/></strong><small>{row.awayRecordAfter??row.awayConference??"FBS"}</small></div>
+      <span><b>{awayScore??"—"}</b><em>{completed?"FINAL":`H+ · ${gameTeamCode(gameFavoriteName(row))} ${row.homeWinProbability===null?"—":`${Math.round(Math.max(row.homeWinProbability,1-row.homeWinProbability)*100)}%`}`}</em><b>{homeScore??"—"}</b></span>
+      <div className="team-identity-surface" style={teamIdentityStyle(row.homeTeam,row.homeColor)}><b className="game-team-site-label">{row.neutralSite?"DESIGNATED HOME":"HOME"}</b><span className="game-detail-logo"><TeamMark name={row.homeTeam} size="lg" logo={row.homeLogo} genericLabel={isFcsTeam(row.homeTeam,row.homeConference)?"FCS":undefined}/>{gameRank(row.homePregameRank)}</span><strong><TeamAccent name={row.homeTeam} color={row.homeColor}/></strong><small>{row.homeRecordAfter??row.homeConference??"FBS"}</small></div>
     </section>
-    <div className="game-detail-meta"><span><b>DATE</b>{fullGameDate(row.startDate)}</span><span><b>TIME</b>{gameTime(row.startDate)}</span><span><b>SITE</b>{row.neutralSite?"Neutral site":row.venue||row.homeTeam}</span><span><b>HOME TEAM</b>{row.homeTeam}{row.neutralSite?" · designation":""}</span></div>
-    <section className="game-detail-market" aria-label="Market and model lines"><span><b>{completed?"CLOSING SPREAD":"MARKET SPREAD"}</b><strong>{marketSpreadLabel(row)}</strong></span><span><b>H+ MODEL SPREAD</b><strong>{modelSpreadLabel(row)}</strong></span><span><b>{completed?"CLOSING TOTAL":"MARKET TOTAL"}</b><strong>{marketTotalLabel(row)}</strong></span><span><b>H+ MODEL TOTAL</b><strong>{modelTotalLabel(row)}</strong></span><small>LINE SOURCE · {row.provider?.toUpperCase()||"NOT POSTED"}</small></section>
+    <div className="game-detail-meta"><span><b>DATE · TIME</b>{fullGameDate(row.startDate)} · {gameTime(row.startDate)}</span><span><b>SITE</b>{row.neutralSite?"Neutral site":row.venue||row.homeTeam}</span><span><b>LINE SOURCE</b>{row.provider?.toUpperCase()||"NOT POSTED"}{row.marketUpdatedAt?<small>Imported {row.marketUpdatedAt} UTC</small>:null}</span></div>
+    <section className="game-detail-market" aria-label="Market and model lines"><span><b>MARKET SPREAD</b><strong>{marketSpreadLabel(row)}</strong></span><span><b>H+ SPREAD</b><strong>{modelSpreadLabel(row)}</strong></span><span><b>MARKET TOTAL</b><strong>{marketTotalLabel(row)}</strong></span><span><b>H+ TOTAL</b><strong>{modelTotalLabel(row)}</strong></span><span><b>OPENING SPREAD</b><strong>{marketSpreadLabel({...row,vegasSpread:row.spreadOpen??null,formattedSpread:undefined})}</strong></span><span><b>OPENING TOTAL</b><strong>{marketTotalLabel({...row,vegasTotal:row.overUnderOpen??null})}</strong></span></section>{row.marketIssues?.length?<p className="hub-data-note" role="status">Conflicting or invalid source fields were withheld. Fresh verification is required.</p>:null}
+    <DirectionalMatchupArt first={{name:row.awayTeam,abbr:gameTeamCode(row.awayTeam),logo:row.awayLogo,season:row.season,week:Math.max(0,row.generatedFromWeek??row.week-1)}} second={{name:row.homeTeam,abbr:gameTeamCode(row.homeTeam),logo:row.homeLogo,season:row.season,week:Math.max(0,row.generatedFromWeek??row.week-1)}} game={{id:row.gameId,week:row.week,completed}}/>
     <GameModelAudit row={row}/>
-    {loading?<div className="game-detail-loading">Loading the complete game profile…</div>:<>
-      {!completed?<section className="game-preview-line"><small>WHY {gameFavoriteName(row).toUpperCase()} IS FAVORED</small><p>{gamePreviewSentence(row)}</p><div><span><b>PROJECTED SCORE</b>{row.predictedAwayScore===null||row.predictedHomeScore===null?"—":`${gameTeamCode(row.awayTeam)} ${Math.round(row.predictedAwayScore)} · ${gameTeamCode(row.homeTeam)} ${Math.round(row.predictedHomeScore)}`}</span><span><b>WIN PROBABILITY</b>{row.homeWinProbability===null?"—":`${row.homeWinProbability>=.5?row.homeTeam:row.awayTeam} ${Math.round(Math.max(row.homeWinProbability,1-row.homeWinProbability)*100)}%`}</span><span><b>MODEL SPREAD</b>{signed(row.modelHomeSpread)}</span></div></section>:null}
+    {loading?<div className="game-detail-loading">Loading matchup notes…</div>:null}
+    <>
+      <ScoreExplanation data={row.scoreExplanation} home={row.homeTeam} away={row.awayTeam}/>
       <nav className="game-detail-tabs" role="tablist" aria-label="Game statistics"><button type="button" role="tab" aria-selected={activeView==="basic"} onClick={()=>setActiveView("basic")}>Basic</button><button type="button" role="tab" aria-selected={activeView==="advanced"} onClick={()=>setActiveView("advanced")}>Advanced</button><button type="button" role="tab" aria-selected={activeView==="players"} onClick={()=>setActiveView("players")}>Players</button></nav>
-      {activeView==="basic"?<GameStatComparison row={row}/>:activeView==="advanced"?<GameAdvancedComparison row={row}/>:<GamePlayerStats row={row} playerLayer={playerLayer}/>}
-    </>}
+      {activeView==="basic"
+        ? <><GameMatchupStats row={row}/><GameUntestedUnits row={row}/><PlayByPlayDropdown key={row.gameId} row={row} teamCode={gameTeamCode}/></>
+        : activeView==="advanced" ? <GameAdvancedComparison row={row}/> : <GamePlayerStatsLazy row={row}/>}
+    </>
   </section>;
 }
 
@@ -3572,8 +3692,8 @@ function LinkedScheduleGameDetail({selection,onBack}:{selection:LinkedScheduleGa
   useEffect(()=>{
     if(generated)return;
     const controller=new AbortController();
-    const params=new URLSearchParams({view:"schedule",season:String(selection.season),week:"0",gameId:selection.row.gameId,includeAnalysis:"1",includeGameTimeRanks:"1"});
-    fetch(`/api/data?${params}`,{signal:controller.signal})
+    const params=new URLSearchParams({view:"schedule",season:String(selection.season),week:"0",forecastWeek:String(selection.row.generatedFromWeek??scoreRankingSnapshotWeek(selection.row.week,16)),gameId:selection.row.gameId,compactSchedule:"1",includeGameProfiles:"1",includeActualAdvanced:"1"});
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal})
       .then((response)=>readJsonBody<{rows?:ScheduleRow[]}>(response))
       .then((payload)=>setDetail({key:requestKey,row:payload.rows?.[0]??selection.row}))
       .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setDetail({key:requestKey,row:selection.row});});
@@ -3583,35 +3703,42 @@ function LinkedScheduleGameDetail({selection,onBack}:{selection:LinkedScheduleGa
   return <GameDetailView row={resolved} loading={!generated&&detail.key!==requestKey} onBack={onBack}/>;
 }
 
-function SchedulePage({season,setSeason,onSelectTeam,onExploreWinConditions}:{
+function SchedulePage({season,setSeason,onSelectTeam,onExploreWinConditions,launch}:{
+  launch?:{week:number;gameId:string}|null;
   season:number;setSeason:(value:number)=>void;onSelectTeam?:(team:string)=>void;onExploreWinConditions:(row:ScheduleRow)=>void;
 }) {
   const [activeView,setActiveView]=useState<ScoresRankingsView>("scores");
-  const [week, setWeek] = useState(0);
+  const [week, setWeek] = useState(launch?.week??1);
   const [teamFilter, setTeamFilter] = useState("");
   const [conferenceFilter, setConferenceFilter] = useState("ALL");
   const [pickFilter, setPickFilter] = useState<SchedulePickFilter>("all");
   const [sortMode, setSortMode] = useState<ScheduleSortMode>("date");
   const [filtersOpen,setFiltersOpen]=useState(false);
-  const [selectedGameId,setSelectedGameId]=useState<string|null>(null);
+  const [selectedGameId,setSelectedGameId]=useState<string|null>(launch?.gameId??null);
   const [detailByGame,setDetailByGame]=useState<Record<string,ScheduleRow>>({});
   const [detailLoading,setDetailLoading]=useState<string|null>(null);
   const [rows, setRows] = useState<ScheduleRow[]>([]);
   const [configured, setConfigured] = useState(false);
   const [loadedKey, setLoadedKey] = useState("");
-  const projectedRankingSnapshotWeek=scoreRankingSnapshotWeek(week,16);
-  const projectedRanks=useProjectedFinalRanks(season,projectedRankingSnapshotWeek);
-  const effectiveRankingSnapshotWeek=projectedRanks.data?.effectiveWeek??projectedRankingSnapshotWeek;
-  const rankingDisplayWeek=week||rankingAppliesToWeek(effectiveRankingSnapshotWeek);
-  const projectedFinalRankMap=useMemo(()=>new Map((projectedRanks.data?.rankings??[]).map((row)=>[row.team,row.rank])),[projectedRanks.data?.rankings]);
+  useEffect(()=>{
+    if(!launch)return;
+    const controller=new AbortController();
+    setDetailLoading(launch.gameId);
+    const params=new URLSearchParams({view:"schedule",season:String(season),gameId:launch.gameId,compactSchedule:"1",includeGameProfiles:"1",includeActualAdvanced:"1"});
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal}).then(response=>readJsonBody<{rows?:ScheduleRow[]}>(response)).then(payload=>{
+      const row=payload.rows?.find(row=>row.gameId===launch.gameId);
+      if(row)setDetailByGame(current=>({...current,[row.gameId]:row}));
+    }).catch(()=>{}).finally(()=>{if(!controller.signal.aborted)setDetailLoading(null);});
+    return()=>controller.abort();
+  },[launch,season]);
   const includeMarketDecisions = pickFilter === "ats" || pickFilter === "any";
   const requestKey = `${season}:${week}:${teamFilter}:${includeMarketDecisions ? "market-decisions" : "compact"}`;
   useEffect(() => {
     const controller = new AbortController();
-    const params = new URLSearchParams({ view: "schedule", season: String(season), week: String(week), ledger: "filtered-records-v1", includeGameTimeRanks:"1" });
+    const params = new URLSearchParams({ view: "schedule", season: String(season), week: String(week), ledger: "filtered-records-v1", compactSchedule:"1", includeActualAdvanced:"1" });
     if (teamFilter) params.set("team", teamFilter);
     if (includeMarketDecisions) params.set("includeMarketDecisions", "1");
-    fetch(`/api/data?${params}`, { signal: controller.signal }).then((response) => readJsonBody<{ rows?: ScheduleRow[]; configured?: boolean }>(response)).then((payload) => { setRows(payload.rows || []); setConfigured(Boolean(payload.configured)); setLoadedKey(requestKey); }).catch((error) => { if (error instanceof Error && error.name !== "AbortError") { setRows([]); setLoadedKey(requestKey); } });
+    modelDataFetch(`/api/data?${params}`, { signal: controller.signal }).then((response) => readJsonBody<{ rows?: ScheduleRow[]; configured?: boolean }>(response)).then((payload) => { setRows(payload.rows || []); setConfigured(Boolean(payload.configured)); setLoadedKey(requestKey); }).catch((error) => { if (error instanceof Error && error.name !== "AbortError") { setRows([]); setLoadedKey(requestKey); } });
     return () => controller.abort();
   }, [season, week, teamFilter, includeMarketDecisions, requestKey]);
   const loading = loadedKey !== requestKey;
@@ -3622,16 +3749,16 @@ function SchedulePage({season,setSeason,onSelectTeam,onExploreWinConditions}:{
   const activeRows = useMemo(() => summaryRows
     .filter((row) => matchesSchedulePickFilter(row, pickFilter))
     .sort((a,b) => compareScheduleRows(a,b,sortMode)), [pickFilter, sortMode, summaryRows]);
-  const activeFilterCount=Number(Boolean(week))+Number(Boolean(teamFilter))+Number(conferenceFilter!=="ALL")+Number(pickFilter!=="all")+Number(sortMode!=="date");
+  const activeFilterCount=Number(Boolean(teamFilter))+Number(conferenceFilter!=="ALL")+Number(pickFilter!=="all")+Number(sortMode!=="date");
 
   const openGameDetails=async(row:ScheduleRow)=>{
     setSelectedGameId(row.gameId);
     window.requestAnimationFrame(()=>window.scrollTo({top:0,behavior:"auto"}));
     if(detailByGame[row.gameId])return;
     setDetailLoading(row.gameId);
-    const params=new URLSearchParams({view:"schedule",season:String(season),week:"0",gameId:row.gameId,includeAnalysis:"1",includeGameTimeRanks:"1"});
+    const params=new URLSearchParams({view:"schedule",season:String(season),week:"0",forecastWeek:String(row.generatedFromWeek??scoreRankingSnapshotWeek(week,16)),gameId:row.gameId,compactSchedule:"1",includeGameProfiles:"1",includeActualAdvanced:"1"});
     try{
-      const payload=await fetch(`/api/data?${params}`).then((response)=>readJsonBody<{rows?:ScheduleRow[]}>(response));
+      const payload=await modelDataFetch(`/api/data?${params}`).then((response)=>readJsonBody<{rows?:ScheduleRow[]}>(response));
       const detail=payload.rows?.[0];
       if(detail)setDetailByGame((current)=>({...current,[row.gameId]:detail}));
     }finally{
@@ -3642,68 +3769,50 @@ function SchedulePage({season,setSeason,onSelectTeam,onExploreWinConditions}:{
 
   if(selectedGame)return <GameDetailView row={selectedGame} loading={detailLoading===selectedGameId} onBack={()=>{setSelectedGameId(null);window.requestAnimationFrame(()=>window.scrollTo({top:0,behavior:"auto"}));}}/>;
 
-  const weeklyRankingRule=week
-    ?`Week ${week} uses the Season Sim forecast built from data through ${effectiveRankingSnapshotWeek?`Week ${effectiveRankingSnapshotWeek}`:"the preseason"}. Week ${week} results first affect the Week ${week+1} forecast.`
-    :`The all-games view uses the latest Season Sim ranking. Select a week to see the frozen projected-final ranking every team carried into that week.`;
-
   return <section className={`page-section schedule-page scores-rankings-page ${activeView}`}>
-    <div className="section-kicker">SCORES + SEASON SIM FORECAST · PROJECTED FINAL ORDER</div>
+    {activeView==="forecast"?<div className="section-kicker">COLLEGE FOOTBALL · H+ MODEL</div>:null}
     <div className="section-title-row">
-      <div><h1>Score H+ Top 25</h1><p>{weeklyRankingRule}</p></div>
+      <div><h1>{activeView==="scores"?"SCORES":"H+ Forecast Top 25"}</h1></div>
       <nav className="scores-rankings-tabs" role="tablist" aria-label="Scores and rankings">
         <button type="button" role="tab" aria-selected={activeView==="scores"} onClick={()=>setActiveView("scores")}>SCORES</button>
         <button type="button" role="tab" aria-selected={activeView==="forecast"} onClick={()=>setActiveView("forecast")}>H+ FORECAST TOP 25</button>
       </nav>
     </div>
-    <div className="weekly-ranking-snapshot" role="note">
-      <span>{week?`ENTERING WEEK ${rankingDisplayWeek}`:effectiveRankingSnapshotWeek?`LATEST SNAPSHOT · AFTER WEEK ${effectiveRankingSnapshotWeek}`:"PRESEASON SNAPSHOT"}</span>
-      <strong>Actual results to the snapshot + projected remaining schedule</strong>
-      <p>This is the same projected-final order produced by Season Sim. It weighs expected wins, the game-by-game projected record, schedule strength, current team strength, head-to-head evidence, and projected conference title games.</p>
-    </div>
-    {activeView==="forecast"?<>
-      <div className="weekly-ranking-toolbar"><VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} allWeeks idPrefix="weekly-rankings" /><span>{season} · {week?`RANKING ENTERING WEEK ${week}`:"LATEST / FINAL SNAPSHOT"}</span></div>
-      <WeeklyProjectedRankingsTable rows={projectedRanks.data?.rankings??[]} season={season} loading={projectedRanks.loading} onSelectTeam={onSelectTeam}/>
-      {projectedRanks.data?<p className="weekly-ranking-method">{projectedRanks.data.methodology}</p>:null}
-    </>:<>
-      <div className="schedule-mobile-filter-bar"><button className="schedule-filter-toggle" type="button" aria-expanded={filtersOpen} aria-controls="schedule-filter-panel" onClick={()=>setFiltersOpen((open)=>!open)}><span><b>FILTERS</b><small>{season} · {week?`WEEK ${week}`:"FULL SEASON"}</small></span><strong>{activeFilterCount?`${activeFilterCount} ACTIVE`:"ALL GAMES"}</strong><i aria-hidden="true">{filtersOpen?"×":"+"}</i></button><span role="status" aria-live="polite">{loading?"Loading…":`${activeRows.length} games`}</span></div>
-      <div id="schedule-filter-panel" className={`schedule-filter-panel ${filtersOpen?"open":""}`}>
-        <div className="schedule-mobile-vintage"><VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} allWeeks idPrefix="schedule-mobile" /></div>
-        <div className="schedule-filter" aria-label="Schedule filters">
-        <div className="schedule-filter-control schedule-filter-team">
-          <label htmlFor="schedule-team">TEAM</label>
-          <select id="schedule-team" value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}><option value="">All FBS games</option>{teamOptions.map((team) => <option key={team}>{team}</option>)}</select>
-        </div>
-        <div className="schedule-filter-control">
-          <label htmlFor="schedule-conference">CONFERENCE</label>
-          <select id="schedule-conference" value={conferenceFilter} onChange={(event)=>setConferenceFilter(event.target.value)}><option value="ALL">All conferences</option><option value={POWER_4_FILTER}>{POWER_4_LABEL}</option>{conferenceOptions.map((conference)=><option key={conference}>{conference}</option>)}</select>
-        </div>
-        <div className="schedule-filter-control">
-          <label htmlFor="schedule-picks">PICKS</label>
-          <select id="schedule-picks" value={pickFilter} onChange={(event)=>setPickFilter(event.target.value as SchedulePickFilter)}><option value="all">All games</option><option value="ats">ATS picks only</option><option value="total">O/U test picks only</option><option value="any">Any qualified pick</option></select>
-        </div>
-        <div className="schedule-filter-control">
-          <label htmlFor="schedule-sort">SORT</label>
-          <select id="schedule-sort" value={sortMode} onChange={(event)=>setSortMode(event.target.value as ScheduleSortMode)}><option value="date">Date played</option><option value="week">Week, then date</option><option value="conference">Conference, then date</option></select>
-        </div>
-        <span className="schedule-filter-status" role="status" aria-live="polite">{loading ? "Loading games…" : <><strong>{activeRows.length}</strong> games shown</>}</span>
-        <button className="schedule-filter-done" type="button" onClick={()=>setFiltersOpen(false)}>SHOW {activeRows.length} GAMES</button>
-        </div>
+    {activeView==="forecast"?<ScoresForecastView season={season} week={week} setSeason={setSeason} setWeek={setWeek} onSelectTeam={onSelectTeam}/>:<>
+      <div className="scores-toolbar-shell">
+        <ScoresToolbar season={season} week={week} seasons={seasonOptions} filtersOpen={filtersOpen} activeFilterCount={activeFilterCount} onSeasonChange={setSeason} onWeekChange={setWeek} onToggleFilters={()=>setFiltersOpen((open)=>!open)}/>
+        <ScoresFilters open={filtersOpen} loading={loading} team={teamFilter} conference={conferenceFilter} pick={pickFilter} sort={sortMode} teams={teamOptions} conferences={conferenceOptions} powerConferenceValue={POWER_4_FILTER} powerConferenceLabel={POWER_4_LABEL} onTeamChange={setTeamFilter} onConferenceChange={setConferenceFilter} onPickChange={setPickFilter} onSortChange={setSortMode} onClose={()=>setFiltersOpen(false)}/>
       </div>
       {!activeRows.length
-        ? <div className="data-empty"><strong>{loading ? "Loading the schedule…" : rows.length ? "No games match these Schedule filters." : `No schedule data is loaded for ${season}${week ? ` week ${week}` : ""}.`}</strong><span>{rows.length ? "Try All games, another week, team, or conference." : configured ? "Try another season or week." : "The schedule will backfill from 2014 forward when the private data connection is activated."}</span></div>
-        : <MobileScoreboard rows={activeRows} onOpen={(row)=>void openGameDetails(row)} onExplore={onExploreWinConditions} projectedFinalRanks={projectedFinalRankMap} rankingWeek={effectiveRankingSnapshotWeek}/>}
+        ? <div className="data-empty"><strong>{loading ? "Loading the schedule…" : rows.length ? "No games match these Schedule filters." : `No schedule data is loaded for ${season}${week ? ` ${weekLabel(week)}` : ""}.`}</strong><span>{rows.length ? "Try All games, another week, team, or conference." : configured ? "Try another season or week." : "The schedule will backfill from 2014 forward when the private data connection is activated."}</span></div>
+        : <ScoresBoard
+            rows={activeRows}
+            onOpen={(row)=>void openGameDetails(row)}
+            projectedFinalRanks={new Map()}
+            rankingWeek={Math.max(0,week-1)}
+            teamCode={gameTeamCode}
+            renderTeamMark={(team,logo,conference)=><TeamMark name={team} size="sm" logo={logo} genericLabel={isFcsTeam(team,conference)?"FCS":undefined}/>}
+            renderWinConditions={(row)=><CompactGameWinConditions row={row} onExplore={onExploreWinConditions}/>}
+          />}
     </>}
   </section>;
 }
 
+function ScoresForecastView({season,week,setSeason,setWeek,onSelectTeam}:{season:number;week:number;setSeason:(value:number)=>void;setWeek:(value:number)=>void;onSelectTeam?:(team:string)=>void}){
+  const snapshotWeek=scoreRankingSnapshotWeek(week,16);
+  const projectedRanks=useProjectedFinalRanks(season,snapshotWeek);
+  const effectiveWeek=projectedRanks.data?.effectiveWeek??snapshotWeek;
+  const displayWeek=week||rankingAppliesToWeek(effectiveWeek);
+  return <ScoresForecastPanel season={season} week={week} rankingDisplayWeek={displayWeek} effectiveRankingSnapshotWeek={effectiveWeek} controls={<VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} idPrefix="weekly-rankings"/>} rankings={<WeeklyProjectedRankingsTable rows={projectedRanks.data?.rankings??[]} season={season} loading={projectedRanks.loading} onSelectTeam={onSelectTeam}/>} methodology={projectedRanks.data?.methodology}/>;
+}
+
 function TeamIntelligencePanel({
-  row,history,comparisons,comparisonsLoading,players,
+  row,history,comparisons,comparisonsLoading,
 }:{
-  row:DynamicProfileRow;history:DynamicProfileRow[];comparisons:HistoricalComparisonRow[];comparisonsLoading:boolean;players?:TeamPlayerModel;
+  row:DynamicProfileRow;history:DynamicProfileRow[];comparisons:HistoricalComparisonRow[];comparisonsLoading:boolean;
 }) {
   const identity=useMemo(()=>deriveTeamIdentity(row),[row]);
   const stability=useMemo(()=>deriveTeamStability(row,history),[history,row]);
-  const roster=useMemo(()=>deriveRosterStability(row,players),[players,row]);
   const previous=useMemo(()=>[...history].filter((candidate)=>candidate.week<row.week).sort((a,b)=>b.week-a.week)[0],[history,row.week]);
   const movement=useMemo(()=>deriveTeamMovement({...row,eloRating:undefined},previous?{...previous,eloRating:undefined}:null),[previous,row]);
   const movementScale=Math.max(1,...movement.components.map((component)=>Math.abs(component.change)));
@@ -3718,7 +3827,6 @@ function TeamIntelligencePanel({
     <div className="team-intelligence-score-grid">
       <article className="team-intelligence-score" style={{"--intelligence-score":`${stability.volatility}%`} as CSSProperties}><span>VOLATILITY</span><strong>{stability.volatility}</strong><b>{stability.volatilityLabel}</b><i/><small>{stability.drivers[0]}</small></article>
       <article className="team-intelligence-score" style={{"--intelligence-score":`${stability.consistency}%`} as CSSProperties}><span>CONSISTENCY</span><strong>{stability.consistency}</strong><b>{stability.consistencyLabel}</b><i/><small>{stability.drivers[1]}</small></article>
-      <article className="team-intelligence-score" style={{"--intelligence-score":`${roster.score}%`} as CSSProperties}><span>ROSTER STABILITY</span><strong>{roster.score}</strong><b>{roster.label}</b><i/><small>{roster.drivers[0]}</small></article>
     </div>
     <div className="team-intelligence-lower">
       <article className="rating-movement-card">
@@ -3735,10 +3843,12 @@ function TeamIntelligencePanel({
   </section>;
 }
 
+const teamScheduleCache=new Map<string,{rows:ScheduleRow[];unitRanks:UnitRanks|null;expires:number}>();
+
 function TeamLab({ season, week, setSeason, setWeek, requestedTeam, onSelectedTeamChange }: ModelVintageProps & {requestedTeam?:string;onSelectedTeamChange?:(team:string)=>void}) {
   const [selectedName, setSelectedName] = useState(requestedTeam??"Indiana");
-  const [activeTab,setActiveTab]=useState<"schedule"|"stats"|"depth">("schedule");
-  const [teamScheduleResult,setTeamScheduleResult]=useState<{key:string;rows:ScheduleRow[]}>({key:"",rows:[]});
+  const [activeTab,setActiveTab]=useState<"schedule"|"stats"|"rushing"|"passing">("schedule");
+  const [teamScheduleResult,setTeamScheduleResult]=useState<{key:string;rows:ScheduleRow[];unitRanks:UnitRanks|null}>({key:"",rows:[],unitRanks:null});
   const [selectedTeamGameId,setSelectedTeamGameId]=useState<string|null>(null);
   const [teamGameDetail,setTeamGameDetail]=useState<Record<string,ScheduleRow>>({});
   const [teamGameLoading,setTeamGameLoading]=useState<string|null>(null);
@@ -3746,33 +3856,54 @@ function TeamLab({ season, week, setSeason, setWeek, requestedTeam, onSelectedTe
   const availableTeams = dynamic.teams;
   const lookup = useMemo(() => new Map(availableTeams.map((team) => [team.name, team])), [availableTeams]);
   const activeSelectedName=requestedTeam??selectedName;
-  const resolvedSelectedName = lookup.has(activeSelectedName) ? activeSelectedName : (lookup.has("Indiana") ? "Indiana" : availableTeams[0]?.name);
+  const resolvedSelectedName = activeSelectedName;
   const selected = resolvedSelectedName ? lookup.get(resolvedSelectedName) : undefined;
   const profile = selected ? latestProfile(selected, week) : null;
   const profileRows = useMemo(() => dynamic.rows.length ? dynamic.rows : availableTeams.map((team) => modelTeamProfileRow(team, season, week)).filter((row):row is DynamicProfileRow => Boolean(row)), [availableTeams, dynamic.rows, season, week]);
   const selectedRow = selected ? profileRows.find((row) => row.team === selected.name) : undefined;
-  const history=useTeamHistory(season,week,resolvedSelectedName);
-  const historicalComparisons=useHistoricalComparisons(season,week,resolvedSelectedName);
-  const playerLayer=usePlayerLayer(season,resolvedSelectedName?[resolvedSelectedName]:[]);
-  const selectedPlayers=resolvedSelectedName?playerLayer.profiles.get(resolvedSelectedName):undefined;
-  const profileSnapshotRankings=useProjectedFinalRanks(season,week,resolvedSelectedName??"");
-  const ranked=selected?profileSnapshotRankings.data?.rankings.find((entry)=>entry.team===selected.name):undefined;
-  const projectedRecord=ranked?.projectedRecord??(profileSnapshotRankings.loading?"…":"—");
-  const projectedRank=ranked&&ranked.rank<=25?`#${ranked.rank}`:"NR";
+  const history=useTeamHistory(season,week,activeTab==="stats"?resolvedSelectedName:undefined);
+  const historicalComparisons=useHistoricalComparisons(season,week,activeTab==="stats"?resolvedSelectedName:undefined);
   const teamOptions = useMemo(() => [...availableTeams].sort((left,right)=>left.name.localeCompare(right.name)), [availableTeams]);
-  const teamScheduleKey=`${season}:${resolvedSelectedName??""}`;
-  const teamSchedule=teamScheduleResult.key===teamScheduleKey?teamScheduleResult.rows:[];
-  const teamScheduleLoading=Boolean(resolvedSelectedName)&&teamScheduleResult.key!==teamScheduleKey;
+  const scheduleRefresh=useVisualizationRefresh(season===new Date().getFullYear());
+  const teamScheduleKey=`${season}:${week}:${resolvedSelectedName??""}:results-v2:${scheduleRefresh}`;
+  const cachedSchedule=teamScheduleCache.get(teamScheduleKey);
+  const freshSchedule=cachedSchedule&&cachedSchedule.expires>Date.now()?cachedSchedule.rows:null;
+  const teamSchedule=teamScheduleResult.key===teamScheduleKey?teamScheduleResult.rows:freshSchedule??[];
+  const teamUnitRanks=teamScheduleResult.key===teamScheduleKey?teamScheduleResult.unitRanks:freshSchedule?cachedSchedule?.unitRanks:null;
+  const performance=useMemo(()=>averageMarginVsPregame(resolvedSelectedName??"",teamSchedule,new Set(availableTeams.map(team=>team.name))),[resolvedSelectedName,teamSchedule,availableTeams]);
+  const teamScheduleLoading=Boolean(resolvedSelectedName)&&teamScheduleResult.key!==teamScheduleKey&&!freshSchedule;
+  const profileSnapshotRankings=useProjectedFinalRanks(season,week,resolvedSelectedName??"",Boolean(selected)&&!teamScheduleLoading);
+  const ranked=selected?profileSnapshotRankings.data?.rankings.find((entry)=>entry.team===selected.name):undefined;
+  const projectedRank=ranked&&ranked.rank<=25?`#${ranked.rank}`:"NR";
+  // Read the record from the same game ledger that renders this team's cards.
+  // A separately cached Season Sim response can otherwise disagree after a refresh.
+  const finalRegularGame=[...teamSchedule].reverse().find((game)=>game.seasonType==="regular");
+  const scheduleRecord=finalRegularGame?.homeTeam===resolvedSelectedName?finalRegularGame.homeRecordAfter:finalRegularGame?.awayRecordAfter;
+  const projectedRecord=teamScheduleLoading?"…":teamSchedule.length
+    ? scheduleRecord??"—"
+    : ranked?.regularSeasonRecord??(profileSnapshotRankings.loading?"…":"—");
   useEffect(()=>{
     if(!resolvedSelectedName)return;
+    const cached=teamScheduleCache.get(teamScheduleKey);
+    if(cached&&cached.expires>Date.now()){
+      setTeamScheduleResult({key:teamScheduleKey,rows:cached.rows,unitRanks:cached.unitRanks});
+      return;
+    }
     const controller=new AbortController();
-    const params=new URLSearchParams({view:"schedule",season:String(season),week:"0",team:resolvedSelectedName,includeGameTimeRanks:"1"});
-    fetch(`/api/data?${params}`,{signal:controller.signal})
-      .then((response)=>readJsonBody<{rows?:ScheduleRow[]}>(response))
-      .then((payload)=>setTeamScheduleResult({key:teamScheduleKey,rows:(payload.rows??[]).sort((left,right)=>compareScheduleRows(left,right,"date"))}))
-      .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setTeamScheduleResult({key:teamScheduleKey,rows:[]});});
+    const params=new URLSearchParams({view:"schedule",season:String(season),week:"0",forecastWeek:String(week),seasonForecast:"1",resultMode:"latest",team:resolvedSelectedName,compactSchedule:"1"});
+    modelDataFetch(`/api/data?${params}`,{signal:controller.signal,cache:"no-store"})
+      .then((response)=>readJsonBody<{rows?:ScheduleRow[];teamUnitRanks?:UnitRanks|null}>(response))
+      .then((payload)=>{
+        const rows=(payload.rows??[]).sort((left,right)=>compareScheduleRows(left,right,"date"));
+        const unitRanks=payload.teamUnitRanks??null;
+        teamScheduleCache.set(teamScheduleKey,{rows,unitRanks,expires:Date.now()+(season===2026?30_000:300_000)});
+        if(teamScheduleCache.size>30)teamScheduleCache.delete(teamScheduleCache.keys().next().value!);
+        setTeamScheduleResult({key:teamScheduleKey,rows,unitRanks});
+      })
+      .catch((error)=>{if(error instanceof Error&&error.name!=="AbortError")setTeamScheduleResult({key:teamScheduleKey,rows:[],unitRanks:null});});
     return()=>controller.abort();
-  },[resolvedSelectedName,season,teamScheduleKey]);
+  },[resolvedSelectedName,season,week,teamScheduleKey]);
+  useEffect(()=>{setTeamGameDetail({});setSelectedTeamGameId(null);},[season,week,resolvedSelectedName]);
   const selectTeam = (teamName:string) => {
     setSelectedName(teamName);
     onSelectedTeamChange?.(teamName);
@@ -3785,9 +3916,9 @@ function TeamLab({ season, week, setSeason, setWeek, requestedTeam, onSelectedTe
     window.requestAnimationFrame(()=>window.scrollTo({top:0,behavior:"auto"}));
     if(teamGameDetail[row.gameId])return;
     setTeamGameLoading(row.gameId);
-    const params=new URLSearchParams({view:"schedule",season:String(season),week:"0",gameId:row.gameId,includeAnalysis:"1",includeGameTimeRanks:"1"});
+    const params=new URLSearchParams({view:"schedule",season:String(season),week:"0",forecastWeek:String(week),seasonForecast:"1",resultMode:"latest",gameId:row.gameId,includeAnalysis:"1",includeGameTimeRanks:"1"});
     try{
-      const payload=await fetch(`/api/data?${params}`).then((response)=>readJsonBody<{rows?:ScheduleRow[]}>(response));
+      const payload=await modelDataFetch(`/api/data?${params}`).then((response)=>readJsonBody<{rows?:ScheduleRow[]}>(response));
       const detail=payload.rows?.[0];
       if(detail)setTeamGameDetail((current)=>({...current,[row.gameId]:detail}));
     }finally{
@@ -3798,31 +3929,38 @@ function TeamLab({ season, week, setSeason, setWeek, requestedTeam, onSelectedTe
   if(selectedTeamGame)return <GameDetailView row={selectedTeamGame} loading={teamGameLoading===selectedTeamGameId} onBack={()=>setSelectedTeamGameId(null)}/>;
 
   return <section className="page-section team-page">
-    <div className="section-kicker">{availableTeams.length} TEAMS · {season} {week===0?"PRESEASON BASELINE":`WEEK ${week}`} · <span className={`data-source ${dynamic.source}`}>{sourceLabel(dynamic.source, season)}</span></div>
-    <div className="section-title-row"><div><h1>Team Pages</h1><p>One place for every team’s results, future projections, statistical profile, and depth chart.</p></div><VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} /></div>
-    {!selected ? <div className="data-empty"><strong>No team profile is available for this model vintage.</strong><span>Choose a populated snapshot or activate historical sync.</span></div> : <div className="team-lab-grid">
-      <div className="team-selector-bar"><label><span>TEAM</span><select value={selected.name} onChange={(event)=>selectTeam(event.target.value)} aria-label="Select team page">{teamOptions.map((team)=><option key={team.name} value={team.name}>{team.name} · {team.conference}</option>)}</select></label><small>{availableTeams.length} FBS TEAMS</small></div>
+    <div className="section-kicker">{availableTeams.length} TEAMS · {season} {week===0?"PRESEASON BASELINE":weekLabel(week,"upper")} · <span className={`data-source ${dynamic.source}`}>{sourceLabel(dynamic.source, season)}</span></div>
+    <div className="section-title-row"><div><h1>Team Pages</h1><p>Results, projections, and opponent-adjusted stats.</p></div><VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} /></div>
+    {!selected ? <div><div className="data-empty"><strong>{activeSelectedName}</strong><span>{dynamic.loading?"Loading the team profile…":"No model profile is available for this team in the selected season and week."}</span></div><RankingSchedulePanel team={activeSelectedName} season={season} rows={teamSchedule} loading={teamScheduleLoading} onSelectGame={openTeamGame}/></div> : <div className="team-lab-grid">
+      <div className="team-selector-bar" style={{"--team-accent":selected.color} as CSSProperties}><label><span>TEAM</span><SearchSelect label="Select team page" value={selected.name} onChange={selectTeam} options={teamOptions.map(team=>({value:team.name,label:`${team.name} · ${team.conference}`}))}/></label><small>{availableTeams.length} FBS TEAMS</small></div>
       <article id="team-profile-card" className="team-profile-card" style={{ "--team": selected.color } as CSSProperties}>
-        <div className="team-profile-hero">
+        <div className="team-profile-hero team-identity-surface" style={teamIdentityStyle(selected.name,selected.color)}>
           <TeamMark name={selected.name} size="lg" logo={selected.logo} />
           <div className="team-profile-identity"><span>{selected.conference}</span><h2>{selected.name}</h2><p>{selected.mascot}</p></div>
           <div className="team-profile-summary">
-            <div className="team-rank-callout"><small>H+ PROJECTED FINAL RK</small><strong>{profileSnapshotRankings.loading?"…":projectedRank}</strong></div>
-            <div className="team-record-callout" aria-label={`${selected.name} projected season record ${projectedRecord}`}><small>PROJECTED RECORD</small><strong>{projectedRecord}</strong><span>FINALS + FUTURE PICKS</span></div>
+            <div className="team-rank-callout"><small>H+ FINAL RK · INCLUDES TITLE GAME</small><strong>{profileSnapshotRankings.loading?"…":projectedRank}</strong></div>
+            <div className="team-record-callout" aria-label={`${selected.name} projected season record ${projectedRecord}`}><small>PROJECTED RECORD</small><strong>{projectedRecord}</strong><span>REGULAR SEASON · FINALS + PICKS</span></div>
           </div>
+        </div>
+        <TeamUnitRanks ranks={teamUnitRanks} fieldSize={availableTeams.length} className="team-profile-unit-ranks"/>
+        <div className="team-summary-strip">
+        <div className="team-average-vs-model"><span>AVG ACTUAL MARGIN VS PREGAME</span><strong className={performance.pointsPerGame===null?"unranked":performance.pointsPerGame>2?"good":performance.pointsPerGame< -2?"bad":"average"}>{performance.pointsPerGame===null?"—":`${signedMargin(performance.pointsPerGame)} PTS/G`}</strong><small>{performance.games} FBS GAMES</small></div>
+        <div className="team-average-vs-model"><span>CONFERENCE STRENGTH ADJ</span><strong className={(selectedRow?.conferenceAdjustment??0)>0?"good":(selectedRow?.conferenceAdjustment??0)<0?"bad":"average"}>{selectedRow?`${signedNumber(selectedRow.conferenceAdjustment??0)} PTS`:"—"}</strong><small>{weekLabel(selectedRow?.conferenceAdjustmentWeek??week,"compact")} · {selectedRow?.conferenceAdjustmentGames??0} FBS OOC GAMES</small></div>
         </div>
         <nav className="team-page-tabs" aria-label={`${selected.name} page sections`}>
           <button type="button" className={activeTab==="schedule"?"active":""} onClick={()=>setActiveTab("schedule")}>Schedule</button>
           <button type="button" className={activeTab==="stats"?"active":""} onClick={()=>setActiveTab("stats")}>Team Stats</button>
-          <button type="button" className={activeTab==="depth"?"active":""} onClick={()=>setActiveTab("depth")}>Depth Chart</button>
+          <button type="button" className={activeTab==="rushing"?"active":""} onClick={()=>setActiveTab("rushing")}>Rushing</button>
+          <button type="button" className={activeTab==="passing"?"active":""} onClick={()=>setActiveTab("passing")}>Passing</button>
         </nav>
         <div className="team-page-panel" data-team-tab={activeTab}>
+          {activeTab==="rushing"?<RushingPanel key={`${season}:${selected.name}`} season={season} team={selected.name} games={teamSchedule} profiles={profileRows} modelWeek={selectedRow?.week??week}/>:null}
+          {activeTab==="passing"?<PassingPanel key={`${season}:${selected.name}`} season={season} team={selected.name} games={teamSchedule} profiles={profileRows} modelWeek={selectedRow?.week??week}/>:null}
           {activeTab==="schedule"?<section className="team-page-schedule">
-            <header><div><span>{season} SCHEDULE</span><strong>Results & projections</strong></div><small>{teamScheduleLoading?"LOADING…":`${teamSchedule.length} GAMES`}</small></header>
-            {teamSchedule.length?<TeamScheduleList rows={teamSchedule} team={selected.name} onOpen={(row)=>void openTeamGame(row)}/>:<div className="empty-state">{teamScheduleLoading?"Loading this team’s schedule…":"No games are available for this season."}</div>}
+            <header><div><span>{season} SCHEDULE · LATEST OPPONENT RECORDS & UNIT RANKS</span><strong>Results & projections</strong></div><small>{teamScheduleLoading?"LOADING…":`${teamSchedule.length} GAMES`}</small></header>
+            {teamSchedule.length?<TeamScheduleList rows={teamSchedule} team={selected.name} fieldSize={availableTeams.length} onOpen={(row)=>void openTeamGame(row)}/>:<div className="empty-state">{teamScheduleLoading?"Loading this team’s schedule…":"No games are available for this season."}</div>}
           </section>:null}
-          {activeTab==="stats"?(profile&&selectedRow?<><TeamIntelligencePanel row={selectedRow} history={history.rows} comparisons={historicalComparisons.rows} comparisonsLoading={historicalComparisons.loading} players={selectedPlayers}/><div className="profile-columns"><TeamMetricPanel title="OFFENSIVE PRODUCTION" subtitle="Raw output with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="offense" /><TeamMetricPanel title="DEFENSIVE OUTPUT ALLOWED" subtitle="Raw allowances with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="defense" /></div><div className="trend-panel"><div><strong>MODEL VINTAGE</strong><span>{week===0?`${season} preseason · four-season history + returning production + recruiting`:`${season} cumulative profile through week ${week}`}</span></div><div className="index-readout"><span>ADJ OFFENSE VS FBS AVG</span><strong>{(average(profile.o.slice(0, 3))*100).toFixed(0)}%</strong><span>ADJ OPP OUTPUT ALLOWED</span><strong>{(average(profile.d.slice(0, 3))*100).toFixed(0)}%</strong></div></div></>:<div className="empty-state">No completed profile exists at or before this week.</div>):null}
-          {activeTab==="depth"?(selectedPlayers?<div className="team-page-depth"><StarterFormationBoard model={selectedPlayers} team={selected.name} logo={selected.logo} primaryColor={selected.color} secondaryColor={selected.altColor} profile={selectedRow}/><OffensiveLineUnitCard row={selectedRow} rows={profileRows} loading={dynamic.loading} productionRating={selectedPlayers.offensiveLineUnitRating}/><DepthRosterTable model={selectedPlayers}/></div>:<div className="empty-state">{playerLayer.loading?"Loading the sourced roster and depth chart…":"No depth chart is available for this team and season."}</div>):null}
+          {activeTab==="stats"?(profile&&selectedRow?<><TeamFootballReport resultsWeek={week} row={selectedRow} profiles={profileRows} history={history.rows} games={teamSchedule} loading={teamScheduleLoading} onOpen={(game)=>{const full=teamSchedule.find(row=>row.gameId===game.gameId);if(full)void openTeamGame(full);}}/><TeamIntelligencePanel row={selectedRow} history={history.rows} comparisons={historicalComparisons.rows} comparisonsLoading={historicalComparisons.loading}/><div className="profile-columns"><TeamMetricPanel title="OFFENSIVE PRODUCTION" subtitle="Raw output with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="offense" /><TeamMetricPanel title="DEFENSIVE OUTPUT ALLOWED" subtitle="Raw allowances with opponent-adjusted percentage indices" row={selectedRow} rows={profileRows} side="defense" /></div><div className="trend-panel"><div><strong>MODEL VINTAGE</strong><span>{week===0?`${season} preseason · four-season history + returning production + recruiting`:`${season} cumulative profile through ${weekLabel(week)}`}</span></div><div className="index-readout"><span>ADJ OFFENSE VS FBS AVG</span><strong>{(average(profile.o.slice(0, 3))*100).toFixed(0)}%</strong><span>ADJ OPP OUTPUT ALLOWED</span><strong>{(average(profile.d.slice(0, 3))*100).toFixed(0)}%</strong></div></div></>:<div className="empty-state">No completed profile exists at or before this week.</div>):null}
         </div>
       </article>
     </div>}
@@ -4063,7 +4201,7 @@ function StarterFormationBoard({
       </nav>
     </header>
     <div className={`depth-formation-field ${unit}`}>
-      {logo?<img className="depth-field-watermark" src={logo} alt="" aria-hidden="true"/>:<span className="depth-field-watermark fallback" aria-hidden="true">{team.slice(0,2).toUpperCase()}</span>}
+      <TeamLink team={team} className={`depth-field-watermark ${logo?"":"fallback"}`}>{logo?<img src={logo} alt=""/>:team.slice(0,2).toUpperCase()}</TeamLink>
       <div className="depth-field-hash depth-field-hash-one" aria-hidden="true"/>
       <div className="depth-field-hash depth-field-hash-two" aria-hidden="true"/>
       {unit!=="specialists"?<div className="depth-line-of-scrimmage" aria-hidden="true"><span>LINE OF SCRIMMAGE</span></div>:null}
@@ -4228,15 +4366,16 @@ function PlayerStatsJersey({team,color,altColor,jersey}:{team:string;color?:stri
 }
 
 function PlayerStatsPage() {
-  const [season,setSeason]=useState(activeModelSeason);
+  const [season,setSeason]=useSharedSeason(activeModelSeason);
   const [position,setPosition]=useState<PlayerStatsPosition>("QB");
   const [conference,setConference]=useState("");
   const [query,setQuery]=useState("");
   const [metricKey,setMetricKey]=useState<PlayerStatsMetricKey>(playerStatsDefaultSortKey("QB"));
+  const [statGroup,setStatGroup]=useState<"basic"|"advanced">("basic");
   const [sortKey,setSortKey]=useState<PlayerStatsSortKey>(playerStatsDefaultSortKey("QB"));
   const [direction,setDirection]=useState<PlayerStatsDirection>(defaultPlayerStatsSortDirection(playerStatsDefaultSortKey("QB"),"QB"));
   const [page,setPage]=useState(1);
-  const requestKey=`${season}:${position}:${metricKey}:${conference}:${query}:${sortKey}:${direction}:${page}`;
+  const requestKey=`${season}:${position}:${statGroup}:${metricKey}:${conference}:${query}:${sortKey}:${direction}:${page}`;
   const [result,setResult]=useState<{key:string;payload:PlayerStatsPayload|null;loading:boolean}>({key:"",payload:null,loading:true});
 
   useEffect(()=>{
@@ -4246,7 +4385,7 @@ function PlayerStatsPage() {
       setResult((current)=>({key:requestKey,payload:current.key===requestKey?current.payload:null,loading:true}));
       try{
         const params=new URLSearchParams({
-          season:String(season),position,metric:metricKey,conference,query,sort:sortKey,direction,page:String(page),limit:"50",
+          season:String(season),position,group:statGroup,metric:metricKey,conference,query,sort:sortKey,direction,page:String(page),limit:"50",
         });
         const response=await fetch(`/api/player-stats?${params}`,{signal:controller.signal});
         const payload=await readJsonBody<PlayerStatsPayload>(response);
@@ -4260,34 +4399,39 @@ function PlayerStatsPage() {
     };
     load();
     return()=>{controller.abort();if(retryTimer)clearTimeout(retryTimer);};
-  },[conference,direction,metricKey,page,position,query,requestKey,season,sortKey]);
+  },[conference,direction,metricKey,page,position,query,requestKey,season,sortKey,statGroup]);
 
   const payload=result.key===requestKey?result.payload:null;
   const rows=payload?.rows??[];
   const pagination=payload?.pagination;
   const columns=useMemo(()=>playerStatsColumns(position),[position]);
   const metricColumns=useMemo(()=>playerStatsMetricColumns(position),[position]);
+  const basicColumns=useMemo(()=>playerStatsGroupColumns(position,"basic"),[position]);
+  const advancedColumns=useMemo(()=>playerStatsGroupColumns(position,"advanced"),[position]);
+  const groupColumns=statGroup==="basic"?basicColumns:advancedColumns;
   const selectedMetric=metricColumns.find((column)=>column.key===metricKey)??metricColumns[0];
-  const visibleColumns=useMemo(()=>[columns[0],selectedMetric],[columns,selectedMetric]);
+  const visibleColumns=useMemo(()=>[columns[0],...groupColumns],[columns,groupColumns]);
   const activeSort=visibleColumns.find((column)=>column.key===sortKey)??selectedMetric;
   const qualificationLabel=payload?.qualification?.label??playerStatsQualification(position,metricKey).label;
   const conferences=payload?.conferences??[];
-  const availableSeasons=(payload?.availableSeasons?.length
+  const availableSeasons=[...new Set([season,...(payload?.availableSeasons?.length
     ?payload.availableSeasons
-    :seasonOptions.filter((value)=>value<=activeModelSeason)).sort((left,right)=>right-left);
+    :seasonOptions.filter((value)=>value<=activeModelSeason))])].sort((left,right)=>right-left);
   const gridStyle={
-    "--stats-grid":"minmax(314px,1fr) minmax(118px,.32fr)",
-    "--stats-min-width":"474px",
+    "--stats-grid":`minmax(220px,1.2fr) repeat(${groupColumns.length},minmax(104px,.7fr))`,
+    "--stats-min-width":`${220+groupColumns.length*104}px`,
   } as CSSProperties;
   const changePosition=(nextPosition:PlayerStatsPosition)=>{
     const nextMetric=playerStatsDefaultSortKey(nextPosition);
     setPosition(nextPosition);
+    setStatGroup("basic");
     setMetricKey(nextMetric);
     setSortKey(nextMetric);
     setDirection(defaultPlayerStatsSortDirection(nextMetric,nextPosition));
     setPage(1);
   };
   const changeMetric=(nextMetric:PlayerStatsMetricKey)=>{
+    setStatGroup(advancedColumns.some((column)=>column.key===nextMetric)?"advanced":"basic");
     setMetricKey(nextMetric);
     setSortKey(nextMetric);
     setDirection(defaultPlayerStatsSortDirection(nextMetric,position));
@@ -4296,13 +4440,14 @@ function PlayerStatsPage() {
   const changeSort=(nextSort:PlayerStatsSortKey)=>{
     if(nextSort===sortKey){setDirection((current)=>current==="asc"?"desc":"asc");setPage(1);return;}
     setSortKey(nextSort);
+    if(nextSort!=="name"&&nextSort!=="team"&&nextSort!=="conference")setMetricKey(nextSort);
     setDirection(defaultPlayerStatsSortDirection(nextSort,position));
     setPage(1);
   };
 
   return <section className="page-section stats-page player-stats-page">
     <div className="section-kicker">PLAYER STAT DATABASE · POSITION-SPECIFIC PRODUCTION · 2014–{activeModelSeason}</div>
-    <div className="section-title-row"><div><h1>Player Stats</h1><p>A compact leader table showing one selected position metric at a time, with workload qualifiers applied before ranking.</p></div></div>
+    <div className="section-title-row"><div><h1>Player Stats</h1><p>Sort any column; national stat ranks stay beside each value.</p></div></div>
 
     <div className="stats-summary player-stats-summary">
       <article><span>POSITION</span><strong>{position}</strong><small>{metricColumns.length} available statistics</small></article>
@@ -4312,17 +4457,19 @@ function PlayerStatsPage() {
     </div>
 
     <div className="data-toolbar stats-toolbar player-stats-toolbar">
-      <div><strong>{position} · {selectedMetric.label}</strong><span>Only the selected statistic is shown. Qualified players are ordered by {activeSort.label} {direction==="asc"?"ascending":"descending"}; every visible header remains sortable.</span></div>
       <div className="stats-toolbar-controls">
         <label><span>YEAR</span><select value={season} onChange={(event)=>{setSeason(Number(event.target.value));setConference("");setPage(1);}} aria-label="Choose player stats season">{availableSeasons.map((value)=><option key={value} value={value}>{value}</option>)}</select></label>
         <label><span>POSITION</span><select value={position} onChange={(event)=>changePosition(event.target.value as PlayerStatsPosition)} aria-label="Choose player stats position">{PLAYER_STATS_POSITIONS.map((value)=><option key={value} value={value}>{value}</option>)}</select></label>
-        <label className="player-stats-stat-control"><span>STAT</span><select value={metricKey} onChange={(event)=>changeMetric(event.target.value as PlayerStatsMetricKey)} aria-label="Choose player statistic">{metricColumns.map((column)=><option key={column.key} value={column.key}>{column.label}</option>)}</select></label>
+        <label className="player-stats-stat-control"><span>BASIC STATS</span><select value={statGroup==="basic"?metricKey:""} onChange={(event)=>changeMetric(event.target.value as PlayerStatsMetricKey)} aria-label="Choose basic player statistic"><option value="" disabled>CHOOSE BASIC</option>{basicColumns.map((column)=><option key={column.key} value={column.key}>{column.label}</option>)}</select></label>
+        <label className="player-stats-stat-control"><span>ADVANCED STATS</span><select value={statGroup==="advanced"?metricKey:""} onChange={(event)=>changeMetric(event.target.value as PlayerStatsMetricKey)} aria-label="Choose advanced player statistic" disabled={!advancedColumns.length}><option value="" disabled>{advancedColumns.length?"CHOOSE ADVANCED":"NO ADVANCED FEED"}</option>{advancedColumns.map((column)=><option key={column.key} value={column.key}>{column.label}</option>)}</select></label>
         <label><span>CONFERENCE</span><select value={conference} onChange={(event)=>{setConference(event.target.value);setPage(1);}} aria-label="Filter player stats by conference"><option value="">ALL CONFERENCES</option><option value={POWER_4_FILTER}>{POWER_4_LABEL.toUpperCase()}</option>{conferences.map((value)=><option key={value} value={value}>{value}</option>)}</select></label>
         <label><span>PLAYER / TEAM</span><input value={query} onChange={(event)=>{setQuery(event.target.value);setPage(1);}} placeholder="Search player or team" aria-label="Search player stats" /></label>
       </div>
     </div>
 
-    <details className="stat-glossary player-stats-definition"><summary>{selectedMetric.label} DEFINITION · QUALIFIER · RANKS</summary><div><article><strong>{selectedMetric.label}</strong><span>{selectedMetric.description}</span></article><article><strong>MINIMUM SAMPLE</strong><span>{qualificationLabel}. The qualification is applied before sorting and pagination; totals reflect qualified rows after the current filters.</span></article><article><strong>RANK BADGES</strong><span>The large number is the active table rank{conference?` within ${conferenceFilterDisplay(conference)}`:""}. NAT is the {season} national rank for {selectedMetric.label}. ERA is the overall production rank among all {position} player-seasons from 2014–{activeModelSeason}.</span></article></div></details>
+    <div className="stats-mobile-sort"><label htmlFor="player-stats-sort">SORT PLAYER STATS</label><select id="player-stats-sort" value={sortKey} onChange={(event)=>changeSort(event.target.value as PlayerStatsSortKey)} aria-label="Sort player stats by column">{visibleColumns.map((column)=><option key={column.key} value={column.key}>{column.label}</option>)}</select><button type="button" onClick={()=>setDirection((current)=>current==="asc"?"desc":"asc")} aria-label={`Change sort direction to ${direction==="asc"?"descending":"ascending"}`}>{direction==="asc"?"↑ ASC":"↓ DESC"}</button></div>
+
+    <details className="stat-glossary player-stats-definition"><summary>STAT DEFINITIONS · QUALIFIER · RANKS</summary><div>{groupColumns.map((column)=><article key={column.key}><strong>{column.label}</strong><span>{column.description}</span></article>)}<article><strong>MINIMUM SAMPLE</strong><span>{qualificationLabel}. The selected stat determines row qualification. Each value’s # rank uses its own minimum sample nationally.</span></article><article><strong>RANK BADGES</strong><span>The large number is the active table rank{conference?` within ${conferenceFilterDisplay(conference)}`:""}. NAT is the {season} national rank for {selectedMetric.label}. ERA is the overall production rank among all {position} player-seasons from 2014–{activeModelSeason}.</span></article></div></details>
 
     {payload?.status==="building"||payload?.status==="waiting"?<div className="player-stats-state"><span>PLAYER STAT ARCHIVE</span><strong>Building this season’s player profiles</strong><p>{payload.message??"This page will refresh automatically when the player archive is ready."}</p></div>:null}
     {payload?.status==="error"||payload?.status==="unavailable"?<div className="player-stats-state error"><span>PLAYER STATS</span><strong>Temporarily unavailable</strong><p>{payload.message}</p></div>:null}
@@ -4334,14 +4481,14 @@ function PlayerStatsPage() {
       })}</div>
       {result.loading&&!rows.length?<div className="player-stats-loading">Loading {position} statistics…</div>:null}
       {rows.map((row)=><div className="stats-row player-stats-row" style={gridStyle} key={`${row.season}-${row.team}-${row.id}`}>
-        <div className="player-stats-player"><div className="player-stats-ranks" role="group" aria-label={`${conference?conferenceFilterDisplay(conference):"National"} table rank ${row.rank}; ${season} national ${selectedMetric.label} rank ${row.nationalRank}; 2014 to ${activeModelSeason} all-era ${position} production rank ${row.allEraRank??"unavailable"}`}><b>{row.rank}</b><span aria-hidden="true"><small>NAT <b>{row.nationalRank}</b></small><small>ERA <b>{row.allEraRank??"—"}</b></small></span></div><PlayerStatsJersey team={row.team} color={row.color} altColor={row.altColor} jersey={row.jersey}/><span><strong>{row.name}</strong><small>{row.team} · {row.conference||"FBS"}</small></span></div>
-        <span className={`stats-value player-stats-value ${metricKey===sortKey?"active-value":""} ${playerStatsValueTone(row,metricKey)}`}>{formatPlayerStatsValue(row,selectedMetric)}</span>
+        <div className="player-stats-player team-identity-surface" style={teamIdentityStyle(row.team,row.color)}><div className="player-stats-ranks" role="group" aria-label={`${conference?conferenceFilterDisplay(conference):"National"} table rank ${row.rank}; ${season} national ${selectedMetric.label} rank ${row.nationalRank}; 2014 to ${activeModelSeason} all-era ${position} production rank ${row.allEraRank??"unavailable"}`}><b>{row.rank}</b><span aria-hidden="true"><small>NAT <b>{row.nationalRank}</b></small><small>ERA <b>{row.allEraRank??"—"}</b></small></span></div><PlayerStatsJersey team={row.team} color={row.color} altColor={row.altColor} jersey={row.jersey}/><span><strong>{row.name}</strong><small><TeamAccent name={row.team} color={row.color}/> · {row.conference||"FBS"}</small></span></div>
+        <div className="player-stats-metrics">{groupColumns.map((column)=><span key={column.key} className={`stats-value player-stats-value ${column.key===sortKey?"active-value":""} ${playerStatsValueTone(row,column.key)}`}><span className="stats-value-line"><span className="stats-value-number">{formatPlayerStatsValue(row,column)}</span>{row.metricRanks?.[column.key]?<small className="stats-value-rank" title={`${season} national ${column.label} rank among qualified ${position} players`}>#{row.metricRanks[column.key]}</small>:null}</span></span>)}</div>
       </div>)}
       {!rows.length&&!result.loading?<div className="player-stats-loading">No qualified {position} players match these filters for {selectedMetric.label}.</div>:null}
     </div>:null}
 
     {pagination&&pagination.pageCount>1?<footer className="player-ratings-pagination player-stats-pagination"><button type="button" disabled={pagination.page<=1} onClick={()=>setPage((value)=>Math.max(1,value-1))}>← PREVIOUS</button><span>PAGE <strong>{pagination.page}</strong> OF {pagination.pageCount}</span><button type="button" disabled={pagination.page>=pagination.pageCount} onClick={()=>setPage((value)=>Math.min(pagination.pageCount,value+1))}>NEXT →</button></footer>:null}
-    <p className="all137-disclaimer">Each position exposes its own stat menu, but the table displays only the selected metric. Minimum samples remove one-play and low-volume outliers before rankings are calculated. Box-score totals remain source values; advanced columns appear only when the historical feed supplies that evidence. Offensive line is represented by one five-man team unit because individual blocking statistics are not available in the source archive.</p>
+    <p className="all137-disclaimer">Basic and advanced columns are grouped by position. Minimum samples determine the selected leaderboard and each stat’s national rank. Box-score totals remain source values; advanced columns appear only when the historical feed supplies that evidence. Offensive line is represented by one five-man team unit because individual blocking statistics are not available in the source archive.</p>
   </section>;
 }
 
@@ -4383,6 +4530,12 @@ function teamScatterBasicValue(row:DynamicProfileRow,metric:string,side:TeamScat
 function teamScatterAdvancedValue(row:DynamicProfileRow,metric:AdvancedMetricKey,side:TeamScatterSide,scale:TeamScatterScale) {
   const value=row.advancedProfile?.[side]?.[scale]?.[metric];
   return value!==null&&value!==undefined&&Number.isFinite(value)?value:null;
+}
+
+function teamScatterHigherIsBetter(metric:ScatterMetricOption,side:TeamScatterSide,family:TeamScatterFamily){
+  const inverse=family==="advanced"&&Boolean(TEAM_STATS_ADVANCED_METRICS.find((row)=>row.key===metric.advancedKey)?.inverse);
+  const offenseHigher=!inverse;
+  return side==="offense"?offenseHigher:!offenseHigher;
 }
 
 function formatScatterValue(value:number,format:ScatterMetricFormat,tick=false) {
@@ -4540,21 +4693,29 @@ function usePlayerWeeklyTimeline(season:number,team:string,playerId:string,playe
   return result.key===requestKey?{payload:result.payload,loading:result.loading}:{payload:null,loading:enabled};
 }
 
-function ScatterMultiSelect({label,summary,options,selected,onToggle,onAll,ariaLabel}:{
-  label:string;summary:string;options:Array<{value:string;label:string}>;selected:string[];onToggle:(value:string)=>void;onAll:()=>void;ariaLabel:string;
+function ScatterMultiSelect({label,summary,options,selected,onToggle,onAll,onClear,ariaLabel}:{
+  label:string;summary:string;options:Array<{value:string;label:string}>;selected:string[];onToggle:(value:string)=>void;onAll:()=>void;onClear:()=>void;ariaLabel:string;
 }) {
   const [open,setOpen]=useState(false);
   const selectedSet=new Set(selected);
-  return <details className="scatter-multi-select" open={open} onToggle={(event)=>setOpen(event.currentTarget.open)}>
-    <summary aria-label={ariaLabel}><span>{label}</span><strong>{summary}</strong><i aria-hidden="true">⌄</i></summary>
+  return <div className="scatter-multi-control"><span>{label}</span><details className="scatter-multi-select" open={open} onToggle={(event)=>setOpen(event.currentTarget.open)}>
+    <summary aria-label={ariaLabel}><strong>{summary}</strong><i aria-hidden="true">⌄</i></summary>
     <div className="scatter-multi-menu">
-      <button type="button" onClick={onAll}>{label==="YEAR"?"SELECT ALL YEARS":"SHOW ALL TEAMS"}</button>
+      <div className="scatter-multi-actions"><button type="button" onClick={onAll}>SELECT ALL</button><button type="button" onClick={onClear}>CLEAR ALL</button></div>
       <div>{options.map((option)=><label key={option.value}><input type="checkbox" checked={selectedSet.has(option.value)} onChange={()=>onToggle(option.value)}/><span>{option.label}</span></label>)}</div>
     </div>
-  </details>;
+  </details></div>;
 }
 
 const scatterPhoneQuery="(max-width:700px)";
+const SCATTER_QUALITY_ZONES=[
+  {key:"terrible",label:"TERRIBLE",color:"#b84444",points:[[0,0],[.4,0],[0,.4]]},
+  {key:"bad",label:"BAD",color:"#c9783f",points:[[0,.4],[.4,0],[.8,0],[0,.8]]},
+  {key:"average",label:"AVERAGE",color:"#a58d42",points:[[0,.8],[.8,0],[1,0],[1,.2],[.2,1],[0,1]]},
+  {key:"good",label:"GOOD",color:"#3d8f7b",points:[[.2,1],[1,.2],[1,.6],[.6,1]]},
+  {key:"elite",label:"ELITE",color:"#287d4a",points:[[.6,1],[1,.6],[1,1]]},
+] as const;
+const SCATTER_QUALITY_BOUNDARY_COLORS=["#c15e42","#b58340","#718e5f","#337f62"] as const;
 function subscribeScatterPhone(change:()=>void) {
   if(typeof window==="undefined")return()=>undefined;
   const media=window.matchMedia(scatterPhoneQuery);
@@ -4568,10 +4729,13 @@ function useScatterPhoneLayout() {
   return useSyncExternalStore(subscribeScatterPhone,scatterPhoneSnapshot,()=>false);
 }
 
-function ScatterPlot({points,xMetric,yMetric,title,subtitle,mode,loading}:{
-  points:ScatterPlotPoint[];xMetric:ScatterMetricOption;yMetric:ScatterMetricOption;title:string;subtitle:string;mode:"team"|"player";loading:boolean;
+function ScatterPlot({points,xMetric,yMetric,title,subtitle,mode,loading,showQualityZones=false,xHigherIsBetter=true,yHigherIsBetter=true}:{
+  points:ScatterPlotPoint[];xMetric:ScatterMetricOption;yMetric:ScatterMetricOption;title:string;subtitle:string;mode:"team"|"player";loading:boolean;showQualityZones?:boolean;xHigherIsBetter?:boolean;yHigherIsBetter?:boolean;
 }) {
-  const phone=useScatterPhoneLayout();
+  const [pdfStatus,setPdfStatus]=useState<"idle"|"preparing"|"error">("idle");
+  const [exportingPdf,setExportingPdf]=useState(false);
+  const exportSurfaceRef=useRef<HTMLDivElement>(null);
+  const phone=useScatterPhoneLayout()&&!exportingPdf;
   const {width,height,left,right,top,bottom}=phone
     ?{width:390,height:570,left:48,right:12,top:74,bottom:66}
     :{width:1100,height:720,left:105,right:42,top:96,bottom:88};
@@ -4581,43 +4745,87 @@ function ScatterPlot({points,xMetric,yMetric,title,subtitle,mode,loading}:{
   const xTicks=scatterTicks(xDomain,phone?5:6),yTicks=scatterTicks(yDomain,phone?5:6);
   const averageX=scatterMean(points.map((point)=>point.x)),averageY=scatterMean(points.map((point)=>point.y));
   const regression=scatterRegression(points);
-  const xAt=(value:number)=>left+scatterPosition(value,xDomain)*plotWidth;
-  const yAt=(value:number)=>top+(1-scatterPosition(value,yDomain))*plotHeight;
+  const xAt=(value:number)=>left+(xHigherIsBetter?scatterPosition(value,xDomain):1-scatterPosition(value,xDomain))*plotWidth;
+  const yAt=(value:number)=>top+(yHigherIsBetter?1-scatterPosition(value,yDomain):scatterPosition(value,yDomain))*plotHeight;
   const trendStart=regression?regression.intercept+regression.slope*xDomain.min:null;
   const trendEnd=regression?regression.intercept+regression.slope*xDomain.max:null;
   const displayTitle=phone?`${yMetric.label} vs ${xMetric.label}`:title;
+  const qualityPoint=(x:number,y:number)=>({x:left+x*plotWidth,y:top+(1-y)*plotHeight});
+  const zoneBoundaries=[.2,.4,.6,.8].map((tier)=>{
+    const sum=2*tier;
+    const start=sum<=1?qualityPoint(0,sum):qualityPoint(sum-1,1);
+    const end=sum<=1?qualityPoint(sum,0):qualityPoint(1,sum-1);
+    return{tier,start,end};
+  });
+  const exportPdf=async()=>{
+    const surface=exportSurfaceRef.current;
+    if(!surface||loading||!points.length||pdfStatus==="preparing")return;
+    setPdfStatus("preparing");
+    setExportingPdf(true);
+    try{
+      await new Promise<void>((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+      if(document.fonts?.ready)await document.fonts.ready;
+      await Promise.all([...surface.querySelectorAll("img")].map((image)=>image.complete?Promise.resolve():new Promise<void>((resolve)=>{image.addEventListener("load",()=>resolve(),{once:true});image.addEventListener("error",()=>resolve(),{once:true});})));
+      const [{default:html2canvas},{PDFDocument}]=await Promise.all([import("html2canvas"),import("pdf-lib")]);
+      const canvas=await html2canvas(surface,{backgroundColor:"#ffffff",scale:2,useCORS:true,logging:false});
+      const pngBlob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob((blob)=>blob?resolve(blob):reject(new Error("Graph image could not be created.")),"image/png"));
+      const pdf=await PDFDocument.create();
+      const pageWidth=792;
+      const pageHeight=pageWidth*(canvas.height/canvas.width);
+      const page=pdf.addPage([pageWidth,pageHeight]);
+      const image=await pdf.embedPng(await pngBlob.arrayBuffer());
+      page.drawImage(image,{x:0,y:0,width:pageWidth,height:pageHeight});
+      const bytes=await pdf.save();
+      const blob=new Blob([new Uint8Array(bytes)],{type:"application/pdf"});
+      const url=URL.createObjectURL(blob);
+      const anchor=document.createElement("a");
+      const filename=`harper-cfb-${title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"visualizer"}.pdf`;
+      anchor.href=url;anchor.download=filename;document.body.appendChild(anchor);anchor.click();anchor.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),30_000);
+      setPdfStatus("idle");
+    }catch{
+      setPdfStatus("error");
+    }finally{
+      setExportingPdf(false);
+    }
+  };
   return <section className="scatter-chart" aria-label={`${title} scatterplot`}>
+    <div className="scatter-export-toolbar"><CopyImageButton getSvg={()=>exportSurfaceRef.current?.querySelector<SVGSVGElement>("svg[role=img]")??null} disabled={loading||!points.length||pdfStatus==="preparing"} title="Harper+ Visualizer"/><span role="status" aria-live="polite">{pdfStatus==="error"?"PDF export failed. Try again.":""}</span><button type="button" onClick={exportPdf} disabled={loading||!points.length||pdfStatus==="preparing"}>{pdfStatus==="preparing"?"BUILDING PDF…":"EXPORT PDF"}</button></div>
+    <div className="scatter-export-surface" ref={exportSurfaceRef}>
     <div className="scatter-chart-scroll">
       <div className={`scatter-stage ${phone?"phone-layout":"desktop-layout"}`} style={{aspectRatio:`${width} / ${height}`}}>
         <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby="scatter-title scatter-subtitle">
-          <title id="scatter-title">{title}</title><desc id="scatter-subtitle">{subtitle}. {points.length} data points.</desc>
+          <title id="scatter-title">{title}</title><desc id="scatter-subtitle">{subtitle}. {points.length} data points.{showQualityZones?" Five relative performance zones are shown from terrible through elite.":""}</desc>
           <text className={`scatter-title ${phone?"mobile":""}`} x={width/2} y={phone?27:34} textAnchor="middle">{displayTitle}</text>
           <text className="scatter-subtitle" x={width/2} y={phone?48:57} textAnchor="middle">{subtitle}</text>
+          {showQualityZones?<>{SCATTER_QUALITY_ZONES.map((zone)=><polygon className={`scatter-quality-zone ${zone.key}`} key={zone.key} fill={zone.color} points={zone.points.map(([x,y])=>{const point=qualityPoint(x,y);return`${point.x},${point.y}`;}).join(" ")}/>)}{zoneBoundaries.map(({tier,start,end},index)=><line className="scatter-quality-boundary" stroke={SCATTER_QUALITY_BOUNDARY_COLORS[index]} key={tier} x1={start.x} y1={start.y} x2={end.x} y2={end.y}/>)}</>:null}
           {xTicks.map((tick,index)=><g key={`x-${index}`}><line className="scatter-grid-line" x1={xAt(tick)} x2={xAt(tick)} y1={top} y2={top+plotHeight}/><text className="scatter-tick" x={xAt(tick)} y={top+plotHeight+27} textAnchor="middle">{formatScatterValue(tick,xMetric.format,true)}</text></g>)}
           {yTicks.map((tick,index)=><g key={`y-${index}`}><line className="scatter-grid-line" x1={left} x2={left+plotWidth} y1={yAt(tick)} y2={yAt(tick)}/><text className="scatter-tick" x={left-17} y={yAt(tick)+5} textAnchor="end">{formatScatterValue(tick,yMetric.format,true)}</text></g>)}
           <line className="scatter-axis" x1={left} x2={left+plotWidth} y1={top+plotHeight} y2={top+plotHeight}/>
           <line className="scatter-axis" x1={left} x2={left} y1={top} y2={top+plotHeight}/>
           {averageX!==null?<><line className="scatter-average-line" x1={xAt(averageX)} x2={xAt(averageX)} y1={top} y2={top+plotHeight}/><text className="scatter-average-label" x={xAt(averageX)+7} y={top+16}>AVG {formatScatterValue(averageX,xMetric.format)}</text></>:null}
           {averageY!==null?<><line className="scatter-average-line" x1={left} x2={left+plotWidth} y1={yAt(averageY)} y2={yAt(averageY)}/><text className="scatter-average-label" x={left+plotWidth-7} y={yAt(averageY)-8} textAnchor="end">AVG {formatScatterValue(averageY,yMetric.format)}</text></>:null}
-          {trendStart!==null&&trendEnd!==null?<line className="scatter-trend-line" x1={left} y1={yAt(trendStart)} x2={left+plotWidth} y2={yAt(trendEnd)}/>:null}
+          {trendStart!==null&&trendEnd!==null?<line className="scatter-trend-line" x1={xAt(xDomain.min)} y1={yAt(trendStart)} x2={xAt(xDomain.max)} y2={yAt(trendEnd)}/>:null}
           <text className="scatter-axis-label" x={left+plotWidth/2} y={height-(phone?16:22)} textAnchor="middle">{xMetric.label}</text>
           <text className="scatter-axis-label" x={phone?14:25} y={top+plotHeight/2} textAnchor="middle" transform={`rotate(-90 ${phone?14:25} ${top+plotHeight/2})`}>{yMetric.label}</text>
         </svg>
+        {showQualityZones?<div className="scatter-zone-headings" aria-label="Performance zones from terrible to elite" style={{left:`${(left/width)*100}%`,right:`${(right/width)*100}%`,top:`${(top/height)*100}%`}}>{SCATTER_QUALITY_ZONES.map((zone)=><span className={zone.key} key={zone.key}>{zone.label}</span>)}</div>:null}
         <span className="scatter-chart-brand" aria-hidden="true"><img src="/harper-football.svg" alt=""/><span><strong>HARPER+</strong><small>CFB MODEL</small></span></span>
         <div className="scatter-markers" aria-label={`${points.length} plotted ${mode==="team"?"teams":"players"}`}>
           {points.map((point)=>{
             const x=(xAt(point.x)/width)*100,y=(yAt(point.y)/height)*100;
             const detail=`${point.label}; ${xMetric.label} ${formatScatterValue(point.x,xMetric.format)}; ${yMetric.label} ${formatScatterValue(point.y,yMetric.format)}`;
             const plottedTeamLogo=resolveTeamLogoAsset(point.team)??point.logo;
-            return <button type="button" className={`scatter-marker ${mode}-marker`} style={{left:`${x}%`,top:`${y}%`}} aria-label={detail} key={point.id}>
+            return <TeamLink team={point.team} className={`scatter-marker ${mode}-marker`} style={{left:`${x}%`,top:`${y}%`}} aria-label={detail} key={point.id}>
               {mode==="team"?(plottedTeamLogo?<img src={plottedTeamLogo} alt=""/>:<span className="scatter-team-fallback" aria-hidden="true">{point.team.slice(0,2).toUpperCase()}</span>):<PlayerStatsJersey team={point.team} color={point.color} altColor={point.altColor} jersey={point.jersey}/>}
               {point.season&&points.length<=30?<small className="scatter-season-tag" aria-hidden="true">{point.season}</small>:null}
               <span className="scatter-marker-tooltip" aria-hidden="true"><strong>{point.label}</strong><small>{point.secondary}</small><span><b>{xMetric.label}</b>{formatScatterValue(point.x,xMetric.format)}</span><span><b>{yMetric.label}</b>{formatScatterValue(point.y,yMetric.format)}</span></span>
-            </button>;
+            </TeamLink>;
           })}
         </div>
         {!points.length?<div className="scatter-empty" style={{inset:`${(top/height)*100}% ${(right/width)*100}% ${(bottom/height)*100}% ${(left/width)*100}%`}}><strong>{loading?"Loading plot…":"No qualified data"}</strong><span>{loading?"The chart will populate automatically.":"Try a broader team or conference filter, or choose another statistic."}</span></div>:null}
       </div>
+    </div>
     </div>
   </section>;
 }
@@ -4648,6 +4856,7 @@ function PlayerWeeklyTrend({games,metric,playerName,team,season,loading,message}
   const title=`${playerName||"Player"} · ${metric.label}`;
   const subtitle=`${season} ${team} · weekly output and cumulative average`;
   return <section className="scatter-chart player-weekly-chart" aria-label={`${title} weekly progression chart`}>
+    <div className="scatter-export-toolbar"><CopyImageButton scope=".player-weekly-chart" disabled={loading||!points.length} title={`${playerName} · ${team} · ${season}`}/></div>
     <div className="scatter-chart-scroll"><div className={`scatter-stage player-weekly-stage ${phone?"phone-layout":"desktop-layout"}`} style={{aspectRatio:`${width} / ${height}`}}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby="player-weekly-title player-weekly-subtitle">
         <title id="player-weekly-title">{title}</title><desc id="player-weekly-subtitle">{subtitle}. The solid line is each game and the dashed line is the running season average.</desc>
@@ -4656,9 +4865,9 @@ function PlayerWeeklyTrend({games,metric,playerName,team,season,loading,message}
         {yTicks.map((tick,index)=><g key={`weekly-y-${index}`}><line className="scatter-grid-line" x1={left} x2={left+plotWidth} y1={yAt(tick)} y2={yAt(tick)}/><text className="scatter-tick" x={left-12} y={yAt(tick)+4} textAnchor="end">{formatScatterValue(tick,metric.format,true)}</text></g>)}
         <line className="scatter-axis" x1={left} x2={left+plotWidth} y1={top+plotHeight} y2={top+plotHeight}/>
         <line className="scatter-axis" x1={left} x2={left} y1={top} y2={top+plotHeight}/>
-        {points.map((point,index)=><text className="player-weekly-x-label" x={xAt(index)} y={top+plotHeight+24} textAnchor="middle" key={`weekly-label-${point.game.gameId}`}>W{point.game.week}</text>)}
+        {points.map((point,index)=><text className="player-weekly-x-label" x={xAt(index)} y={top+plotHeight+24} textAnchor="middle" key={`weekly-label-${point.game.gameId}`}>{weekLabel(point.game.week,"compact")}</text>)}
         {points.length>1?<><polyline className="player-weekly-average" points={averagePolyline}/><polyline className="player-weekly-actual" points={actualPolyline}/></>:null}
-        {points.map((point,index)=>{const markerSize=phone?19:25,x=xAt(index),y=yAt(point.value),opponentLogo=resolveTeamLogoAsset(point.game.opponent)??point.game.opponentLogo;return <g className="player-weekly-opponent-marker" key={`weekly-point-${point.game.gameId}`}><title>{point.game.opponent} · Week {point.game.week} · {formatScatterValue(point.value,metric.format)}</title><circle className="player-weekly-average-point" cx={x} cy={yAt(point.average)} r={phone?2.4:3}/>{opponentLogo?<image className="player-weekly-opponent-logo" href={opponentLogo} x={x-markerSize/2} y={y-markerSize/2} width={markerSize} height={markerSize} preserveAspectRatio="xMidYMid meet"/>:<><circle className="player-weekly-actual-point" cx={x} cy={y} r={phone?8:10}/><text className="player-weekly-opponent-fallback" x={x} y={y+2.5} textAnchor="middle">{point.game.opponentAbbreviation.slice(0,3)}</text></>}<text className="player-weekly-value" x={x} y={y-markerSize/2-5} textAnchor="middle">{formatScatterValue(point.value,metric.format)}</text></g>;})}
+        {points.map((point,index)=>{const markerSize=phone?19:25,x=xAt(index),y=yAt(point.value),opponentLogo=resolveTeamLogoAsset(point.game.opponent)??point.game.opponentLogo;return <g className="player-weekly-opponent-marker" key={`weekly-point-${point.game.gameId}`}><title>{point.game.opponent} · {weekLabel(point.game.week)} · {formatScatterValue(point.value,metric.format)}</title><circle className="player-weekly-average-point" cx={x} cy={yAt(point.average)} r={phone?2.4:3}/>{opponentLogo?<image className="player-weekly-opponent-logo" href={opponentLogo} x={x-markerSize/2} y={y-markerSize/2} width={markerSize} height={markerSize} preserveAspectRatio="xMidYMid meet"/>:<><circle className="player-weekly-actual-point" cx={x} cy={y} r={phone?8:10}/><text className="player-weekly-opponent-fallback" x={x} y={y+2.5} textAnchor="middle">{point.game.opponentAbbreviation.slice(0,3)}</text></>}<text className="player-weekly-value" x={x} y={y-markerSize/2-5} textAnchor="middle">{formatScatterValue(point.value,metric.format)}</text></g>;})}
         <text className="scatter-axis-label" x={left+plotWidth/2} y={height-(phone?18:20)} textAnchor="middle">GAME WEEK</text>
         <text className="scatter-axis-label" x={phone?14:22} y={top+plotHeight/2} textAnchor="middle" transform={`rotate(-90 ${phone?14:22} ${top+plotHeight/2})`}>{metric.label}</text>
         <g className="player-weekly-legend" transform={`translate(${width-(phone?140:185)} ${phone?68:72})`}><line className="player-weekly-actual" x1="0" x2="24" y1="0" y2="0"/><text x="31" y="3">GAME</text><line className="player-weekly-average" x1={phone?72:88} x2={phone?96:112} y1="0" y2="0"/><text x={phone?103:119} y="3">RUNNING AVG</text></g>
@@ -4669,16 +4878,27 @@ function PlayerWeeklyTrend({games,metric,playerName,team,season,loading,message}
   </section>;
 }
 
-function DataVisualizerPage({season,week,setSeason,setWeek}:ModelVintageProps) {
+function DataVisualizerPage(props:ModelVintageProps) {
+  const [chart,setChart]=useState("scatter");
+  return <section className="visualize-chart-selector">
+    <div className="visualize-graph-control"><label><span>GRAPH</span><select aria-label="Choose visualization graph" value={chart} onChange={event=>setChart(event.target.value)}><option value="scatter">TEAM / PLAYER COMPARISON</option><option value="net-success-rate">NET GRAPHS</option><option value="spider">SPIDER GRAPH</option><option value="food-chain">FOOD CHAIN CHART</option><option value="imperialism">IMPERIALISM</option><option value="conference-ratings">CONFERENCE RATINGS</option></select></label></div>
+    {chart==="conference-ratings"?<ConferenceRatingVisualizer {...props}/>:chart==="imperialism"?<ImperialismChart initialSeason={props.season} latestSeason={activeModelSeason}/>:chart==="net-success-rate"?<NetSuccessRateChart initialSeason={props.season} initialWeek={props.week} latestSeason={activeModelSeason}/>:chart==="spider"?<SpiderGraph initialSeason={props.season} latestSeason={activeModelSeason}/>:chart==="food-chain"?<FoodChainChart initialSeason={props.season} initialWeek={props.week} latestSeason={activeModelSeason}/>:<ScatterDataVisualizerPage {...props}/>}
+  </section>;
+}
+
+function ScatterDataVisualizerPage({season,week,setSeason,setWeek}:ModelVintageProps) {
   const [mode,setMode]=useState<"team"|"player">("team");
   const [playerSource,setPlayerSource]=useState<"cfbd"|"pff">("cfbd");
   const [playerView,setPlayerView]=useState<"season"|"weekly">("season");
   const [family,setFamily]=useState<TeamScatterFamily>("basic");
-  const [side,setSide]=useState<TeamScatterSide>("offense");
+  const [xSide,setXSide]=useState<TeamScatterSide>("offense");
+  const [ySide,setYSide]=useState<TeamScatterSide>("defense");
   const [scale,setScale]=useState<TeamScatterScale>("raw");
+  const [showQualityZones,setShowQualityZones]=useState(false);
   const [position,setPosition]=useState<PlayerStatsPosition>("QB");
   const [conference,setConference]=useState("");
   const [selectedTeams,setSelectedTeams]=useState<string[]>([]);
+  const [teamSelectionCleared,setTeamSelectionCleared]=useState(false);
   const [selectedYears,setSelectedYears]=useState<number[]>(()=>[
     PLAYER_SCATTER_ARCHIVE_SEASONS.includes(season)?season:PLAYER_SCATTER_ARCHIVE_SEASONS.at(-1)??activeModelSeason,
   ]);
@@ -4723,19 +4943,22 @@ function DataVisualizerPage({season,week,setSeason,setWeek}:ModelVintageProps) {
   const needsEverySeasonProfiles=multiYear&&(mode==="team"||(position==="OL"&&Boolean(activeX?.key.startsWith("ol:")||activeY?.key.startsWith("ol:"))));
   const everySeason=useEverySeasonProfiles(needsEverySeasonProfiles);
   const selectedYearSet=useMemo(()=>new Set(selectedYears),[selectedYears]);
+  const modelFallbackRows=useMemo(()=>activeSeason===modelSnapshot.season
+    ?teams.flatMap((team)=>{const row=modelTeamProfileRow(team,activeSeason,profileWeek);return row?[row]:[];})
+    :[],[activeSeason,profileWeek]);
   const teamRows=useMemo(()=>multiYear
     ?everySeason.rows.filter((row)=>selectedYearSet.has(row.season))
-    :dynamic.rows,[dynamic.rows,everySeason.rows,multiYear,selectedYearSet]);
+    :dynamic.rows.length?dynamic.rows:modelFallbackRows,[dynamic.rows,everySeason.rows,modelFallbackRows,multiYear,selectedYearSet]);
   const playerData=useScatterPlayerStats(selectedYears,position,mode==="player");
 
   const filterDirectory=useMemo(()=>{
     const rows=[
-      ...dynamic.rows.map((row)=>({team:row.team,abbreviation:row.abbreviation,conference:row.conference||"FBS",color:row.color,altColor:row.altColor,logo:row.logo})),
+      ...(dynamic.rows.length?dynamic.rows:modelFallbackRows).map((row)=>({team:row.team,abbreviation:row.abbreviation,conference:row.conference||"FBS",color:row.color,altColor:row.altColor,logo:row.logo})),
       ...everySeason.rows.map((row)=>({team:row.team,abbreviation:row.abbreviation,conference:row.conference||"FBS",color:row.color,altColor:row.altColor,logo:row.logo})),
       ...(playerData.payload?.teams??[]).map((row)=>({team:row.team,abbreviation:row.abbreviation,conference:row.conference||"FBS",color:row.color,altColor:row.altColor,logo:row.logo})),
     ];
     return[...new Map(rows.map((row)=>[row.team,row])).values()];
-  },[dynamic.rows,everySeason.rows,playerData.payload?.teams]);
+  },[dynamic.rows,everySeason.rows,modelFallbackRows,playerData.payload?.teams]);
 
   const conferences=useMemo(()=>{
     const values=[...filterDirectory.map((row)=>row.conference),...(playerData.payload?.conferences??[])];
@@ -4780,15 +5003,17 @@ function DataVisualizerPage({season,week,setSeason,setWeek}:ModelVintageProps) {
   const points=useMemo<ScatterPlotPoint[]>(()=>{
     if(!activeX||!activeY)return[];
     if(weeklyMode)return[];
+    if(!pffEnabled&&!selectedYears.length)return[];
+    if(teamSelectionCleared)return[];
     if(mode==="team")return teamRows.flatMap((row)=>{
       if(!matchesConferenceFilter(row.conference,conference))return[];
       if(selectedTeamSet.size&&!selectedTeamSet.has(row.team))return[];
       const x=family==="basic"
-        ?teamScatterBasicValue(row,activeX.key,side,scale)
-        :teamScatterAdvancedValue(row,activeX.advancedKey!,side,scale);
+        ?teamScatterBasicValue(row,activeX.key,xSide,scale)
+        :teamScatterAdvancedValue(row,activeX.advancedKey!,xSide,scale);
       const y=family==="basic"
-        ?teamScatterBasicValue(row,activeY.key,side,scale)
-        :teamScatterAdvancedValue(row,activeY.advancedKey!,side,scale);
+        ?teamScatterBasicValue(row,activeY.key,ySide,scale)
+        :teamScatterAdvancedValue(row,activeY.advancedKey!,ySide,scale);
       if(x===null||y===null)return[];
       return[{id:`team-${row.season}-${row.team}`,label:multiYear?`${row.season} ${row.team}`:row.team,secondary:`${row.season} · ${row.conference||"FBS"} · ${row.gamesPlayed} games`,team:row.team,conference:row.conference||"FBS",season:multiYear?row.season:undefined,logo:row.logo,color:row.color,altColor:row.altColor,jersey:null,x,y}];
     });
@@ -4838,7 +5063,7 @@ function DataVisualizerPage({season,week,setSeason,setWeek}:ModelVintageProps) {
       if(x===null||y===null)return[];
       return[{id:`player-${row.season}-${row.team}-${row.id}`,label:multiYear?`${row.season} ${row.name}`:row.name,secondary:`${row.season} · ${row.team} · ${row.conference||"FBS"} · ${position}`,team:row.team,conference:row.conference||"FBS",season:multiYear?row.season:undefined,logo:row.logo,color:row.color,altColor:row.altColor,jersey:row.jersey,x,y}];
     });
-  },[activeX,activeY,conference,dynamic.rows,everySeason.rows,family,mode,multiYear,pffHeaders,pffPlayerIdentity,pffPosition,pffRows,pffTableSlug,pffTeamResolution,playerData.payload?.rows,playerSource,position,scale,selectedTeamSet,side,teamRows,weeklyMode]);
+  },[activeX,activeY,conference,dynamic.rows,everySeason.rows,family,mode,multiYear,pffEnabled,pffHeaders,pffPlayerIdentity,pffPosition,pffRows,pffTableSlug,pffTeamResolution,playerData.payload?.rows,playerSource,position,scale,selectedTeamSet,selectedYears.length,teamRows,teamSelectionCleared,weeklyMode,xSide,ySide]);
 
   const resetAxes=(nextMetrics:ScatterMetricOption[])=>{
     setXKey(nextMetrics[0]?.key??"");
@@ -4890,49 +5115,58 @@ function DataVisualizerPage({season,week,setSeason,setWeek}:ModelVintageProps) {
     const year=Number(value);
     if(weeklyMode){setSelectedYears([year]);setSeason(year);setSelectedPlayerId("");return;}
     const next=selectedYears.includes(year)
-      ?selectedYears.length===1?selectedYears:selectedYears.filter((candidate)=>candidate!==year)
+      ?selectedYears.filter((candidate)=>candidate!==year)
       :[...selectedYears,year].sort((left,right)=>left-right);
     setSelectedYears(next);
     if(next.length===1)setSeason(next[0]);
   };
   const toggleTeam=(team:string)=>{
     setSelectedPlayerId("");
+    setTeamSelectionCleared(false);
     setSelectedTeams((current)=>weeklyMode?(current[0]===team?[]:[team]):current.includes(team)?current.filter((candidate)=>candidate!==team):[...current,team].sort());
   };
   const allYearsSelected=selectedYears.length===PLAYER_SCATTER_ARCHIVE_SEASONS.length;
-  const yearSummary=allYearsSelected?`ALL YEARS · 14–${String(activeModelSeason).slice(-2)}`:selectedYears.length===1?String(selectedYears[0]):compactSelectedYears(selectedYears);
-  const yearLabel=pffEnabled?"2025":allYearsSelected?`2014–${activeModelSeason}`:selectedYears.length<=3?selectedYears.join(", "):`${selectedYears.length} selected seasons`;
-  const teamSummary=!selectedTeams.length?"ALL TEAMS":selectedTeams.length===1?selectedTeams[0]:`${selectedTeams.length} TEAMS SELECTED`;
-  const teamContext=!selectedTeams.length?conferenceFilterDisplay(conference,"All FBS"):selectedTeams.length<=2?selectedTeams.join(" + "):`${selectedTeams.length} selected teams`;
+  const yearSummary=!selectedYears.length?"NO YEARS":allYearsSelected?`ALL YEARS · 14–${String(activeModelSeason).slice(-2)}`:selectedYears.length===1?String(selectedYears[0]):compactSelectedYears(selectedYears);
+  const yearLabel=pffEnabled?"2025":!selectedYears.length?"No seasons":allYearsSelected?`2014–${activeModelSeason}`:selectedYears.length<=3?selectedYears.join(", "):`${selectedYears.length} selected seasons`;
+  const allTeamsSelected=Boolean(teamsForFilter.length)&&selectedTeams.length===teamsForFilter.length;
+  const teamSummary=teamSelectionCleared?"NO TEAMS":!selectedTeams.length||allTeamsSelected?"ALL TEAMS":selectedTeams.length===1?selectedTeams[0]:`${selectedTeams.length} TEAMS SELECTED`;
+  const teamContext=teamSelectionCleared?"No teams":!selectedTeams.length||allTeamsSelected?conferenceFilterDisplay(conference,"All FBS"):selectedTeams.length<=2?selectedTeams.join(" + "):`${selectedTeams.length} selected teams`;
   const context=conference&&selectedTeams.length?`${teamContext} · ${conferenceFilterDisplay(conference)}`:teamContext;
   const title=mode==="team"
-    ?`${yearLabel} ${side==="offense"?"Offense":"Defense"}: ${activeY?.label??"Y"} vs ${activeX?.label??"X"}`
+    ?`${yearLabel}: ${ySide==="offense"?"Offense":"Defense"} ${activeY?.label??"Y"} vs ${xSide==="offense"?"Offense":"Defense"} ${activeX?.label??"X"}`
     :`${pffEnabled?"PFF ":""}${yearLabel} ${position}: ${activeY?.label??"Y"} vs ${activeX?.label??"X"}`;
   const subtitle=mode==="team"
-    ?`${context} · ${multiYear?"Final season snapshots":`Week ${profileWeek}`} · ${family==="basic"?"Basic":"Advanced"} ${scale==="raw"?"values":"opponent-adjusted indices"}`
+    ?`${context} · ${multiYear?"Final season snapshots":weekLabel(profileWeek)} · ${family==="basic"?"Basic":"Advanced"} ${scale==="raw"?"values":"opponent-adjusted indices"}`
     :pffEnabled?`${context} · ${activePffTableLabel} · ${points.length} qualified ${position}${activePffTableUnit?" units":" players"}`
     :`${context} · ${multiYear?"Selected player-seasons":"Season totals"} · ${points.length} qualified ${position}${position==="OL"?" units":" players"}`;
   const loading=mode==="team"
     ?(multiYear?everySeason.loading:dynamic.loading)
     :pffEnabled?pffData.loading||dynamic.loading:weeklyMode?playerData.loading||weeklyData.loading:playerData.loading||(needsEverySeasonProfiles&&everySeason.loading);
+  const plottedX=activeX&&mode==="team"?{...activeX,label:`${xSide==="offense"?"OFFENSE":"DEFENSE"} · ${activeX.label}`}:activeX;
+  const plottedY=activeY&&mode==="team"?{...activeY,label:`${ySide==="offense"?"OFFENSE":"DEFENSE"} · ${activeY.label}`}:activeY;
 
   return <section className="scatter-visualizer-page">
     <div className="scatter-controls" aria-label="Scatterplot filters">
       <label><span>DATA</span><select value={mode} onChange={(event)=>changeMode(event.target.value as "team"|"player")} aria-label="Choose team or player plot"><option value="team">TEAM STATS</option><option value="player">PLAYER STATS</option></select></label>
       {mode==="player"?<label><span>SOURCE</span><select value={playerSource} onChange={(event)=>changePlayerSource(event.target.value as "cfbd"|"pff")} aria-label="Choose player statistics source"><option value="cfbd">CFBD + HARPER+</option><option value="pff">PFF 2025 OFFENSE</option></select></label>:null}
       {mode==="player"&&playerSource==="cfbd"?<label><span>VIEW</span><select value={playerView} onChange={(event)=>changePlayerView(event.target.value as "season"|"weekly")} aria-label="Choose player visualization"><option value="season">PLAYER COMPARISON</option><option value="weekly" disabled={position==="OL"}>WEEKLY PROGRESSION</option></select></label>:null}
-      {pffEnabled?<label><span>YEAR</span><select value="2025" disabled aria-label="PFF data season"><option value="2025">2025</option></select></label>:weeklyMode?<label><span>YEAR</span><select value={activeSeason} onChange={(event)=>toggleYear(event.target.value)} aria-label="Choose progression season">{PLAYER_SCATTER_ARCHIVE_SEASONS.map((value)=><option key={value} value={value}>{value}</option>)}</select></label>:<ScatterMultiSelect label="YEAR" summary={yearSummary} ariaLabel={`Choose scatterplot years; ${yearSummary}`} selected={selectedYears.map(String)} options={PLAYER_SCATTER_ARCHIVE_SEASONS.map((value)=>({value:String(value),label:String(value)}))} onToggle={toggleYear} onAll={()=>setSelectedYears([...PLAYER_SCATTER_ARCHIVE_SEASONS])}/>}
-      {mode==="team"&&!multiYear?<label><span>WEEK</span><select value={week} onChange={(event)=>setWeek(Number(event.target.value))} aria-label="Choose team snapshot week">{Array.from({length:17},(_,value)=><option key={value} value={value}>{value===0?"PRESEASON":`WEEK ${value}`}</option>)}</select></label>:null}
+      {pffEnabled?<label><span>YEAR</span><select value="2025" disabled aria-label="PFF data season"><option value="2025">2025</option></select></label>:weeklyMode?<label><span>YEAR</span><select value={activeSeason} onChange={(event)=>toggleYear(event.target.value)} aria-label="Choose progression season">{PLAYER_SCATTER_ARCHIVE_SEASONS.map((value)=><option key={value} value={value}>{value}</option>)}</select></label>:<ScatterMultiSelect label="YEAR" summary={yearSummary} ariaLabel={`Choose scatterplot years; ${yearSummary}`} selected={selectedYears.map(String)} options={PLAYER_SCATTER_ARCHIVE_SEASONS.map((value)=>({value:String(value),label:String(value)}))} onToggle={toggleYear} onAll={()=>setSelectedYears([...PLAYER_SCATTER_ARCHIVE_SEASONS])} onClear={()=>setSelectedYears([])}/>}
+      {mode==="team"&&!multiYear?<label><span>WEEK</span><select value={week} onChange={(event)=>setWeek(Number(event.target.value))} aria-label="Choose team snapshot week">{Array.from({length:17},(_,value)=><option key={value} value={value}>{value===0?"PRESEASON":weekLabel(value,"upper")}</option>)}</select></label>:null}
       {mode==="team"?<label><span>STAT TYPE</span><select value={family} onChange={(event)=>changeFamily(event.target.value as TeamScatterFamily)} aria-label="Choose basic or advanced team stats"><option value="basic">BASIC</option><option value="advanced">ADVANCED</option></select></label>:<label><span>POSITION</span><select value={position} onChange={(event)=>changePosition(event.target.value as PlayerStatsPosition)} aria-label="Choose player position">{(pffEnabled?["QB","RB","WR","TE","OL"] as PlayerStatsPosition[]:PLAYER_STATS_POSITIONS).map((value)=><option value={value} key={value}>{value}</option>)}</select></label>}
       {pffEnabled?<label><span>STAT GROUP</span><select value={activePffTableSlug} onChange={(event)=>{setPffTableSlug(event.target.value);setXKey("");setYKey("");}} aria-label="Choose PFF statistic group">{availablePffTables.map((table)=><option value={table.slug} key={table.slug}>{table.label}</option>)}</select></label>:null}
-      {mode==="team"?<label><span>SIDE</span><select value={side} onChange={(event)=>setSide(event.target.value as TeamScatterSide)} aria-label="Choose offense or defense"><option value="offense">OFFENSE</option><option value="defense">DEFENSE</option></select></label>:null}
       {mode==="team"?<label><span>VALUES</span><select value={scale} onChange={(event)=>{const next=event.target.value as TeamScatterScale;setScale(next);}} aria-label="Choose raw or adjusted team values"><option value="raw">RAW</option><option value="index">ADJUSTED INDEX</option></select></label>:null}
       <label><span>CONFERENCE</span><select value={conference} onChange={(event)=>changeConference(event.target.value)} aria-label="Filter scatterplot by conference"><option value="">ALL CONFERENCES</option><option value={POWER_4_FILTER}>{POWER_4_LABEL.toUpperCase()}</option>{conferences.map((value)=><option value={value} key={value}>{value}</option>)}</select></label>
-      {weeklyMode?<label><span>TEAM</span><select value={weeklyTeam} onChange={(event)=>{setSelectedTeams(event.target.value?[event.target.value]:[]);setSelectedPlayerId("");}} aria-label="Choose one team for player progression"><option value="">SELECT TEAM</option>{teamsForFilter.map((row)=><option value={row.team} key={row.team}>{row.team}</option>)}</select></label>:<ScatterMultiSelect label="TEAM" summary={teamSummary} ariaLabel={`Filter scatterplot by teams; ${teamSummary}`} selected={selectedTeams} options={teamsForFilter.map((row)=>({value:row.team,label:row.team}))} onToggle={toggleTeam} onAll={()=>setSelectedTeams([])}/>}
+      {weeklyMode?<label><span>TEAM</span><select value={weeklyTeam} onChange={(event)=>{setSelectedTeams(event.target.value?[event.target.value]:[]);setTeamSelectionCleared(false);setSelectedPlayerId("");}} aria-label="Choose one team for player progression"><option value="">SELECT TEAM</option>{teamsForFilter.map((row)=><option value={row.team} key={row.team}>{row.team}</option>)}</select></label>:<ScatterMultiSelect label="TEAM" summary={teamSummary} ariaLabel={`Filter scatterplot by teams; ${teamSummary}`} selected={selectedTeams} options={teamsForFilter.map((row)=>({value:row.team,label:row.team}))} onToggle={toggleTeam} onAll={()=>{setSelectedTeams(teamsForFilter.map((row)=>row.team));setTeamSelectionCleared(false);}} onClear={()=>{setSelectedTeams([]);setTeamSelectionCleared(true);}}/>}
       {weeklyMode?<label><span>PLAYER</span><select value={activeWeeklyPlayer?.id??""} onChange={(event)=>setSelectedPlayerId(event.target.value)} aria-label="Choose one player for weekly progression" disabled={!weeklyPlayers.length}><option value="">{playerData.loading?"LOADING PLAYERS":"SELECT PLAYER"}</option>{weeklyPlayers.map((row)=><option value={row.id} key={row.id}>{row.name}{row.jersey!==null?` · #${row.jersey}`:""}</option>)}</select></label>:null}
-      {weeklyMode?<label className="scatter-axis-control"><span>STAT</span><select value={activeWeeklyMetric?.key??""} onChange={(event)=>setWeeklyMetricKey(event.target.value as PlayerStatsMetricKey)} aria-label="Choose weekly player statistic">{weeklyMetricOptions.map((metric)=><option value={metric.key} key={metric.key}>{metric.label}</option>)}</select></label>:<><label className="scatter-axis-control"><span>X AXIS</span><select value={activeX?.key??""} onChange={(event)=>setXKey(event.target.value)} aria-label="Choose X axis statistic">{metricOptions.map((metric)=><option value={metric.key} key={metric.key}>{metric.label}</option>)}</select></label><label className="scatter-axis-control"><span>Y AXIS</span><select value={activeY?.key??""} onChange={(event)=>setYKey(event.target.value)} aria-label="Choose Y axis statistic">{metricOptions.map((metric)=><option value={metric.key} key={metric.key}>{metric.label}</option>)}</select></label></>}
+      {weeklyMode?<label className="scatter-axis-control"><span>STAT</span><select value={activeWeeklyMetric?.key??""} onChange={(event)=>setWeeklyMetricKey(event.target.value as PlayerStatsMetricKey)} aria-label="Choose weekly player statistic">{weeklyMetricOptions.map((metric)=><option value={metric.key} key={metric.key}>{metric.label}</option>)}</select></label>:mode==="team"?<>
+        <label className="scatter-axis-unit-control x"><span>X UNIT</span><select value={xSide} onChange={(event)=>setXSide(event.target.value as TeamScatterSide)} aria-label="Choose X axis offense or defense"><option value="offense">OFFENSE</option><option value="defense">DEFENSE</option></select></label>
+        <label className="scatter-axis-control x"><span>X STAT</span><select value={activeX?.key??""} onChange={(event)=>setXKey(event.target.value)} aria-label="Choose X axis statistic">{metricOptions.map((metric)=><option value={metric.key} key={metric.key}>{metric.label}</option>)}</select></label>
+        <label className="scatter-axis-unit-control y"><span>Y UNIT</span><select value={ySide} onChange={(event)=>setYSide(event.target.value as TeamScatterSide)} aria-label="Choose Y axis offense or defense"><option value="offense">OFFENSE</option><option value="defense">DEFENSE</option></select></label>
+        <label className="scatter-axis-control y"><span>Y STAT</span><select value={activeY?.key??""} onChange={(event)=>setYKey(event.target.value)} aria-label="Choose Y axis statistic">{metricOptions.map((metric)=><option value={metric.key} key={metric.key}>{metric.label}</option>)}</select></label>
+        <label className="scatter-zone-toggle"><input type="checkbox" checked={showQualityZones} onChange={(event)=>setShowQualityZones(event.target.checked)}/><span><b>PERFORMANCE ZONES</b><small>Elite · Good · Average · Bad · Terrible</small></span></label>
+      </>:<><label className="scatter-axis-control"><span>X AXIS</span><select value={activeX?.key??""} onChange={(event)=>setXKey(event.target.value)} aria-label="Choose X axis statistic">{metricOptions.map((metric)=><option value={metric.key} key={metric.key}>{metric.label}</option>)}</select></label><label className="scatter-axis-control"><span>Y AXIS</span><select value={activeY?.key??""} onChange={(event)=>setYKey(event.target.value)} aria-label="Choose Y axis statistic">{metricOptions.map((metric)=><option value={metric.key} key={metric.key}>{metric.label}</option>)}</select></label></>}
     </div>
-    {weeklyMode&&activeWeeklyMetric?<PlayerWeeklyTrend games={weeklyData.payload?.games??[]} metric={activeWeeklyMetric} playerName={activeWeeklyPlayer?.name??"Player progression"} team={weeklyTeam||"Select a team"} season={activeSeason} loading={loading} message={!weeklyTeam?"Select one team, then choose a qualified player.":!activeWeeklyPlayer&&!playerData.loading?`No qualified ${position} player is available for this team and season.`:weeklyData.payload?.message}/>:activeX&&activeY?<ScatterPlot points={points} xMetric={activeX} yMetric={activeY} title={title} subtitle={subtitle} mode={mode} loading={loading}/>:null}
+    {weeklyMode&&activeWeeklyMetric?<PlayerWeeklyTrend games={weeklyData.payload?.games??[]} metric={activeWeeklyMetric} playerName={activeWeeklyPlayer?.name??"Player progression"} team={weeklyTeam||"Select a team"} season={activeSeason} loading={loading} message={!weeklyTeam?"Select one team, then choose a qualified player.":!activeWeeklyPlayer&&!playerData.loading?`No qualified ${position} player is available for this team and season.`:weeklyData.payload?.message}/>:plottedX&&plottedY?<ScatterPlot points={points} xMetric={plottedX} yMetric={plottedY} title={title} subtitle={subtitle} mode={mode} loading={loading} showQualityZones={mode==="team"&&showQualityZones} xHigherIsBetter={mode!=="team"||teamScatterHigherIsBetter(activeX,xSide,family)} yHigherIsBetter={mode!=="team"||teamScatterHigherIsBetter(activeY,ySide,family)}/>:null}
     {pffEnabled?<p className="pff-data-note"><strong>PFF DATA</strong> PFF metrics are reproduced from a user-supplied 2025 data export. Harper+ is not affiliated with Pro Football Focus. Low-volume players and small split samples are excluded from the plot.</p>:null}
   </section>;
 }
@@ -4951,7 +5185,8 @@ function StatsHubPage({season,week,setSeason,setWeek,initialView="team"}:{season
 }
 
 function PlayerRatingsPage() {
-  const [season,setSeason]=useState(activeModelSeason);
+  const [season,setSeason]=useState(new Date().getUTCMonth()>=6?activeModelSeason-1:activeModelSeason);
+  const [filtersOpen,setFiltersOpen]=useState(true);
   const [conference,setConference]=useState("");
   const [team,setTeam]=useState("");
   const [position,setPosition]=useState("");
@@ -4999,9 +5234,9 @@ function PlayerRatingsPage() {
   const payload=result.key===requestKey?result.payload:null;
   const rows=payload?.rows??[];
   const pagination=payload?.pagination;
-  const availableSeasons=(payload?.availableSeasons?.length
+  const availableSeasons=[...new Set([season,activeModelSeason,...(payload?.availableSeasons?.length
     ?payload.availableSeasons
-    :seasonOptions.filter((value)=>value<=activeModelSeason)).sort((left,right)=>right-left);
+    :seasonOptions.filter((value)=>value<=activeModelSeason))])].sort((left,right)=>right-left);
   const teams=payload?.teams??[];
   const conferences=payload?.conferences??[...new Set(teams.map((row)=>row.conference).filter((value):value is string=>Boolean(value)))].sort();
   const filteredTeams=conference?teams.filter((row)=>matchesConferenceFilter(row.conference,conference)):teams;
@@ -5018,10 +5253,10 @@ function PlayerRatingsPage() {
       </div>
     </div>
 
-    <details className="stats-filter-drawer player-ratings-filter-drawer">
+    <details className="stats-filter-drawer player-ratings-filter-drawer" open={filtersOpen} onToggle={(event)=>setFiltersOpen(event.currentTarget.open)}>
       <summary><span><strong>Filters</strong><small>{season} · {conferenceFilterDisplay(conference)} · {position||"All positions"} · {PLAYER_RATING_COLUMN.label}</small></span><b aria-hidden="true">+</b></summary>
       <section className="player-ratings-controls" aria-label="Player rating filters">
-        <label><span>YEAR</span><select value={season} onChange={(event)=>{setSeason(Number(event.target.value));setConference("");setTeam("");setPage(1);}}>{availableSeasons.map((value)=><option key={value} value={value}>{value}</option>)}</select></label>
+        <label><span>YEAR</span><select value={season} onChange={(event)=>{setSeason(Number(event.target.value));setConference("");setTeam("");setPage(1);}}>{availableSeasons.map((value)=><option key={value} value={value}>{value}{value===activeModelSeason&&new Date().getUTCMonth()>=6?" · IN PROGRESS":""}</option>)}</select></label>
         <label><span>CONFERENCE</span><select value={conference} onChange={(event)=>{setConference(event.target.value);setTeam("");setPage(1);}}><option value="">ALL CONFERENCES</option><option value={POWER_4_FILTER}>{POWER_4_LABEL.toUpperCase()}</option>{conferences.map((value)=><option key={value} value={value}>{value}</option>)}</select></label>
         <label><span>TEAM</span><select value={team} onChange={(event)=>updateFilter(setTeam,event.target.value)}><option value="">ALL TEAMS</option>{filteredTeams.map((row)=><option key={row.team} value={row.team}>{row.team}</option>)}</select></label>
         <label><span>POSITION</span><select value={position} onChange={(event)=>updateFilter(setPosition,event.target.value)}><option value="">ALL POSITIONS</option>{positions.map((value)=><option key={value} value={value}>{value}</option>)}</select></label>
@@ -5031,6 +5266,8 @@ function PlayerRatingsPage() {
       </section>
     </details>
 
+    {result.loading&&!payload?<div className="player-ratings-state"><span>RATING ENGINE</span><strong>Loading player ratings</strong><p>Reading the selected season and position.</p></div>:null}
+    {payload?.baseline&&!payload.baseline.seasonGenerationReady?<p className="player-ratings-provisional">{season} ratings are provisional while this season’s player normalization is in progress. The latest completed season is selected by default.</p>:null}
     {payload?.status==="building"||payload?.status==="waiting"?<div className="player-ratings-state">
       <span>RATING ENGINE</span><strong>Rebuilding the historical scale</strong><p>{payload.message??"Completed player seasons are being normalized. This page will refresh automatically."}</p>
     </div>:null}
@@ -5049,10 +5286,10 @@ function PlayerRatingsPage() {
           <div className="stats-head-cell" role="columnheader" aria-sort={direction==="asc"?"ascending":"descending"}><button type="button" className="active" onClick={()=>{setDirection((value)=>value==="desc"?"asc":"desc");setPage(1);}} aria-label={`Sort ${PLAYER_RATING_COLUMN.label} ${direction==="desc"?"ascending":"descending"}`}><span>{PLAYER_RATING_COLUMN.label}</span><i aria-hidden="true">{direction==="asc"?"↑":"↓"}</i></button><StatHelp label={PLAYER_RATING_COLUMN.label} explanation={PLAYER_RATING_COLUMN.description}/></div>
         </div>
         {rows.map((row)=><div className="stats-row player-stats-row player-rating-table-row" style={gridStyle} key={`${row.season}-${row.team}-${row.id}`}>
-          <div className="player-stats-player">
+          <div className="player-stats-player team-identity-surface" style={teamIdentityStyle(row.team,row.color)}>
             <div className="player-stats-ranks player-rating-table-rank" aria-label={`${PLAYER_RATING_COLUMN.label} rank ${row.rank}`}><b>{row.rank}</b></div>
             <PlayerStatsJersey team={row.team} color={row.color} altColor={row.altColor} jersey={row.jersey}/>
-            <span><strong>{row.name}</strong><small>{row.team} · {row.position} · {row.conference||"FBS"}</small></span>
+            <span><strong>{row.name}</strong><small><TeamAccent name={row.team} color={row.color}/> · {row.position} · {row.conference||"FBS"}</small></span>
           </div>
           <span className={`stats-value player-stats-value player-rating-table-value ${productionRatingTone(row.overall)}`} title={`${playerRatingSourceCopy(row.source)} · ${row.evidence}`}><strong>{row.overall}</strong><small>{playerOverallTier(row.overall).label}</small></span>
         </div>)}
@@ -5093,7 +5330,7 @@ function DepthChartPage() {
     {playerLayer.payload?.status!=="ready"?<div className="player-sync-card"><span>PLAYER DATA IMPORT</span><strong>{playerLayer.payload?.status==="error"?"NEEDS ATTENTION":`${playerLayer.payload?.sync?.progressPercent??0}%`}</strong><div><i style={{width:`${playerLayer.payload?.sync?.progressPercent??0}%`}}/></div><p>{playerLayer.payload?.message??playerLayer.payload?.sync?.detail??`Loading the ${playerSeason} player archive…`}</p></div>:null}
     <div className="depth-chart-layout">
       <article id="depth-chart-profile" className="depth-chart-profile">
-        {selectedMeta?<header><TeamMark name={selectedMeta.team} size="lg" logo={selectedMeta.logo}/><div><span>{selectedMeta.conference??"FBS"} · {playerSeason}</span><h2>{selectedMeta.team}</h2><p>Production is graded by position against the full 2014–present FBS archive.</p></div></header>:null}
+        {selectedMeta?<header className="team-identity-surface" style={teamIdentityStyle(selectedMeta.team)}><TeamMark name={selectedMeta.team} size="lg" logo={selectedMeta.logo}/><div><span>{selectedMeta.conference??"FBS"} · {playerSeason}</span><h2>{selectedMeta.team}</h2><p>Production is graded by position against the full 2014–present FBS archive.</p></div></header>:null}
         {!model&&playerLayer.payload?.status==="ready"?<div className="data-empty"><strong>No player profile was returned for {resolvedTeam}.</strong><span>The team roster may use a different source name or contain no published player statistics.</span></div>:null}
         {model?<StarterFormationBoard model={model} team={resolvedTeam} logo={selectedMeta?.logo} primaryColor={primaryColor} secondaryColor={secondaryColor} profile={selectedSeasonRow}/>:null}
         <OffensiveLineUnitCard row={selectedSeasonRow} rows={seasonProfile.rows} loading={seasonProfile.loading} productionRating={model?.offensiveLineUnitRating}/>
@@ -5114,22 +5351,30 @@ function SeasonSimulationPage({ season, week, setSeason, setWeek, onSelectTeam, 
   const data = simulation.data;
   const simulationEvidenceWeek=data?.effectiveWeek??snapshotWeek;
   const logoByTeam = useMemo(() => new Map((data?.rankings ?? []).map((row) => [row.team, row.logo])), [data]);
-  const rounds: BracketProjection["round"][] = data?.format === 4
-    ? ["Semifinal", "Championship"]
-    : ["First Round", "Quarterfinal", "Semifinal", "Championship"];
+  const bracketTeamStyle=(team:string):CSSProperties=>{
+    const color=normalizeTeamColor(data?.rankings.find((row)=>row.team===team)?.color??teamMap.get(team)?.color,"#24362f");
+    return {"--bracket-team-color":color,"--bracket-team-ink":chalkInk(color)} as CSSProperties;
+  };
+  const bracketGame=(game:BracketProjection)=><article className="bracket-game" key={game.id}>
+    <div className={game.winner === game.firstTeam ? "winner" : ""} style={bracketTeamStyle(game.firstTeam)}><span className="bracket-seed">{game.firstSeed}</span><TeamMark name={game.firstTeam} size="sm" logo={logoByTeam.get(game.firstTeam)} variant="helmet" /><strong>{game.firstTeam}</strong><b>{game.firstScore}</b></div>
+    <div className={game.winner === game.secondTeam ? "winner" : ""} style={bracketTeamStyle(game.secondTeam)}><span className="bracket-seed">{game.secondSeed}</span><TeamMark name={game.secondTeam} size="sm" logo={logoByTeam.get(game.secondTeam)} variant="helmet" /><strong>{game.secondTeam}</strong><b>{game.secondScore}</b></div>
+    <footer><span>{game.campusGame ? "CAMPUS" : "NEUTRAL"}</span><b>{game.winner} {(game.winnerProbability*100).toFixed(0)}%</b><small>{game.schematicEdge}</small>{onSelectGame?<button type="button" className="simulation-matchup-preview" onClick={()=>onSelectGame(simulationMatchupDetailRow(game,season,data?.effectiveWeek??snapshotWeek,logoByTeam))} aria-label={`Open ${game.firstTeam} versus ${game.secondTeam} matchup preview`}>PREVIEW <span aria-hidden="true">›</span></button>:null}</footer>
+  </article>;
+  const gameAt=(round:BracketProjection["round"],slot:number)=>data?.bracket.find((game)=>game.round===round&&game.slot===slot);
   return <section className={`${embedded?"what-if-simulation-section":"page-section"} simulation-page`}>
     <div className="section-kicker">ENTERING-WEEK FORECAST · SCHEDULE → TITLE GAMES → CFP</div>
     <div className="section-title-row">
-      <div><h1>Season Simulation</h1><p>Forecast the rest of the season using only information available before the selected week, then determine conference title games and simulate the playoff.</p></div>
-      <VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} idPrefix="season-simulation" weekLabel="ENTERING WEEK" />
+      <div><h1>Season Simulation</h1><p>Forecast the rest of the season using completed results through the prior week, then determine conference title games and simulate the playoff.</p></div>
+      <VintageControl season={season} week={week} setSeason={setSeason} setWeek={setWeek} idPrefix="season-simulation" weekLabel="PREDICTION WEEK" />
     </div>
 
     <div className="weekly-ranking-snapshot simulation-ranking-snapshot" role="note">
-      <span>{week===0?"PRESEASON FORECAST":`ENTERING WEEK ${week}`}</span>
-      <strong>{simulationEvidenceWeek?`DATA THROUGH WEEK ${simulationEvidenceWeek}`:"PRESEASON / WEEK 0 STATE"}</strong>
-      <p>{week?`Week ${week} results are excluded here. They first change the forecast entering Week ${week+1}.`:"The full schedule is projected from the initial season state."} The projected Top 25 is identical to the H+ Forecast Top 25 on Scores for this same snapshot.</p>
+      <span>{week===0?"PRESEASON FORECAST":`ENTERING ${weekLabel(week,"upper")}`}</span>
+      <strong>{simulationEvidenceWeek?`RESULTS THROUGH ${weekLabel(simulationEvidenceWeek,"upper")}`:"PRESEASON / WEEK 0 STATE"}</strong>
+      <p>{week?`Completed games through ${weekLabel(snapshotWeek)} are locked in. Games still awaiting a final and the remaining schedule are projected.`:"The full schedule is projected from the initial season state."} {data?.profileWeek!==undefined&&data.profileWeek<simulationEvidenceWeek?` Statistical profiles currently extend through ${weekLabel(data.profileWeek)}; newer final results still count in full.`:""}</p>
     </div>
 
+    {!!data?.pendingResults?<p className="simulation-state" role="status">{data.pendingResults} past games through the selected week still await imported final scores. Those games remain provisional projections until their results arrive.</p>:null}
     {simulation.loading ? <div className="simulation-state">Running the full-season projection…</div> : null}
     {!simulation.loading && !data ? <div className="simulation-state error"><strong>Simulation waiting for season data</strong><span>{simulation.error || "The automatic archive will populate this view when the season schedule and profiles are ready."}</span></div> : null}
     {data ? <>
@@ -5140,16 +5385,18 @@ function SeasonSimulationPage({ season, week, setSeason, setWeek, onSelectTeam, 
           <p>{`${season} seeds the top ${data.format} teams directly from the projected final H+ ranking. Rank 1 is seed 1 through the playoff cutoff; real-life bracket placement and automatic qualifiers do not replace a higher-ranked team.`}</p>
         </div>
         {data.champion ? <TeamMark name={data.champion} size="lg" logo={logoByTeam.get(data.champion)} /> : null}
-        <div className="simulation-hero-metrics"><div><small>FORMAT</small><strong>{data.format} TEAM</strong></div><div><small>TITLE GAME EDGE</small><strong>{data.championshipProbability === null ? "—" : `${(data.championshipProbability*100).toFixed(0)}%`}</strong></div><div><small>ENTERING WEEK</small><strong>WK {week}</strong></div></div>
+        <div className="simulation-hero-metrics"><div><small>FORMAT</small><strong>{data.format} TEAM</strong></div><div><small>TITLE GAME EDGE</small><strong>{data.championshipProbability === null ? "—" : `${(data.championshipProbability*100).toFixed(0)}%`}</strong></div><div><small>PREDICTION WEEK</small><strong>{weekLabel(week,"compact")}</strong></div></div>
       </div>
 
       <article className="playoff-card">
         <div className="block-head"><div><span className="section-kicker">COLLEGE FOOTBALL PLAYOFF</span><h2>{season} Season Sim-ranked field and bracket</h2></div><small>SEEDS = FINAL H+ RANKS</small></div>
-        <div className={`playoff-bracket format-${data.format}`}>{rounds.map((round) => <section key={round} className="bracket-round" data-round={round.toLowerCase().replaceAll(" ","-")}><header>{round}</header><div>{data.bracket.filter((game) => game.round === round).map((game) => <article className="bracket-game" key={game.id}>
-          <div className={game.winner === game.firstTeam ? "winner" : ""}><span className="bracket-seed">{game.firstSeed}</span><TeamMark name={game.firstTeam} size="sm" logo={logoByTeam.get(game.firstTeam)} variant="helmet" /><strong>{game.firstTeam}</strong><b>{game.firstScore}</b></div>
-          <div className={game.winner === game.secondTeam ? "winner" : ""}><span className="bracket-seed">{game.secondSeed}</span><TeamMark name={game.secondTeam} size="sm" logo={logoByTeam.get(game.secondTeam)} variant="helmet" /><strong>{game.secondTeam}</strong><b>{game.secondScore}</b></div>
-          <footer><span>{game.campusGame ? "CAMPUS" : "NEUTRAL"}</span><b>{game.winner} {(game.winnerProbability*100).toFixed(0)}%</b><small>{game.schematicEdge}</small>{onSelectGame?<button type="button" className="simulation-matchup-preview" onClick={()=>onSelectGame(simulationMatchupDetailRow(game,season,data.effectiveWeek,logoByTeam))} aria-label={`Open ${game.firstTeam} versus ${game.secondTeam} matchup preview`}>PREVIEW <span aria-hidden="true">›</span></button>:null}</footer>
-        </article>)}</div></section>)}</div>
+        <div className="quadrant-bracket-scroll" role="region" aria-label="Playoff bracket; scroll horizontally to view both sides"><div className={`playoff-bracket quadrant-bracket format-${data.format}`}>
+          {data.format===12?<div className="bracket-wing left">{([1,2] as const).map((slot)=><section className="bracket-quadrant" key={slot}><header>QUADRANT {slot}</header><div className="bracket-quadrant-games"><div><small>FIRST ROUND</small>{gameAt("First Round",slot===1?4:1) && bracketGame(gameAt("First Round",slot===1?4:1)!)}</div><div><small>QUARTERFINAL</small>{gameAt("Quarterfinal",slot) && bracketGame(gameAt("Quarterfinal",slot)!)}</div></div></section>)}</div>:null}
+          <section className="bracket-semi-side left"><header>SEMIFINAL</header>{gameAt("Semifinal",1) && bracketGame(gameAt("Semifinal",1)!)}</section>
+          <section className="bracket-title-game"><header>CHAMPIONSHIP</header>{gameAt("Championship",1) && bracketGame(gameAt("Championship",1)!)}</section>
+          <section className="bracket-semi-side right"><header>SEMIFINAL</header>{gameAt("Semifinal",2) && bracketGame(gameAt("Semifinal",2)!)}</section>
+          {data.format===12?<div className="bracket-wing right">{([3,4] as const).map((slot)=><section className="bracket-quadrant" key={slot}><header>QUADRANT {slot}</header><div className="bracket-quadrant-games"><div><small>FIRST ROUND</small>{gameAt("First Round",slot===3?3:2) && bracketGame(gameAt("First Round",slot===3?3:2)!)}</div><div><small>QUARTERFINAL</small>{gameAt("Quarterfinal",slot) && bracketGame(gameAt("Quarterfinal",slot)!)}</div></div></section>)}</div>:null}
+        </div></div>
       </article>
 
       <div className="simulation-stack">
@@ -5189,12 +5436,12 @@ function SeasonSimulationPage({ season, week, setSeason, setWeek, onSelectTeam, 
           <div>{data.conferenceChampionships.map((game) => <article key={game.conference}>
             <header><span>{game.conference}</span><b>{game.winner} · {(game.winnerProbability*100).toFixed(0)}%</b></header>
             <div className="conference-matchup">
-              <div className={game.winner === game.firstTeam ? "winner" : ""}><TeamMark name={game.firstTeam} size="sm" logo={logoByTeam.get(game.firstTeam)} variant="helmet" /><span>{game.firstTeam}</span><strong>{game.firstScore}</strong></div>
+              <div className={game.winner === game.firstTeam ? "winner" : ""} style={bracketTeamStyle(game.firstTeam)}><TeamMark name={game.firstTeam} size="sm" logo={logoByTeam.get(game.firstTeam)} variant="helmet" /><span title={game.firstTeam}>{game.firstTeam}</span><strong>{game.firstScore}</strong></div>
               <i>VS</i>
-              <div className={game.winner === game.secondTeam ? "winner" : ""}><TeamMark name={game.secondTeam} size="sm" logo={logoByTeam.get(game.secondTeam)} variant="helmet" /><span>{game.secondTeam}</span><strong>{game.secondScore}</strong></div>
+              <div className={game.winner === game.secondTeam ? "winner" : ""} style={bracketTeamStyle(game.secondTeam)}><TeamMark name={game.secondTeam} size="sm" logo={logoByTeam.get(game.secondTeam)} variant="helmet" /><span title={game.secondTeam}>{game.secondTeam}</span><strong>{game.secondScore}</strong></div>
             </div>
-            <p className="sim-schematic-edge">TOP MATCHUP EDGE · {game.schematicEdge}</p>
-            {onSelectGame?<button type="button" className="simulation-matchup-preview conference-preview" onClick={()=>onSelectGame(simulationMatchupDetailRow(game,season,data.effectiveWeek,logoByTeam))} aria-label={`Open ${game.firstTeam} versus ${game.secondTeam} matchup preview`}>MATCHUP PREVIEW <span aria-hidden="true">›</span></button>:null}
+            <div className="conference-matchup-footer"><p className="sim-schematic-edge" title={game.schematicEdge}>TOP MATCHUP EDGE · {game.schematicEdge}</p>
+            {onSelectGame?<button type="button" className="simulation-matchup-preview conference-preview" onClick={()=>onSelectGame(simulationMatchupDetailRow(game,season,data.effectiveWeek,logoByTeam))} aria-label={`Open ${game.firstTeam} versus ${game.secondTeam} matchup preview`}>PREVIEW <span aria-hidden="true">›</span></button>:null}</div>
           </article>)}</div>
         </aside>
       </div>
@@ -5212,8 +5459,18 @@ function accuracyHistoryRecord(wins:number,losses:number,pushes=0) {
   return pushes?`${wins}–${losses}–${pushes}P`:`${wins}–${losses}`;
 }
 
+function accuracyBettingNet(wins:number,losses:number,pushes:number) {
+  const result=flatStakeReturn({wins,losses,pushes});
+  return {tone:result.tone,label:`${accuracyMoney(result.net)} net`};
+}
+
+function accuracyMoney(net:number) {
+  const amount=new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2}).format(Math.abs(net));
+  return `${net>0?"+":net<0?"−":""}${amount}`;
+}
+
 function CompactAccuracyTable({home=false}:{home?:boolean}) {
-  const [scope,setScope]=useState<CalibrationScope>("qualified");
+  const [scope,setScope]=useState<CalibrationScope>("all");
   const [teamFilter,setTeamFilter]=useState("");
   const [conferenceFilter,setConferenceFilter]=useState("");
   const calibration=useCalibrationReport(scope,home?"":teamFilter,home?"":conferenceFilter);
@@ -5223,13 +5480,21 @@ function CompactAccuracyTable({home=false}:{home?:boolean}) {
     const straightUp=rows.reduce((result,row)=>({wins:result.wins+row.straightUp.wins,losses:result.losses+row.straightUp.losses,graded:result.graded+row.straightUp.graded}),{wins:0,losses:0,graded:0});
     const spread=rows.reduce((result,row)=>({wins:result.wins+row.spread.wins,losses:result.losses+row.spread.losses,pushes:result.pushes+row.spread.pushes,graded:result.graded+row.spread.graded}),{wins:0,losses:0,pushes:0,graded:0});
     const total=rows.reduce((result,row)=>({wins:result.wins+row.total.wins,losses:result.losses+row.total.losses,pushes:result.pushes+row.total.pushes,graded:result.graded+row.total.graded}),{wins:0,losses:0,pushes:0,graded:0});
+    const moneyline=rows.reduce<MoneylineReturn>((result,row)=>({priced:result.priced+(row.moneyline?.priced??0),missing:result.missing+(row.moneyline?.missing??0),wins:result.wins+(row.moneyline?.wins??0),losses:result.losses+(row.moneyline?.losses??0),net:result.net+(row.moneyline?.net??0)}),{priced:0,missing:0,wins:0,losses:0,net:0});
     return {
       straightUp:{...straightUp,accuracy:straightUp.graded?straightUp.wins/straightUp.graded:null},
+      moneyline,
       spread:{...spread,accuracy:spread.graded?spread.wins/spread.graded:null},
       total:{...total,accuracy:total.graded?total.wins/total.graded:null},
     };
   },[rows]);
-  const metricCell=(label:string,accuracy:number|null,wins:number,losses:number,pushes:number,sample:number)=><span className="compact-accuracy-metric" data-label={label}><strong>{accuracyHistoryPercent(accuracy)}</strong><small>{accuracyHistoryRecord(wins,losses,pushes)} · N={sample}</small></span>;
+  const metricCell=(label:string,accuracy:number|null,wins:number,losses:number,pushes:number,sample:number,moneyline?:MoneylineReturn)=>{
+    const betting=label==="WINNER"?moneyline?.priced?{tone:moneyline.net>0?"profitable":moneyline.net<0?"poor":"near",label:`${accuracyMoney(moneyline.net)} ML net`}:null:accuracyBettingNet(wins,losses,pushes);
+    return <span className="compact-accuracy-metric" data-label={label} data-tone={betting?.tone}>
+      <strong>{accuracyHistoryPercent(accuracy)}</strong>
+      <span className="compact-accuracy-detail"><small>{accuracyHistoryRecord(wins,losses,pushes)} · N={sample}</small>{betting&&sample>0?<b>{betting.label}</b>:null}{label==="WINNER"&&moneyline?<small>PRICED {moneyline.priced} · NO ODDS {moneyline.missing}</small>:null}</span>
+    </span>;
+  };
   return <section className={`compact-accuracy ${home?"compact-accuracy-home":""}`} aria-label="Model accuracy by season">
     <header>
       <div><span>MODEL ACCURACY · WEEK 5+ · FBS ONLY</span><h2>{home?"How the model has performed":filterLabel}</h2></div>
@@ -5247,11 +5512,11 @@ function CompactAccuracyTable({home=false}:{home?:boolean}) {
     <div className="compact-accuracy-table">
       <div className="compact-accuracy-head"><span>SEASON</span><span>WINNER</span><span>SPREAD</span><span>TOTAL</span></div>
       {!calibration.loading&&rows.length?<>
-        <article className="compact-accuracy-row aggregate"><strong>ALL</strong>{metricCell("WINNER",summary.straightUp.accuracy,summary.straightUp.wins,summary.straightUp.losses,0,summary.straightUp.graded)}{metricCell("SPREAD",summary.spread.accuracy,summary.spread.wins,summary.spread.losses,summary.spread.pushes,summary.spread.graded)}{metricCell("TOTAL",summary.total.accuracy,summary.total.wins,summary.total.losses,summary.total.pushes,summary.total.graded)}</article>
-        {rows.map((row)=><article className={`compact-accuracy-row ${row.lineQualityStatus}`} key={row.season}><strong>{row.season}<small>{row.lineQualityStatus==="provisional"?"QA":""}</small></strong>{metricCell("WINNER",row.straightUp.accuracy,row.straightUp.wins,row.straightUp.losses,0,row.straightUp.graded)}{metricCell("SPREAD",row.spread.accuracy,row.spread.wins,row.spread.losses,row.spread.pushes,row.spread.graded)}{metricCell("TOTAL",row.total.accuracy,row.total.wins,row.total.losses,row.total.pushes,row.total.graded)}</article>)}
+        <article className="compact-accuracy-row aggregate"><strong>ALL</strong>{metricCell("WINNER",summary.straightUp.accuracy,summary.straightUp.wins,summary.straightUp.losses,0,summary.straightUp.graded,summary.moneyline)}{metricCell("SPREAD",summary.spread.accuracy,summary.spread.wins,summary.spread.losses,summary.spread.pushes,summary.spread.graded)}{metricCell("TOTAL",summary.total.accuracy,summary.total.wins,summary.total.losses,summary.total.pushes,summary.total.graded)}</article>
+        {rows.map((row)=><article className={`compact-accuracy-row ${row.lineQualityStatus}`} key={row.season}><strong title={row.modelVersions?.join(", ")}>{row.season}<small>{[row.lineQualityStatus==="provisional"?"QA":"",row.formulaStatus==="archived"?"ARCHIVE":""].filter(Boolean).join(" · ")}</small></strong>{metricCell("WINNER",row.straightUp.accuracy,row.straightUp.wins,row.straightUp.losses,0,row.straightUp.graded,row.moneyline)}{metricCell("SPREAD",row.spread.accuracy,row.spread.wins,row.spread.losses,row.spread.pushes,row.spread.graded)}{metricCell("TOTAL",row.total.accuracy,row.total.wins,row.total.losses,row.total.pushes,row.total.graded)}</article>)}
       </>:<div className="compact-accuracy-state">{calibration.loading?"Loading results…":`No graded predictions are available for ${filterLabel}.`}</div>}
     </div>
-    <p>{scope==="qualified"?"Good Fits grades only model-qualified spread and total opportunities.":"All Games grades every game with a prediction and a usable market line."}{!home?" Team and conference views include games involving the selected program or league.":""} Every view excludes Weeks 0–4 and FCS matchups. Pushes do not count toward hit rate.</p>
+    <p>{scope==="qualified"?"Only Week 5 onward and postseason games enter these results. Good Fits winner accuracy and moneyline net use games with a qualified ATS pick; totals use the separate four-point-edge diagnostic. The winner is the model’s straight-up favorite, which can differ from its ATS side.":"Only Week 5 onward and postseason games enter these results. All Games winner accuracy includes every completed FBS game in that window; spread and total results include games with a usable market line."}{!home?" Team and conference views include games involving the selected program or league.":""} FCS matchups are excluded. Moneyline net uses $100 risked at the stored provider’s listed price for each priced game; missing odds are excluded and counted. Spread and total net assumes $100 risked on every graded pick at −110. Green indicates positive net, yellow means a 50%–52.38% hit rate at −110, and red indicates under 50%; moneyline colors use priced net. Totals are diagnostic rather than recommendations. These are retrospective paper results, not verified wagers: the archive does not preserve the timestamp of each sportsbook quote, and earlier seasons retain their stored formula versions. ALL combines those versions rather than representing only the current formula.</p>
   </section>;
 }
 
@@ -5356,9 +5621,10 @@ function Methodology() {
       </div>
 
       <details className="validation-dashboard">
-        <summary><div><span className="card-label">INTERNAL MODEL VALIDATION · 2025 UNTOUCHED HOLDOUT <i className="snapshot-badge frozen">FROZEN</i></span><h2>Accuracy, calibration and replacement gate</h2><p>Open the audit before treating a more complex model as an improvement.</p></div><div className="validation-summary-metrics"><b>{scoringModelValidation.holdoutScoreMae.toFixed(2)}<small>SCORE MAE</small></b><b>{scoringModelValidation.holdoutTotalMae.toFixed(2)}<small>TOTAL MAE</small></b><b>{scoringModelValidation.holdoutMarginMae.toFixed(2)}<small>SPREAD MAE</small></b></div><DisclosureControl /></summary>
+        <summary><div><span className="card-label">INTERNAL MODEL VALIDATION · 2025 HISTORICAL DIAGNOSTIC <i className="snapshot-badge frozen">FROZEN</i></span><h2>Accuracy, calibration and replacement gate</h2><p>Open the audit before treating a more complex model as an improvement.</p></div><div className="validation-summary-metrics"><b>{scoringModelValidation.holdoutScoreMae.toFixed(2)}<small>SCORE MAE</small></b><b>{scoringModelValidation.holdoutTotalMae.toFixed(2)}<small>TOTAL MAE</small></b><b>{scoringModelValidation.holdoutMarginMae.toFixed(2)}<small>SPREAD MAE</small></b></div><DisclosureControl /></summary>
         <div className="validation-dashboard-body">
           <section className="validation-audit-table"><header><span>BASELINE</span><span>TEAM SCORE MAE</span><span>SPREAD MAE</span><span>TOTAL MAE</span><span>WIN RATE</span><span>BRIER</span></header>{holdoutBaselineComparison.map((row)=><div className={row.model==="Possession v15"?"selected":""} key={row.model}><strong>{row.model}</strong><span>{row.scoreMae?.toFixed(2)??"—"}</span><span>{row.spreadMae.toFixed(2)}</span><span>{row.totalMae.toFixed(2)}</span><span>{row.straightUp===null?"—":`${(row.straightUp*100).toFixed(1)}%`}</span><span>{row.brier?.toFixed(3)??"—"}</span></div>)}</section>
+          <p className="validation-protocol">Current win probability calibration: a 613-game 2025 replay improved Brier score from 0.1873 to 0.1815 after fitting the margin-to-probability scale on 2021–24. Projected scores did not change. This is a retrospective diagnostic; recorded 2026 pregame predictions are the next prospective test.</p>
           <div className="validation-panels">
             <article><span className="card-label">SEASON-HOLDOUT TREND</span><h3>Improvement was not limited to one year</h3><div className="validation-season-list">{validationBySeason.map((row)=><p key={row.season}><strong>{row.season}</strong><span>Score {row.previousScoreMae.toFixed(2)} → <b>{row.currentScoreMae.toFixed(2)}</b></span><span>Total {row.previousTotalMae.toFixed(2)} → <b>{row.currentTotalMae.toFixed(2)}</b></span><span>Spread {row.previousSpreadMae.toFixed(2)} → <b>{row.currentSpreadMae.toFixed(2)}</b></span></p>)}</div></article>
             <article><span className="card-label">PROJECTION DISTRIBUTION</span><h3>Broken low totals were removed</h3><div className="distribution-grid"><p><span>Average total</span><b>{holdoutProjectionDistribution.projected.averageTotal.toFixed(1)}</b><small>actual {holdoutProjectionDistribution.actual.averageTotal.toFixed(1)}</small></p><p><span>Below 20</span><b>{(holdoutProjectionDistribution.projected.below20*100).toFixed(1)}%</b><small>actual {(holdoutProjectionDistribution.actual.below20*100).toFixed(1)}%</small></p><p><span>One-score forecast</span><b>{(holdoutProjectionDistribution.projected.oneScore*100).toFixed(1)}%</b><small>actual {(holdoutProjectionDistribution.actual.oneScore*100).toFixed(1)}%</small></p><p><span>Blowout forecast</span><b>{(holdoutProjectionDistribution.projected.blowouts*100).toFixed(1)}%</b><small>actual {(holdoutProjectionDistribution.actual.blowouts*100).toFixed(1)}%</small></p></div><small>Point forecasts intentionally sit near the conditional mean; season simulation adds calibrated weekly variance so tail outcomes are not confused with the median score.</small></article>
@@ -5374,7 +5640,7 @@ function Methodology() {
               <ValidationSliceTable title="RAW MARKET EDGE BANDS" rows={validationSlices.edgeRows} mode="edges" />
             </>:<p className="validation-slices-empty">Slices populate as versioned v15 game predictions finish materializing. The frozen holdout above remains the replacement gate.</p>}</div>
           </details>
-          <p className="validation-protocol">Protocol: FBS vs FBS, Week 5+ plus postseason, prior-week profiles only. 2021–2024 trains the frozen coefficients; 2025 is never used to select them. Missing-data quality enters as a reliability signal, not fabricated statistics. The reproducible audit compares previous, current, simple-rating and closing-market baselines separately for scores, spreads, totals and win-probability calibration.</p>
+          <p className="validation-protocol">Protocol: FBS vs FBS, Week 5+ plus postseason, prior-week profiles only. The scoring coefficients and probability scale were fitted on 2021–24. The 2025 season has been examined during development and is now a historical diagnostic. Missing-data quality enters as a reliability signal. Market picks are evaluated separately from score and probability accuracy.</p>
         </div>
       </details>
 
@@ -5400,59 +5666,68 @@ function Methodology() {
   );
 }
 
-function SimpleHomePage({onNavigate}:{onNavigate:(section:Section)=>void}){
-  const links=navigation.filter((item)=>item.id!=="overview");
-  return <section className="overview simple-home">
-    <div className="simple-home-shell">
-      <header className="simple-home-header">
-        <img src="/harper-football.svg" alt="" />
-        <div><span>HARPER+</span><h1>College Football Model</h1></div>
-      </header>
-      <nav className="simple-home-links" aria-label="Harper Plus pages">
-        {links.map((item)=><a href={`#${item.id}`} key={item.id} onClick={(event)=>{event.preventDefault();onNavigate(item.id);}}><span>{item.mark}</span><strong>{item.label}</strong><b aria-hidden="true">›</b></a>)}
-      </nav>
-      <CompactAccuracyTable home />
-      <section className="simple-home-contact" aria-labelledby="home-contact-title">
-        <header><span>CONTACT</span><h2 id="home-contact-title">Leave a note</h2></header>
-        <div className="simple-home-contact-action">
-          <p>Enter your email and note through the secure contact form.</p>
-          <a href="https://formsubmit.co/el/sifele" target="_blank" rel="noopener noreferrer">OPEN CONTACT FORM</a>
-        </div>
-        <p className="simple-home-contact-status">Messages are delivered directly to Harper+.</p>
-      </section>
-    </div>
+function ModelPerformancePage(){
+  return <section className="page-section model-performance-page">
+    <div className="section-kicker">AUDITED RESULTS · WEEK 5+ · 2014–PRESENT</div>
+    <div className="section-title-row"><div><h1>Model Performance</h1><p>Winner, spread, and total results from Week 5 onward and postseason.</p></div></div>
+    <CompactAccuracyTable home />
+    <section className="simple-home-contact" aria-labelledby="performance-contact-title">
+      <header><span>CONTACT</span><h2 id="performance-contact-title">Leave a note</h2></header>
+      <div className="simple-home-contact-action">
+        <p>Enter your email and note through the secure contact form.</p>
+        <a href="https://formsubmit.co/el/sifele" target="_blank" rel="noopener noreferrer">OPEN CONTACT FORM</a>
+      </div>
+      <p className="simple-home-contact-status">Messages are delivered directly to Harper+.</p>
+    </section>
   </section>;
 }
 
 export default function Home() {
   const [section, setSection] = useState<Section>("overview");
+  const [locationReady,setLocationReady]=useState(false);
+  const explicitInitialWeek=useRef(typeof window!=="undefined"&&new URLSearchParams(window.location.hash.split("?")[1]??"").has("week"));
+  const system=useQuery({queryKey:["system-status"],queryFn:()=>fetch("/api/system-status").then(r=>r.ok?r.json():null)});
+  const [weeklyScoresLaunch,setWeeklyScoresLaunch]=useState<{week:number;gameId:string}|null>(null);
   const [selectedTeamName,setSelectedTeamName]=useState("Indiana");
   const [linkedScheduleGame,setLinkedScheduleGame]=useState<LinkedScheduleGame|null>(null);
   const [matchupLaunch,setMatchupLaunch]=useState<MatchupLaunch|null>(null);
   const [modelSeason, setModelSeason] = useState(activeModelSeason);
   const [modelWeek, setModelWeek] = useState(activeModelWeek);
+  const [currentWeek,setCurrentWeek]=useState<CurrentWeek>(null);
+  useEffect(()=>{
+    let active=true;
+    const update=()=>fetch("/api/current-week").then(response=>response.ok?response.json():null)
+      .then((payload:{season?:number;week?:number|null}|null)=>{
+        if(active&&payload&&Number.isInteger(payload.season)&&Number.isInteger(payload.week))
+          {setCurrentWeek({season:payload.season!,week:payload.week!});if(!explicitInitialWeek.current)setModelWeek(payload.week!);}
+      }).catch(()=>{});
+    update();
+    const timer=window.setInterval(update,60*60*1000);
+    return()=>{active=false;window.clearInterval(timer);};
+  },[]);
   const [refreshState, setRefreshState] = useState<"idle" | "running" | "done" | "error">("idle");
-  const [refreshMessage, setRefreshMessage] = useState("Historical model snapshot ready");
+  const [refreshMessage, setRefreshMessage] = useState("Scores and stats ready");
   const seasonPerformance = useSeasonPerformance(modelSeason);
 
   useEffect(() => {
     const syncSectionFromUrl = () => {
-      const rawSection = window.location.hash.replace(/^#\/?/, "");
-      const requested = (rawSection==="simulation"?"whatif":rawSection) as Section;
-      if (navigation.some((item) => item.id === requested)) {
-        setSection(requested);
-        if(rawSection==="simulation")window.history.replaceState(null,"","#whatif");
-      }
+      const parsed=parseSiteLocation(window.location.hash);
+      if(parsed.team)setSelectedTeamName(parsed.team);
+      if(parsed.season!==null)setModelSeason(parsed.season);
+      if(parsed.week!==null)setModelWeek(parsed.week);
+      setSection(parsed.section);setLinkedScheduleGame(null);setMatchupLaunch(null);setLocationReady(true);
     };
     syncSectionFromUrl();
     window.addEventListener("popstate", syncSectionFromUrl);
-    return () => window.removeEventListener("popstate", syncSectionFromUrl);
+    window.addEventListener("hashchange", syncSectionFromUrl);
+    return () => { window.removeEventListener("popstate", syncSectionFromUrl); window.removeEventListener("hashchange", syncSectionFromUrl); };
   }, []);
 
+  useEffect(()=>{if(!locationReady)return;const [path,query=""]=window.location.hash.split("?");const params=new URLSearchParams(query);params.set("season",String(modelSeason));params.set("week",String(modelWeek));window.history.replaceState(null,"",`${path||"#overview"}?${params}`);},[locationReady,modelSeason,modelWeek]);
   const navigateTo = (nextSection: Section) => {
     setLinkedScheduleGame(null);
     setMatchupLaunch(null);
-    if (window.location.hash !== `#${nextSection}`) window.history.pushState(null, "", `#${nextSection}`);
+    if (window.location.hash !== `#${nextSection}`) window.history.pushState(null, "", `#${nextSection}?season=${modelSeason}&week=${modelWeek}`);
     if (nextSection === "whatif" && modelSeason === modelSnapshot.season && activeModelSeason > modelSnapshot.season) {
       setModelSeason(activeModelSeason);
       setModelWeek(activeModelWeek);
@@ -5464,6 +5739,7 @@ export default function Home() {
   const openTeamPage=(teamName:string)=>{
     setSelectedTeamName(teamName);
     navigateTo("teams");
+    window.history.replaceState(null, "", teamPageHref(teamName));
   };
 
   const openScheduleGame=(row:ScheduleRow)=>{
@@ -5473,29 +5749,27 @@ export default function Home() {
 
   const openWinConditions=(row:ScheduleRow)=>{
     const snapshotWeek=Math.max(0,Math.min(16,row.generatedFromWeek??row.rankingWeek??row.week-1));
-    setModelSeason(row.season);setModelWeek(snapshotWeek);
+    setModelSeason(row.season);setModelWeek(row.seasonType==="postseason"?16:row.week);
     navigateTo("matchup");
     setMatchupLaunch({key:`${row.gameId}:${Date.now()}`,gameId:row.gameId,homeTeam:row.homeTeam,awayTeam:row.awayTeam,
       homeSeason:row.season,awaySeason:row.season,homeWeek:snapshotWeek,awayWeek:snapshotWeek,neutralSite:Boolean(row.neutralSite)});
   };
 
   const refresh = async () => {
-    setRefreshState("running");
-    setRefreshMessage("Checking the latest automatic model run…");
-    try {
-      const response = await fetch("/api/refresh", { cache:"no-store" });
-      const payload = await readJsonBody<{ configured?:boolean;run?:{season:number;week:number;status:string;createdAt:string} }>(response);
-      if (!response.ok) throw new Error("Could not check the latest run");
-      setRefreshState("done");
-      setRefreshMessage(payload.run ? `Latest automatic run · ${payload.run.season} week ${payload.run.week} · ${payload.run.status}` : "Automatic updater is ready for the season");
-    } catch (error) {
-      setRefreshState("error");
-      setRefreshMessage(error instanceof Error ? error.message : "Refresh failed");
-    }
+    setRefreshState("done");
+    setRefreshMessage("Stats update Sundays at 12:00 PM Central. Reloading published data.");
+    window.dispatchEvent(new Event("harper:data-refreshed"));
+    window.setTimeout(()=>window.location.reload(),1200);
   };
+
+  if (section === "game") {
+    return <main className="site-shell down-by-down-standalone"><Suspense fallback={<p>Loading game…</p>}><SeasonMode season={modelSeason} onExit={() => navigateTo("overview")} /></Suspense></main>;
+  }
 
   return (
     <main className="site-shell">
+      <CurrentWeekContext.Provider value={currentWeek}>
+      <SelectionContext.Provider value={{season:modelSeason,week:modelWeek,setSeason:setModelSeason,setWeek:setModelWeek}}>
       <AppShell
         section={section}
         season={modelSeason}
@@ -5505,28 +5779,37 @@ export default function Home() {
         refreshMessage={refreshMessage}
         onNavigate={navigateTo}
         onRefresh={refresh}
-        archiveStatus={<BackfillBanner />}
+        archiveStatus={null}
+        vintage={<VintageControl season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} idPrefix="global"/>}
+        status={system.data?.basic?`Team W${system.data.basic.week??"—"} · Advanced W${system.data.advanced?.week??"—"} · Players ${system.data.players?.stage==="ready"?"ready":"pending"} · Sun noon CT`:"Updates Sundays at noon CT"}
       >
+        <Suspense fallback={<div className="data-empty" role="status">Loading tool…</div>}>
         {linkedScheduleGame?<LinkedScheduleGameDetail selection={linkedScheduleGame} onBack={()=>{setLinkedScheduleGame(null);window.requestAnimationFrame(()=>window.scrollTo({top:0,behavior:"auto"}));}}/>:<>
-        {section === "overview" ? <SimpleHomePage onNavigate={navigateTo} /> : null}
+        {section === "directory" ? <TeamDirectory season={modelSeason} week={modelWeek} onTeam={openTeamPage}/> : null}
+        {section === "explore" ? <ExploreHub onNavigate={navigateTo}/> : null}
+        {section === "overview" ? <WeeklyReview initialSeason={modelSeason} initialWeek={Math.max(0,modelWeek-1)} seasons={seasonOptions} onOpenScores={()=>{setWeeklyScoresLaunch(null);navigateTo("schedule");}} onOpenGame={(game)=>{setModelSeason(game.season);setWeeklyScoresLaunch({week:game.week,gameId:game.gameId});navigateTo("schedule");}} /> : null}
+        {section === "performance" ? <ModelPerformancePage /> : null}
 
-        {section === "schedule" ? <SchedulePage season={modelSeason} setSeason={setModelSeason} onSelectTeam={openTeamPage} onExploreWinConditions={openWinConditions} /> : null}
+        {section === "schedule" ? <SchedulePage season={modelSeason} setSeason={setModelSeason} launch={weeklyScoresLaunch} onSelectTeam={openTeamPage} onExploreWinConditions={openWinConditions} /> : null}
         {section === "rankings" ? <ResultsRankingsPage season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} onSelectTeam={openTeamPage} onSelectGame={openScheduleGame} /> : null}
+        {section === "conferences" ? <ConferenceComparison season={modelSeason} week={modelWeek} seasons={seasonOptions} setSeason={setModelSeason} setWeek={setModelWeek} /> : null}
         {section === "standings" ? <ConferenceStandingsPage season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} onSelectTeam={openTeamPage} /> : null}
         {section === "matchup" ? <MatchupLabV2 key={matchupLaunch?.key??"manual-matchup"} season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} launch={matchupLaunch} /> : null}
-        {section === "whatif" ? <WhatIfPage season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} onSelectTeam={openTeamPage} onSelectGame={openScheduleGame} /> : null}
+        {section === "whatif" ? <><SeasonInsights season={modelSeason}/><WhatIfPage season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} onSelectTeam={openTeamPage} onSelectGame={openScheduleGame} /></> : null}
         {section === "all137" ? <All137 season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} onSelectTeam={openTeamPage} onSelectGame={openScheduleGame} /> : null}
         {section === "stats" ? <StatsHubPage season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} /> : null}
         {section === "visualize" ? <DataVisualizerPage season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} /> : null}
         {section === "playerstats" ? <StatsHubPage season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} initialView="player" /> : null}
-        {section === "teams" ? <TeamLab season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} requestedTeam={selectedTeamName} onSelectedTeamChange={setSelectedTeamName} /> : null}
+        {section === "teams" ? <TeamLab key={selectedTeamName} season={modelSeason} week={modelWeek} setSeason={setModelSeason} setWeek={setModelWeek} requestedTeam={selectedTeamName} onSelectedTeamChange={setSelectedTeamName} /> : null}
         {section === "players" ? <PlayerRatingsPage /> : null}
-        {section === "depth" ? <DepthChartPage /> : null}
-        {section === "methodology" ? <AccuracyHistoryPage /> : null}
+        {section === "methodology" ? <ModelPerformancePage /> : null}
         </>}
 
-        <footer className="site-footer"><div className="brand compact"><span className="brand-mark harper-football-mark" aria-hidden="true"><img src="/harper-football.svg" alt="" /></span><div><strong>HARPER+</strong><small>COLLEGE FOOTBALL MODEL</small></div></div><p>Independent model. Team marks identify their respective institutions. Model logic derived from CFB MOD 25 and applied to timestamped weekly data.</p><span>AUTO · MONDAY AM</span></footer>
+        </Suspense>
+        <footer className="site-footer"><div className="brand compact"><span className="brand-mark harper-football-mark" aria-hidden="true"><img src="/harper-football.svg" alt="" /></span><div><strong>HARPER+</strong><small>COLLEGE FOOTBALL MODEL</small></div></div><p>Independent model. Team marks identify their respective institutions. Model logic derived from CFB MOD 25 and applied to timestamped weekly data.</p><span>SUNDAY · NOON CENTRAL</span></footer>
       </AppShell>
+      </SelectionContext.Provider>
+      </CurrentWeekContext.Provider>
     </main>
   );
 }

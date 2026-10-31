@@ -16,10 +16,18 @@ export type ScheduleRecordGame = {
 export type ScheduleRecordSnapshot = {
   homeRecordAfter: string | null;
   awayRecordAfter: string | null;
+  homeStreakAfter: number | null;
+  awayStreakAfter: number | null;
   recordStatus: "actual" | "projected" | "unavailable";
 };
 
 type MutableRecord = { wins: number; losses: number; ties: number };
+
+function nextStreak(current: number | undefined, won: boolean | null) {
+  if (won === null) return 0;
+  if (won) return current && current > 0 ? current + 1 : 1;
+  return current && current < 0 ? current - 1 : -1;
+}
 
 function recordFor(records: Map<string, MutableRecord>, team: string) {
   const existing = records.get(team);
@@ -82,6 +90,7 @@ export function buildScheduleRecordTimeline(
   const actualRecords = new Map<string, MutableRecord>();
   const projectedRecords = new Map<string, MutableRecord>();
   const projectedComplete = new Map<string, boolean>();
+  const actualStreaks = new Map<string, number>();
   const snapshots = new Map<string, ScheduleRecordSnapshot>();
   const eligible = (team: string) => !eligibleTeams || eligibleTeams.has(team);
   const complete = (team: string) => projectedComplete.get(team) !== false;
@@ -94,9 +103,13 @@ export function buildScheduleRecordTimeline(
       const homeWon = outcome(Number(game.homePoints), Number(game.awayPoints));
       applyResult(actualRecords, game.homeTeam, game.awayTeam, homeWon);
       applyResult(projectedRecords, game.homeTeam, game.awayTeam, homeWon);
+      actualStreaks.set(game.homeTeam, nextStreak(actualStreaks.get(game.homeTeam), homeWon));
+      actualStreaks.set(game.awayTeam, nextStreak(actualStreaks.get(game.awayTeam), homeWon === null ? null : !homeWon));
       snapshots.set(game.gameId, {
         homeRecordAfter: eligible(game.homeTeam) ? formatRecord(actualRecords.get(game.homeTeam)) : null,
         awayRecordAfter: eligible(game.awayTeam) ? formatRecord(actualRecords.get(game.awayTeam)) : null,
+        homeStreakAfter: eligible(game.homeTeam) ? actualStreaks.get(game.homeTeam) ?? null : null,
+        awayStreakAfter: eligible(game.awayTeam) ? actualStreaks.get(game.awayTeam) ?? null : null,
         recordStatus: "actual",
       });
       continue;
@@ -112,6 +125,8 @@ export function buildScheduleRecordTimeline(
       snapshots.set(game.gameId, {
         homeRecordAfter: null,
         awayRecordAfter: null,
+        homeStreakAfter: null,
+        awayStreakAfter: null,
         recordStatus: "unavailable",
       });
       continue;
@@ -126,6 +141,8 @@ export function buildScheduleRecordTimeline(
     snapshots.set(game.gameId, {
       homeRecordAfter: eligible(game.homeTeam) && complete(game.homeTeam) ? formatRecord(projectedRecords.get(game.homeTeam)) : null,
       awayRecordAfter: eligible(game.awayTeam) && complete(game.awayTeam) ? formatRecord(projectedRecords.get(game.awayTeam)) : null,
+      homeStreakAfter: null,
+      awayStreakAfter: null,
       recordStatus: complete(game.homeTeam) && complete(game.awayTeam) ? "projected" : "unavailable",
     });
   }

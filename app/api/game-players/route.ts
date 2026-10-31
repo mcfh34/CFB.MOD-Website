@@ -84,6 +84,6 @@ export async function GET(request:Request){
       if(error.retryAfterSeconds>0)response.headers.set("retry-after",String(error.retryAfterSeconds));
       return response;
     }
-    return json({status:"error",season,gameId,teams:[],message:error instanceof Error?error.message:"Game player statistics are temporarily unavailable."},500);
+    return json({status:"error",season,gameId,teams:[],message:"Game player statistics are temporarily unavailable."},500);
   }
 }

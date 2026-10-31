@@ -1,4 +1,5 @@
-import { buildMatchupEvidence, type MatchupEvidence } from "./matchupModel";
+import type { RosterProjection } from "./rosterModel";
+import { buildMatchupEvidence, powerFourFcsMarginFloor, type MatchupEvidence } from "./matchupModel";
 import type { AdvancedMetricKey, AdvancedProfile } from "./advancedMetrics";
 
 export type RankingGame = {
@@ -15,9 +16,12 @@ export type RankingGame = {
   awayPoints: number;
   seasonType?: string;
   conferenceChampionship?: boolean;
+  homePlays?:number|null;awayPlays?:number|null;
 };
 
 export type RankingProfile = {
+  conferenceAdjustment?:number;
+  roster?:RosterProjection;
   team: string;
   teamId?: string | null;
   abbreviation?: string | null;
@@ -73,6 +77,7 @@ export type BcsRankingRow = {
   bestOpponentStrength: number;
   qualityWinStrength: number;
   matchupReliability: number;
+  fbsScoringMargin?:number;fcsResultAdjustment?:number;fcsGamesPlayed?:number;fbsGamesPlayed?:number;fbsPlays?:number;scheduleConnectivity?:number;
   bestWins: string[];
   lossesTo: string[];
 };
@@ -348,6 +353,8 @@ export function buildBcsRankings(
   const power = new Map(profilePower);
   const eligibleColley = new Map<string, number>();
   const eligibleElo = new Map<string, number>();
+  const bridged=new Set<string>();
+  for(const game of games)if(eligible.has(game.homeTeam)&&eligible.has(game.awayTeam)&&game.homeConference&&game.awayConference&&game.homeConference!==game.awayConference){bridged.add(game.homeTeam);bridged.add(game.awayTeam);}
   const matchupEvidence = new Map<string, MatchupEvidence>();
   const bestWins = new Map<string, string[]>();
   const lossesTo = new Map<string, string[]>();
@@ -363,6 +370,7 @@ export function buildBcsRankings(
     const controlValues: number[] = [];
     const badWinPenalties: number[] = [];
     const badLossPenalties: number[] = [];
+    const fbsMargins:number[]=[],fcsResults:{actualMargin:number;expectedMargin:number}[]=[];let fbsPlays=0,connected=0;
     for (const detail of details) {
       const opponentRating = elo.get(detail.opponent) ?? 1500;
       const siteEdge = detail.game.neutralSite ? 0 : detail.home ? 45 : -45;
@@ -378,6 +386,8 @@ export function buildBcsRankings(
       const directResultAdjustment = points > opponentPoints ? 0.04 : points < opponentPoints ? -0.04 : 0;
       const strength = clamp((opponentStrength.get(detail.opponent) ?? 0.35) + directResultAdjustment, 0, 1);
       const margin = points - opponentPoints;
+      if(eligible.has(detail.opponent)){fbsMargins.push(margin);fbsPlays+=Number((detail.home?detail.game.homePlays:detail.game.awayPlays)??65);if(bridged.has(detail.opponent))connected++;}
+      else fcsResults.push({actualMargin:margin,expectedMargin:powerFourFcsMarginFloor(Number(profile.preseasonElo??1500))});
       const adjustedMargin = margin + (detail.game.neutralSite ? 0 : detail.home ? -2.5 : 2.5);
       const control = opponentRelativeControl(strength, adjustedMargin);
       opponentEvidence.push(strength);
@@ -409,7 +419,7 @@ export function buildBcsRankings(
     const scheduleVolume = clamp(record.games / 10, 0, 1);
     const schedule = (0.25 * averageSchedule + 0.45 * scheduleDepth + 0.3 * strongestOpponents) * (0.86 + 0.14 * scheduleVolume);
     const bestWinEvidence = weightedTop(winStrengths, [0.55, 0.3, 0.15]);
-    matchupEvidence.set(profile.team, buildMatchupEvidence(opponentEvidence, winStrengths, record.games));
+    matchupEvidence.set(profile.team, buildMatchupEvidence(opponentEvidence, winStrengths, record.games,{fbsMargins,fcsResults,fbsPlays,scheduleConnectivity:fbsMargins.length?connected/fbsMargins.length:0}));
     const topWins = 0.5 + (weightedTop(winMerits, [0.55, 0.3, 0.15]) - 0.5) * maturity;
     const orderedControl = [...controlValues].sort((a, b) => a - b);
     const lowerControl = average(orderedControl.slice(0, Math.max(1, Math.ceil(orderedControl.length / 4))));
@@ -543,6 +553,7 @@ export function buildBcsRankings(
       bestOpponentStrength: matchupEvidence.get(team)?.bestOpponentStrength ?? 0.5,
       qualityWinStrength: matchupEvidence.get(team)?.qualityWinStrength ?? 0.35,
       matchupReliability: matchupEvidence.get(team)?.reliability ?? 0.72,
+      fbsScoringMargin:matchupEvidence.get(team)?.fbsScoringMargin,fcsResultAdjustment:matchupEvidence.get(team)?.fcsResultAdjustment,fcsGamesPlayed:matchupEvidence.get(team)?.fcsGamesPlayed,fbsGamesPlayed:matchupEvidence.get(team)?.fbsGamesPlayed,fbsPlays:matchupEvidence.get(team)?.fbsPlays,scheduleConnectivity:matchupEvidence.get(team)?.scheduleConnectivity,
       bestWins: bestWins.get(team) ?? [],
       lossesTo: lossesTo.get(team) ?? [],
     };

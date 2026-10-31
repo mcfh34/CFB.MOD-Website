@@ -1,0 +1,12 @@
+/* Layered important declarations override legacy page and theme font resets.
+   Keep the game and its menus on their existing font stacks and inheritance. */
+@layer site-typography {
+  body :where(*):not(:where(
+    .down-by-down-standalone,
+    .down-by-down-standalone *,
+    .down-by-down-app,
+    .down-by-down-app *
+  )) {
+    font-family: Consolas, "Liberation Mono", "Courier New", monospace !important;
+  }
+}

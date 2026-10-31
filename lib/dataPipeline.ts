@@ -1,8 +1,21 @@
 import {cachedApiRequest} from "./weeklyApiPolicy";
+import {inspectMarketLine} from "./marketLineAudit";
+import {reviewedResultsSnapshots,selectReviewedResults,type ReviewedResultsSnapshot} from "./reviewedResults";
+import { usesPreseasonPriors } from "./seasonPolicy";
+import { buildConferenceAdjustments } from "./conferenceAdjustment";
+import type { ConferenceGame, ConferenceTeam } from "./conferenceComparison";
+import { summarizeRosterValidation, type RosterValidationRow } from "./rosterValidation";
+import { loadRosterTimelines } from "./rosterPipeline";
+import { rosterAtWeek, type RosterProjection } from "./rosterModel";
 import { baselines, modelCalibration } from "../app/modelData";
 import { buildWeeklyAdvancedProfiles, type AdvancedGameComponentRow, type WeeklyAdvancedProfile } from "./advancedProfileBuilder";
+import { applyPlayFeedSackAdjustments } from "./playByPlay";
+import { buildWeeklyDirectionalProfiles, parseDirectionalGames, type DirectionalGame } from "./rushingMatchup";
+import { buildTurnoverSignals, turnoverProfile, rushingPersonnel, parsePlayerRushes, type PlayerRush, type TurnoverGameSignal } from "./predictiveSignals";
+import { currentMatchupFormulaRevision } from "./formulaRevision";
+import { projectedGameStatProfile } from "./gameStatProjection";
 import { parseAdvancedProfile, type AdvancedProfile } from "./advancedMetrics";
-import { buildMatchupEvidence, projectCalibratedMatchup, type MatchupEvidence } from "./matchupModel";
+import { buildMatchupEvidence, fcsResultAdjustment, powerFourFcsMarginFloor, projectCalibratedMatchup, type MatchupEvidence } from "./matchupModel";
 import { evaluateMarketProjection } from "./marketModel";
 import { isStoredMarketLineQuarantined, selectMarketLineCandidate, wilsonConfidenceInterval, type MarketLineCandidate } from "./marketLineQuality";
 import { refreshViabilityCalibrationFromDatabase } from "./offensiveViability";
@@ -23,6 +36,7 @@ type JsonRecord = Record<string, unknown>;
 export type NormalizedGame = {
   id: string; season: number; week: number; seasonType: string; startDate: string | null;
   completed: boolean; neutralSite: boolean; conferenceGame: boolean; venue: string | null;
+  homePlays?:number|null;awayPlays?:number|null;
   homeTeam: string; homeConference: string | null; homePoints: number | null;
   awayTeam: string; awayConference: string | null; awayPoints: number | null;
 };
@@ -30,14 +44,18 @@ export type NormalizedStat = {
   gameId: string; season: number; week: number; team: string; opponent: string; homeAway: string;
   points: number | null; totalYards: number; yardsPerPlay: number; passYards: number; passAttempts: number; passCompletions: number | null;
   yardsPerPass: number; rushYards: number; rushAttempts: number; yardsPerRush: number; turnovers: number;
+  sacksAllowed: number; sackYardsLost: number; sackAdjustmentVersion: number;
 };
 export type NormalizedAdvancedStat = AdvancedGameComponentRow;
 export type Profile = {
+  conferenceAdjustment?:number;
   season: number; week: number; team: string; gamesPlayed: number;
   off: [number, number, number, number, number]; def: [number, number, number, number, number];
   oi: [number, number, number, number, number]; di: [number, number, number, number, number];
   advanced?: AdvancedProfile | null;
   preseasonElo?: number;
+  roster?: RosterProjection;
+  rosterTimeline?: RosterProjection[];
   transitionDiagnostic?: PreseasonTransitionDiagnostic;
 };
 type Line = {
@@ -53,7 +71,10 @@ export type PreseasonInput = {
   recruitingRank: number | null; recruitingPoints: number | null;
 };
 
-export const MODEL_VERSION = "harper-plus-v16-preseason-state-transition";
+export const MODEL_VERSION = "harper-plus-v19-evidence-calibrated";
+export const MODEL_FORMULA_REVISION = "matchup-evidence-calibrated-v5";
+export const formulaRevision = (season: number) => season === 2026 ? currentMatchupFormulaRevision : MODEL_FORMULA_REVISION;
+const snapshotSource = (season: number) => `CollegeFootballData:${formulaRevision(season)}`;
 export const ADVANCED_COMPONENT_VERSION = 3;
 const BASE_URL = "https://api.collegefootballdata.com";
 export const FIRST_HISTORICAL_SEASON = 2014;
@@ -62,6 +83,7 @@ export const FIRST_HISTORICAL_SEASON = 2014;
 // owns that lease it may process a small, paced batch so archive throughput no
 // longer depends on the hosting tier delivering every scheduled invocation.
 export const ARCHIVE_REPAIR_COOLDOWN_SECONDS = 75;
+export const ACTIVE_SEASON_REFRESH_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 export const ARCHIVE_BATCH_MAX_SLICES = 8;
 export const ARCHIVE_BATCH_PAUSE_MS = 2000;
 const average = (values: readonly number[]) => values.reduce((sum, value) => sum + Number(value), 0) / Math.max(1, values.length);
@@ -78,11 +100,16 @@ export function scheduleCalibrationWeights(gamesPlayed: number, fbsOpponents: nu
       modelCalibration.maxOpponentAdjustment,
       modelCalibration.opponentAdjustment + weakScheduleShare * 0.22 + earlySeasonShare * 0.05 + untestedScheduleShare * modelCalibration.untestedOpponentAdjustment,
     ),
-    priorGames:
-      modelCalibration.preseasonEquivalentGames +
+    // By three games, current-season production supplies at least 62% of
+    // this blend even at the maximum 1.35 roster prior multiplier. Opponent
+    // normalization remains in force; FCS blowouts are not raw power boosts.
+    priorGames: Math.min(
+      games >= 3 ? games * 0.45 : Infinity,
+      (modelCalibration.preseasonEquivalentGames +
       weakScheduleShare * modelCalibration.weakSchedulePriorGames +
       earlySeasonShare * modelCalibration.earlySeasonPriorGames +
-      untestedScheduleShare * modelCalibration.untestedSchedulePriorGames,
+      untestedScheduleShare * modelCalibration.untestedSchedulePriorGames) * Math.min(1, 2 / Math.max(1,games)),
+    ),
   };
 }
 
@@ -127,6 +154,21 @@ function parseCompletionAttempts(input: unknown) {
     return { completions, attempts };
   }
   return { completions: null, attempts: Number(stringValue) || 0 };
+}
+
+/** CFBD reports defensive sacks as `count-yards`, such as `3-21`. */
+function parseSackLine(input: unknown) {
+  if (input && typeof input === "object") {
+    const record = input as JsonRecord;
+    return {
+      count: Math.max(0, numberValue(record, "count", "sacks") ?? 0),
+      yards: Math.abs(numberValue(record, "yards", "sackYards", "sack_yards") ?? 0),
+    };
+  }
+  if (typeof input === "number") return { count: Math.max(0, input), yards: 0 };
+  const match = String(input ?? "").trim().match(/^(-?\d+(?:\.\d+)?)\s*[-/]\s*(-?\d+(?:\.\d+)?)$/);
+  if (match) return { count: Math.max(0, Number(match[1]) || 0), yards: Math.abs(Number(match[2]) || 0) };
+  return { count: Math.max(0, Number(input) || 0), yards: 0 };
 }
 
 function pause(milliseconds: number) {
@@ -227,26 +269,46 @@ export function normalizeStats(payload: unknown, games: NormalizedGame[], season
     const gameId = String(value(gameStat, "id", "gameId", "game_id") ?? "");
     const game = gamesById.get(gameId);
     const teamRows = asRecords(value(gameStat, "teams", "teamStats"));
-    for (const teamRow of teamRows) {
+    const drafts = teamRows.flatMap((teamRow) => {
       const team = textValue(teamRow, "school", "team") ?? "";
-      if (!team) continue;
+      if (!team) return [];
       const homeAway = textValue(teamRow, "homeAway", "home_away") ?? (game?.homeTeam === team ? "home" : "away");
       const opponent = game ? (game.homeTeam === team ? game.awayTeam : game.homeTeam) : (teamRows.find((candidate) => textValue(candidate, "school", "team") !== team) ? textValue(teamRows.find((candidate) => textValue(candidate, "school", "team") !== team)!, "school", "team") ?? "" : "");
       const categories = statMap(value(teamRow, "stats", "statistics"));
       const completionAttempts = parseCompletionAttempts(categories.get("completionattempts") ?? categories.get("passingcompletionsattempts") ?? categories.get("passattempts"));
-      const passAttempts = completionAttempts.attempts;
-      const rushAttempts = pickStat(categories, "rushingAttempts", "rushAttempts");
-      const passYards = pickStat(categories, "netPassingYards", "passingYards", "passYards");
-      const rushYards = pickStat(categories, "rushingYards", "rushYards");
-      const totalYards = pickStat(categories, "totalYards") || passYards + rushYards;
-      const plays = passAttempts + rushAttempts;
+      const defensiveSacks = parseSackLine(categories.get("sacks") ?? categories.get("defensivesacks"));
+      const explicitSackYards = pickStat(categories, "sackYards", "defensiveSackYards");
+      return [{
+        team, opponent, homeAway, points: numberValue(teamRow, "points"), completionAttempts,
+        officialRushAttempts: pickStat(categories, "rushingAttempts", "rushAttempts"),
+        officialPassYards: pickStat(categories, "netPassingYards", "passingYards", "passYards"),
+        officialRushYards: pickStat(categories, "rushingYards", "rushYards"),
+        officialTotalYards: pickStat(categories, "totalYards"),
+        turnovers: pickStat(categories, "turnovers", "turnoversLost"),
+        defensiveSacks: defensiveSacks.count,
+        defensiveSackYards: explicitSackYards || defensiveSacks.yards,
+      }];
+    });
+    for (const draft of drafts) {
+      // NCAA rushing includes sacks. The opponent row supplies the defense's
+      // sacks, which Harper+ moves to net passing and passing dropbacks.
+      const opponentDraft = drafts.find((candidate) => candidate.team === draft.opponent);
+      const sacksAllowed = opponentDraft?.defensiveSacks ?? 0;
+      const sackYardsLost = opponentDraft?.defensiveSackYards ?? 0;
+      const passAttempts = draft.completionAttempts.attempts;
+      const passDropbacks = passAttempts + sacksAllowed;
+      const modelRushAttempts = Math.max(0, draft.officialRushAttempts - sacksAllowed);
+      const passYards = draft.officialPassYards - sackYardsLost;
+      const rushYards = draft.officialRushYards + sackYardsLost;
+      const totalYards = draft.officialTotalYards || draft.officialPassYards + draft.officialRushYards;
+      const plays = passDropbacks + modelRushAttempts;
       output.push({
         gameId, season: game?.season ?? season, week: game?.week ?? numberValue(gameStat, "week") ?? 0,
-        team, opponent, homeAway, points: numberValue(teamRow, "points"), totalYards,
-        yardsPerPlay: plays ? totalYards / plays : 0, passYards, passAttempts, passCompletions: completionAttempts.completions,
-        yardsPerPass: passAttempts ? passYards / passAttempts : 0, rushYards, rushAttempts,
-        yardsPerRush: rushAttempts ? rushYards / rushAttempts : 0,
-        turnovers: pickStat(categories, "turnovers", "turnoversLost"),
+        team: draft.team, opponent: draft.opponent, homeAway: draft.homeAway, points: draft.points, totalYards,
+        yardsPerPlay: plays ? totalYards / plays : 0, passYards, passAttempts, passCompletions: draft.completionAttempts.completions,
+        yardsPerPass: passDropbacks ? passYards / passDropbacks : 0, rushYards, rushAttempts: modelRushAttempts,
+        yardsPerRush: modelRushAttempts ? rushYards / modelRushAttempts : 0,
+        turnovers: draft.turnovers, sacksAllowed, sackYardsLost, sackAdjustmentVersion: 0,
       });
     }
   }
@@ -391,7 +453,8 @@ export function mergeSeasonAdvancedContext(rows: NormalizedAdvancedStat[], paylo
 function normalizeLines(payload: unknown, season: number): Line[] {
   return asRecords(payload).map((game) => {
     const options = asRecords(value(game, "lines"));
-    const candidates = options.map((option): MarketLineCandidate => ({
+    const candidates = options.map((option): MarketLineCandidate => inspectMarketLine({
+      homeTeam:textValue(game,"homeTeam","home_team")??undefined,awayTeam:textValue(game,"awayTeam","away_team")??undefined,
       provider: textValue(option, "provider"),
       spread: numberValue(option, "spread"),
       spreadOpen: numberValue(option, "spreadOpen", "spread_open"),
@@ -400,7 +463,7 @@ function normalizeLines(payload: unknown, season: number): Line[] {
       overUnderOpen: numberValue(option, "overUnderOpen", "over_under_open"),
       homeMoneyline: numberValue(option, "homeMoneyline", "home_moneyline"),
       awayMoneyline: numberValue(option, "awayMoneyline", "away_moneyline"),
-    }));
+    }).line);
     const selected = selectMarketLineCandidate(numberValue(game, "season") ?? season, candidates);
     return {
       gameId: String(value(game, "id", "gameId", "game_id") ?? ""), season: numberValue(game, "season") ?? season,
@@ -479,7 +542,7 @@ async function fetchPreseasonInputs(key: string, season: number, eligibleTeams: 
   return normalizePreseasonInputs(returningPayload, recruitingPayload, season, eligibleTeams);
 }
 
-function buildProfiles(games: NormalizedGame[], rows: NormalizedStat[], season: number, eligibleTeams: Set<string>, preseasonProfiles: Profile[] = []) {
+export function buildProfiles(games: NormalizedGame[], rows: NormalizedStat[], season: number, eligibleTeams: Set<string>, preseasonProfiles: Profile[] = []) {
   const completedIds = new Set(games.filter((game) => game.completed && game.seasonType !== "postseason").map((game) => game.id));
   const completed = rows.filter((row) => completedIds.has(row.gameId));
   const rowByGameTeam = new Map(completed.map((row) => [`${row.gameId}|${row.team}`, row]));
@@ -491,7 +554,7 @@ function buildProfiles(games: NormalizedGame[], rows: NormalizedStat[], season: 
     const fbsThroughWeek = throughWeek.filter((row) => eligibleTeams.has(row.team));
     const national = { games: fbsThroughWeek.length, yards: 0, passYards: 0, passAttempts: 0, rushYards: 0, rushAttempts: 0 };
     for (const row of fbsThroughWeek) {
-      national.yards += row.totalYards; national.passYards += row.passYards; national.passAttempts += row.passAttempts;
+      national.yards += row.totalYards; national.passYards += row.passYards; national.passAttempts += row.passAttempts + row.sacksAllowed;
       national.rushYards += row.rushYards; national.rushAttempts += row.rushAttempts;
     }
     const nationalValues: [number, number, number, number, number] = [
@@ -507,7 +570,7 @@ function buildProfiles(games: NormalizedGame[], rows: NormalizedStat[], season: 
       const aggregate = (source: NormalizedStat[]): [number, number, number, number, number] => {
         const yards = source.reduce((sum, row) => sum + row.totalYards, 0);
         const py = source.reduce((sum, row) => sum + row.passYards, 0);
-        const pa = source.reduce((sum, row) => sum + row.passAttempts, 0);
+        const pa = source.reduce((sum, row) => sum + row.passAttempts + row.sacksAllowed, 0);
         const ry = source.reduce((sum, row) => sum + row.rushYards, 0);
         const ra = source.reduce((sum, row) => sum + row.rushAttempts, 0);
         return [yards / Math.max(1, pa + ra), py / Math.max(1, pa), ry / Math.max(1, ra), pa / Math.max(1, source.length), ra / Math.max(1, source.length)];
@@ -566,7 +629,7 @@ function buildProfiles(games: NormalizedGame[], rows: NormalizedStat[], season: 
           : 0.5;
         const priorQuality = opponentPrior ? profileQuality(opponentPrior.oi, opponentPrior.di) : 0.5;
         const observedReliability = Math.max(0, Math.min(1, ((observed?.gamesPlayed ?? 0) - 1) / 5));
-        return priorQuality * (1 - observedReliability) + observedQuality * observedReliability;
+        return usesPreseasonPriors(season,week+1) ? priorQuality * (1 - observedReliability) + observedQuality * observedReliability : observedQuality;
       });
       const orderedOpponentQualities = [...opponentQualities].sort((a, b) => b - a);
       const strongestOpponents = orderedOpponentQualities.slice(0, 2);
@@ -575,7 +638,10 @@ function buildProfiles(games: NormalizedGame[], rows: NormalizedStat[], season: 
         : 0.5;
       const credibleOpponentEvidence = Math.max(0, Math.min(1, (scheduleQuality - 0.25) / 0.45));
       const calibration = scheduleCalibrationWeights(profile.gamesPlayed, opponentQualities.length, credibleOpponentEvidence);
-      const blendPrior = (current: number, previous: number) => (current * profile.gamesPlayed + previous * calibration.priorGames) / Math.max(1, profile.gamesPlayed + calibration.priorGames);
+      const blendPrior = (current: number, previous: number) => {
+        const weight=usesPreseasonPriors(season,week+1)?calibration.priorGames:0;
+        return (current * profile.gamesPlayed + previous * weight) / Math.max(1, profile.gamesPlayed + weight);
+      };
       const oi = profile.oi.map((metric, index) => clampIndex(blendPrior(scheduleBlend(metric, adjustedOffense.get(team)?.[index] ?? metric, calibration.opponentAdjustment), prior?.oi[index] ?? 1))) as Profile["oi"];
       const di = profile.di.map((metric, index) => clampIndex(blendPrior(scheduleBlend(metric, adjustedDefense.get(team)?.[index] ?? metric, calibration.opponentAdjustment), prior?.di[index] ?? 1))) as Profile["di"];
       profiles.push({ ...profile, oi, di });
@@ -592,7 +658,7 @@ export function project(
   awayElo?: number,
   homeEvidence?: MatchupEvidence | null,
   awayEvidence?: MatchupEvidence | null,
-  opponentFlags: { homeIsFcs?: boolean; awayIsFcs?: boolean } = {},
+  opponentFlags: { homeIsFcs?: boolean; awayIsFcs?: boolean; homeIsPower4?: boolean; awayIsPower4?: boolean } = {},
 ) {
   const averageFallback: Pick<Profile, "oi" | "di" | "advanced"> = { oi: [1, 1, 1, 1, 1], di: [1, 1, 1, 1, 1], advanced: null };
   const fcsFallback: Pick<Profile, "oi" | "di" | "advanced"> = {
@@ -603,11 +669,13 @@ export function project(
   const h = home ?? (opponentFlags.homeIsFcs ? fcsFallback : averageFallback);
   const a = away ?? (opponentFlags.awayIsFcs ? fcsFallback : averageFallback);
   return projectCalibratedMatchup(
-    { offense: h.oi, defense: h.di, evidence: homeEvidence, advanced: h.advanced },
-    { offense: a.oi, defense: a.di, evidence: awayEvidence, advanced: a.advanced },
+    { offense: h.oi, defense: h.di, evidence: homeEvidence, advanced: h.advanced, conferenceAdjustment:opponentFlags.homeIsFcs?0:home?.conferenceAdjustment },
+    { offense: a.oi, defense: a.di, evidence: awayEvidence, advanced: a.advanced, conferenceAdjustment:opponentFlags.awayIsFcs?0:away?.conferenceAdjustment },
     neutral,
     opponentFlags.homeIsFcs ? modelCalibration.fcsProjectionElo : homeElo,
     opponentFlags.awayIsFcs ? modelCalibration.fcsProjectionElo : awayElo,
+    true,
+    opponentFlags,
   );
 }
 
@@ -620,9 +688,10 @@ function preseasonElo(profile: Profile | undefined) {
   return 1500 + Math.max(-240, Math.min(240, power * modelCalibration.preseasonEloScale));
 }
 
-export function buildPregameElo(games: NormalizedGame[], preseasonProfiles: Profile[], eligibleTeams: Set<string>) {
+export function buildPregameElo(games: NormalizedGame[], preseasonProfiles: Profile[], eligibleTeams: Set<string>, seedWithPriors=true, signals?:Map<string,TurnoverGameSignal>) {
   const prior = new Map(preseasonProfiles.map((profile) => [profile.team, profile]));
-  const ratings = new Map([...eligibleTeams].map((team) => [team, preseasonElo(prior.get(team))]));
+  const season=games[0]?.season??preseasonProfiles[0]?.season;
+  const ratings = new Map([...eligibleTeams].map((team) => [team, seedWithPriors?preseasonElo(prior.get(team)):1500]));
   const snapshots = new Map<string, Map<string, number>>();
   const phase = (game: NormalizedGame) => game.seasonType === "postseason" ? 1 : 0;
   const ordered = [...games].sort((a, b) => phase(a) - phase(b) || a.week - b.week || String(a.startDate).localeCompare(String(b.startDate)) || a.id.localeCompare(b.id));
@@ -637,14 +706,44 @@ export function buildPregameElo(games: NormalizedGame[], preseasonProfiles: Prof
     for (const game of groupedGames.filter((candidate) => candidate.completed && candidate.homePoints !== null && candidate.awayPoints !== null)) {
       const homeRating = ratings.get(game.homeTeam) ?? (eligibleTeams.has(game.homeTeam) ? 1500 : modelCalibration.fcsElo);
       const awayRating = ratings.get(game.awayTeam) ?? (eligibleTeams.has(game.awayTeam) ? 1500 : modelCalibration.fcsElo);
+      const homeIsFbs = eligibleTeams.has(game.homeTeam);
+      const awayIsFbs = eligibleTeams.has(game.awayTeam);
+      // Treat FCS evidence asymmetrically. Once an FBS team clears its expected
+      // margin, extra touchdowns barely move its rating; a close game or loss
+      // produces a materially larger downgrade.
+      if (homeIsFbs !== awayIsFbs) {
+        const fbsIsHome = homeIsFbs;
+        const fbsRating = fbsIsHome ? homeRating : awayRating;
+        const actualMargin = fbsIsHome
+          ? game.homePoints! - game.awayPoints!
+          : game.awayPoints! - game.homePoints!;
+        const ratingAdjustment = 2.5 * fcsResultAdjustment(actualMargin, powerFourFcsMarginFloor(fbsRating));
+        const fbsTeam = fbsIsHome ? game.homeTeam : game.awayTeam;
+        ratings.set(fbsTeam, fbsRating + ratingAdjustment);
+        continue;
+      }
       const siteEdge = game.neutralSite ? 0 : 45;
       const expectedHome = 1 / (1 + 10 ** ((awayRating - homeRating - siteEdge) / 400));
       const actualHome = game.homePoints === game.awayPoints ? 0.5 : game.homePoints! > game.awayPoints! ? 1 : 0;
-      const margin = Math.abs(game.homePoints! - game.awayPoints!);
+      const homeSignal=signals?.get(`${game.id}\u0000${game.homeTeam}`),awaySignal=signals?.get(`${game.id}\u0000${game.awayTeam}`);
+      const adjustedMargin=homeSignal&&awaySignal?homeSignal.predictivePoints-awaySignal.predictivePoints:game.homePoints!-game.awayPoints!;
+      const surprise=homeSignal&&awaySignal?Math.max(Math.abs(homeSignal.residual),Math.abs(awaySignal.residual)):0;
+      const signalWeight=Math.min(.4,.2*surprise);
+      const learnedHome=(1-signalWeight)*actualHome+signalWeight/(1+Math.exp(-adjustedMargin/8));
+      const margin = Math.abs(adjustedMargin);
       const multiplier = Math.min(2.25, Math.max(1, Math.log(margin + 1) * (2.2 / (Math.abs(homeRating - awayRating) * 0.001 + 2.2))));
-      const adjustment = modelCalibration.eloK * multiplier * (actualHome - expectedHome);
+      const adjustment = modelCalibration.eloK * multiplier * (learnedHome - expectedHome);
       if (eligibleTeams.has(game.homeTeam)) ratings.set(game.homeTeam, homeRating + adjustment);
       if (eligibleTeams.has(game.awayTeam)) ratings.set(game.awayTeam, awayRating - adjustment);
+    }
+  }
+  if(season===2026 && seedWithPriors){
+    // Replay all earlier results from equal ratings; resetting at Week 4 would
+    // otherwise discard the current-season evidence accumulated in Weeks 1–3.
+    const currentOnly=buildPregameElo(games,preseasonProfiles,eligibleTeams,false,signals);
+    for(const game of games)if(game.seasonType==="postseason" || !usesPreseasonPriors(season,game.week)){
+      const snapshot=currentOnly.get(game.id);
+      if(snapshot)snapshots.set(game.id,snapshot);
     }
   }
   return snapshots;
@@ -666,6 +765,7 @@ export function buildPregameMatchupEvidence(
   games: NormalizedGame[],
   pregameElo: Map<string, Map<string, number>>,
   eligibleTeams: Set<string>,
+  signals?:ReturnType<typeof buildTurnoverSignals>,
 ) {
   const snapshots = new Map<string, Map<string, MatchupEvidence>>();
   const historyByTeam = new Map<string,NormalizedGame[]>();
@@ -680,11 +780,15 @@ export function buildPregameMatchupEvidence(
   for (const groupedGames of groups.values()) {
     const ratings = pregameElo.get(groupedGames[0]?.id ?? "") ?? new Map([...eligibleTeams].map((team) => [team, 1500]));
     const strengths = ratingPercentiles(ratings, eligibleTeams);
+    const bridged=new Set<string>();
+    for(const history of historyByTeam.values())for(const g of history)if(eligibleTeams.has(g.homeTeam)&&eligibleTeams.has(g.awayTeam)&&g.homeConference&&g.awayConference&&g.homeConference!==g.awayConference){bridged.add(g.homeTeam);bridged.add(g.awayTeam);}
     const evidence = new Map<string, MatchupEvidence>();
     for (const team of eligibleTeams) {
       const details = historyByTeam.get(team)??[];
       const opponentStrengths: number[] = [];
       const winStrengths: number[] = [];
+      const fbsMargins: number[] = [];let fbsPlays=0,connected=0;
+      const fcsResults: { actualMargin: number; expectedMargin: number }[] = [];
       for (const detail of details) {
         const home = detail.homeTeam === team;
         const opponent = home ? detail.awayTeam : detail.homeTeam;
@@ -693,8 +797,19 @@ export function buildPregameMatchupEvidence(
         const points = home ? detail.homePoints : detail.awayPoints;
         const opponentPoints = home ? detail.awayPoints : detail.homePoints;
         if (points !== null && opponentPoints !== null && points > opponentPoints) winStrengths.push(strength);
+        if (points !== null && opponentPoints !== null) {
+          const actualMargin = points - opponentPoints;
+          if (eligibleTeams.has(opponent)) {
+            fbsPlays+=Number((home?detail.homePlays:detail.awayPlays)??65);if(bridged.has(opponent))connected++;
+            const own=signals?.get(`${detail.id}\u0000${team}`),other=signals?.get(`${detail.id}\u0000${opponent}`);
+            fbsMargins.push(own&&other?own.predictivePoints-other.predictivePoints:actualMargin);
+          } else {
+            const gameRating = pregameElo.get(detail.id)?.get(team) ?? 1500;
+            fcsResults.push({ actualMargin, expectedMargin: powerFourFcsMarginFloor(gameRating) });
+          }
+        }
       }
-      evidence.set(team, buildMatchupEvidence(opponentStrengths, winStrengths, details.length));
+      evidence.set(team, buildMatchupEvidence(opponentStrengths, winStrengths, details.length, { fbsMargins, fcsResults,fbsPlays,scheduleConnectivity:fbsMargins.length?connected/fbsMargins.length:0 }));
     }
     for (const game of groupedGames) snapshots.set(game.id, evidence);
     for (const game of groupedGames) if(game.completed&&game.homePoints!==null&&game.awayPoints!==null) {
@@ -717,10 +832,16 @@ export function latestProfile(profiles: Profile[], team: string, week: number) {
     for(const rows of index.values()) rows.sort((left,right)=>right.week-left.week);
     profileIndexCache.set(profiles,index);
   }
-  return index.get(team)?.find((profile)=>profile.week<=week)??null;
+  const teamProfiles=index.get(team)??[];
+  const found=teamProfiles.find((profile)=>profile.week<=week);
+  if(!found)return null;
+  if(!usesPreseasonPriors(found.season,week+1))return found.gamesPlayed>0
+    ? {...found,roster:undefined,rosterTimeline:undefined,preseasonElo:1500}
+    : neutralSeasonProfiles(found.season,new Set([team]))[0];
+  return {...found,roster:undefined,rosterTimeline:undefined};
 }
 
-function buildSeasonArtifacts(
+export function buildSeasonArtifacts(
   games: NormalizedGame[],
   stats: NormalizedStat[],
   advancedStats: NormalizedAdvancedStat[],
@@ -728,6 +849,8 @@ function buildSeasonArtifacts(
   season: number,
   eligibleTeams: Set<string>,
   preseasonProfiles: Profile[] = [],
+  directionalGames: DirectionalGame[] = [],
+  playerRushes: PlayerRush[] = [],
 ) {
   const baseProfiles = [...preseasonProfiles, ...buildProfiles(games, stats, season, eligibleTeams, preseasonProfiles)];
   const completedRegularGameIds = new Set(games.filter((game) => game.completed && game.seasonType !== "postseason").map((game) => game.id));
@@ -737,30 +860,66 @@ function buildSeasonArtifacts(
     team: profile.team,
     gamesPlayed: profile.gamesPlayed,
     advanced: profile.advanced!,
+    rosterUncertainty: profile.roster ? {offense:profile.roster.offense.uncertainty,defense:profile.roster.defense.uncertainty}:undefined,
   }));
-  const weeklyAdvanced = buildWeeklyAdvancedProfiles(season, completedRegularGameIds, stats, advancedStats, eligibleTeams, preseasonAdvanced, modelCalibration.iterations);
+  const signals=season===2026?buildTurnoverSignals(stats,completedRegularGameIds):undefined;
+  const predictiveStats=signals?stats.map(row=>({...row,points:signals.get(`${row.gameId}\u0000${row.team}`)?.predictivePoints??row.points})):stats;
+  const weeklyAdvanced = buildWeeklyAdvancedProfiles(season, completedRegularGameIds, predictiveStats, advancedStats, eligibleTeams, preseasonAdvanced, modelCalibration.iterations);
+  if(season===2026){
+    const regularStats=stats.filter(row=>completedRegularGameIds.has(row.gameId));
+    for(const profile of weeklyAdvanced){
+      profile.advanced.turnoverProfile=turnoverProfile(regularStats,profile.team,profile.week)??undefined;
+      profile.advanced.rushingPersonnel=rushingPersonnel(regularStats,playerRushes,profile.team,profile.week)??undefined;
+    }
+  }
+  const directionalByWeek = new Map<number, ReturnType<typeof buildWeeklyDirectionalProfiles>>();
+  if (season === 2026 && directionalGames.length) for (const profile of weeklyAdvanced) {
+    if (!directionalByWeek.has(profile.week)) directionalByWeek.set(profile.week, buildWeeklyDirectionalProfiles(directionalGames, profile.week, eligibleTeams));
+    const directional = directionalByWeek.get(profile.week)?.get(profile.team);
+    if (directional) profile.advanced.directional = directional;
+  }
   const advancedByProfile = new Map([...preseasonAdvanced, ...weeklyAdvanced].map((profile) => [`${profile.week}|${profile.team}`, profile.advanced]));
   const profiles = baseProfiles.map((profile) => ({ ...profile, advanced: advancedByProfile.get(`${profile.week}|${profile.team}`) ?? profile.advanced ?? null }));
   const linesByGame = new Map(lines.map((line) => [line.gameId, line]));
   const maxProfileWeek = Math.max(0, ...profiles.map((profile) => profile.week));
-  const pregameElo = buildPregameElo(games, preseasonProfiles, eligibleTeams);
-  const pregameEvidence = buildPregameMatchupEvidence(games, pregameElo, eligibleTeams);
-  const predictions = games.map((game) => {
+  const pregameElo = buildPregameElo(games, preseasonProfiles, eligibleTeams,true,signals);
+  const playsByGameTeam=new Map(stats.map(row=>[`${row.gameId}\u0000${row.team}`,row.passAttempts+row.rushAttempts+row.sacksAllowed]));
+  const evidenceGames=games.map(g=>({...g,homePlays:playsByGameTeam.get(`${g.id}\u0000${g.homeTeam}`),awayPlays:playsByGameTeam.get(`${g.id}\u0000${g.awayTeam}`)}));
+  const pregameEvidence = buildPregameMatchupEvidence(evidenceGames, pregameElo, eligibleTeams,signals);
+  const conferenceTeams=new Map<string,ConferenceTeam>();
+  for(const game of games){
+    if(eligibleTeams.has(game.homeTeam))conferenceTeams.set(game.homeTeam,{team:game.homeTeam,conference:game.homeConference});
+    if(eligibleTeams.has(game.awayTeam))conferenceTeams.set(game.awayTeam,{team:game.awayTeam,conference:game.awayConference});
+  }
+  const conferenceGames:ConferenceGame[]=[];
+  const conferenceByWeek=new Map<number,ReturnType<typeof buildConferenceAdjustments>>();
+  const predictions = [...games].sort((a,b)=>Number(a.seasonType==="postseason")-Number(b.seasonType==="postseason")||a.week-b.week||a.id.localeCompare(b.id)).map((game) => {
     const generatedFromWeek = game.seasonType === "postseason" ? maxProfileWeek : Math.max(0, game.week - 1);
+    if(!conferenceByWeek.has(generatedFromWeek))conferenceByWeek.set(generatedFromWeek,buildConferenceAdjustments([...conferenceTeams.values()],conferenceGames,generatedFromWeek));
+    const conference=conferenceByWeek.get(generatedFromWeek)!;
+    const withConference=(team:string)=>{const profile=latestProfile(profiles,team,generatedFromWeek);return profile?{...profile,conferenceAdjustment:conference.get(team)?.points??0}:null;};
     const ratings = pregameElo.get(game.id);
     const evidence = pregameEvidence.get(game.id);
     const prediction = project(
-      latestProfile(profiles, game.homeTeam, generatedFromWeek),
-      latestProfile(profiles, game.awayTeam, generatedFromWeek),
+      withConference(game.homeTeam),
+      withConference(game.awayTeam),
       game.neutralSite,
       ratings?.get(game.homeTeam) ?? (eligibleTeams.has(game.homeTeam) ? 1500 : modelCalibration.fcsElo),
       ratings?.get(game.awayTeam) ?? (eligibleTeams.has(game.awayTeam) ? 1500 : modelCalibration.fcsElo),
       evidence?.get(game.homeTeam),
       evidence?.get(game.awayTeam),
-      { homeIsFcs: !eligibleTeams.has(game.homeTeam), awayIsFcs: !eligibleTeams.has(game.awayTeam) },
+      {
+        homeIsFcs: !eligibleTeams.has(game.homeTeam),
+        awayIsFcs: !eligibleTeams.has(game.awayTeam),
+        homeIsPower4: ["ACC", "Big 12", "Big Ten", "SEC"].includes(game.homeConference ?? ""),
+        awayIsPower4: ["ACC", "Big 12", "Big Ten", "SEC"].includes(game.awayConference ?? ""),
+      },
     );
     const line = linesByGame.get(game.id);
     const completed = game.homePoints !== null && game.awayPoints !== null;
+    conferenceGames.push({gameId:game.id,week:game.week,seasonType:game.seasonType,completed:game.completed,neutralSite:game.neutralSite,
+      homeTeam:game.homeTeam,awayTeam:game.awayTeam,homePoints:game.homePoints,awayPoints:game.awayPoints,
+      generatedFromWeek,predictedHomeScore:prediction.homeScore,predictedAwayScore:prediction.awayScore,predictionConferenceMargin:prediction.conferenceMargin});
     const actualMargin = completed ? game.homePoints! - game.awayPoints! : null;
     const actualTotal = completed ? game.homePoints! + game.awayPoints! : null;
     const market = evaluateMarketProjection({
@@ -779,6 +938,9 @@ function buildSeasonArtifacts(
       generatedFromWeek,
       homeTeam: game.homeTeam,
       awayTeam: game.awayTeam,
+      forecast: {formulaRevision:formulaRevision(season),conferenceMargin:prediction.conferenceMargin,reconciliation:prediction.reconciliation,roster:prediction.roster,quarterbackScenarios:prediction.quarterbackScenarios,homeReceipt:prediction.homeStats.scoreReceipt,awayReceipt:prediction.awayStats.scoreReceipt,
+        homeSuccessRate:prediction.homeStats.advanced?.overall.successRate??null,awaySuccessRate:prediction.awayStats.advanced?.overall.successRate??null,
+        homeStats:projectedGameStatProfile(prediction.homeStats),awayStats:projectedGameStatProfile(prediction.awayStats)},
       homeScore: prediction.homeScore,
       awayScore: prediction.awayScore,
       homeWinProbability: prediction.homeWinProbability,
@@ -804,7 +966,7 @@ function buildSeasonArtifacts(
     teamCount: new Set(profiles.filter((profile) => profile.week === week).map((profile) => profile.team)).size,
     gameCount: games.filter((game) => game.week <= week).length,
     completedGameCount: games.filter((game) => game.week <= week && game.completed).length,
-    source: "CollegeFootballData",
+    source: snapshotSource(season),
     modelVersion: MODEL_VERSION,
   }));
   return { profiles, advancedProfiles: [...preseasonAdvanced, ...weeklyAdvanced], predictions, snapshots, maxWeek };
@@ -883,9 +1045,21 @@ async function persistSeason(db: D1Database, rows: PersistSeasonPayload) {
     SELECT json_extract(value,'$.id'),json_extract(value,'$.season'),json_extract(value,'$.week'),json_extract(value,'$.seasonType'),json_extract(value,'$.startDate'),json_extract(value,'$.completed'),json_extract(value,'$.neutralSite'),json_extract(value,'$.conferenceGame'),json_extract(value,'$.venue'),json_extract(value,'$.homeTeam'),json_extract(value,'$.homeConference'),json_extract(value,'$.homePoints'),json_extract(value,'$.awayTeam'),json_extract(value,'$.awayConference'),json_extract(value,'$.awayPoints'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
     ON CONFLICT(game_id) DO UPDATE SET season=excluded.season,week=excluded.week,season_type=excluded.season_type,start_date=excluded.start_date,completed=excluded.completed,neutral_site=excluded.neutral_site,conference_game=excluded.conference_game,venue=excluded.venue,home_team=excluded.home_team,home_conference=excluded.home_conference,home_points=excluded.home_points,away_team=excluded.away_team,away_conference=excluded.away_conference,away_points=excluded.away_points,updated_at=CURRENT_TIMESTAMP`, rows.games);
 
-  await upsertJsonRows(db, `INSERT INTO team_game_stats (game_id,season,week,team,opponent,home_away,points,total_yards,yards_per_play,pass_yards,pass_attempts,pass_completions,yards_per_pass,rush_yards,rush_attempts,yards_per_rush,turnovers,updated_at)
-    SELECT json_extract(value,'$.gameId'),json_extract(value,'$.season'),json_extract(value,'$.week'),json_extract(value,'$.team'),json_extract(value,'$.opponent'),json_extract(value,'$.homeAway'),json_extract(value,'$.points'),json_extract(value,'$.totalYards'),json_extract(value,'$.yardsPerPlay'),json_extract(value,'$.passYards'),json_extract(value,'$.passAttempts'),json_extract(value,'$.passCompletions'),json_extract(value,'$.yardsPerPass'),json_extract(value,'$.rushYards'),json_extract(value,'$.rushAttempts'),json_extract(value,'$.yardsPerRush'),json_extract(value,'$.turnovers'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
-    ON CONFLICT(game_id,team) DO UPDATE SET season=excluded.season,week=excluded.week,opponent=excluded.opponent,home_away=excluded.home_away,points=excluded.points,total_yards=excluded.total_yards,yards_per_play=excluded.yards_per_play,pass_yards=excluded.pass_yards,pass_attempts=excluded.pass_attempts,pass_completions=COALESCE(excluded.pass_completions,team_game_stats.pass_completions),yards_per_pass=excluded.yards_per_pass,rush_yards=excluded.rush_yards,rush_attempts=excluded.rush_attempts,yards_per_rush=excluded.yards_per_rush,turnovers=excluded.turnovers,updated_at=CURRENT_TIMESTAMP`, rows.stats);
+  await upsertJsonRows(db, `INSERT INTO team_game_stats (game_id,season,week,team,opponent,home_away,points,total_yards,yards_per_play,pass_yards,pass_attempts,pass_completions,yards_per_pass,rush_yards,rush_attempts,yards_per_rush,turnovers,sacks_allowed,sack_yards_lost,sack_adjustment_version,updated_at)
+    SELECT json_extract(value,'$.gameId'),json_extract(value,'$.season'),json_extract(value,'$.week'),json_extract(value,'$.team'),json_extract(value,'$.opponent'),json_extract(value,'$.homeAway'),json_extract(value,'$.points'),json_extract(value,'$.totalYards'),json_extract(value,'$.yardsPerPlay'),json_extract(value,'$.passYards'),json_extract(value,'$.passAttempts'),json_extract(value,'$.passCompletions'),json_extract(value,'$.yardsPerPass'),json_extract(value,'$.rushYards'),json_extract(value,'$.rushAttempts'),json_extract(value,'$.yardsPerRush'),json_extract(value,'$.turnovers'),json_extract(value,'$.sacksAllowed'),json_extract(value,'$.sackYardsLost'),json_extract(value,'$.sackAdjustmentVersion'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
+    ON CONFLICT(game_id,team) DO UPDATE SET season=excluded.season,week=excluded.week,opponent=excluded.opponent,home_away=excluded.home_away,points=excluded.points,total_yards=excluded.total_yards,
+      yards_per_play=CASE WHEN COALESCE(excluded.sack_adjustment_version,0)<COALESCE(team_game_stats.sack_adjustment_version,0) THEN team_game_stats.yards_per_play ELSE excluded.yards_per_play END,
+      pass_yards=CASE WHEN COALESCE(excluded.sack_adjustment_version,0)<COALESCE(team_game_stats.sack_adjustment_version,0) THEN team_game_stats.pass_yards ELSE excluded.pass_yards END,
+      pass_attempts=CASE WHEN COALESCE(excluded.sack_adjustment_version,0)<COALESCE(team_game_stats.sack_adjustment_version,0) THEN team_game_stats.pass_attempts ELSE excluded.pass_attempts END,
+      pass_completions=COALESCE(excluded.pass_completions,team_game_stats.pass_completions),
+      yards_per_pass=CASE WHEN COALESCE(excluded.sack_adjustment_version,0)<COALESCE(team_game_stats.sack_adjustment_version,0) THEN team_game_stats.yards_per_pass ELSE excluded.yards_per_pass END,
+      rush_yards=CASE WHEN COALESCE(excluded.sack_adjustment_version,0)<COALESCE(team_game_stats.sack_adjustment_version,0) THEN team_game_stats.rush_yards ELSE excluded.rush_yards END,
+      rush_attempts=CASE WHEN COALESCE(excluded.sack_adjustment_version,0)<COALESCE(team_game_stats.sack_adjustment_version,0) THEN team_game_stats.rush_attempts ELSE excluded.rush_attempts END,
+      yards_per_rush=CASE WHEN COALESCE(excluded.sack_adjustment_version,0)<COALESCE(team_game_stats.sack_adjustment_version,0) THEN team_game_stats.yards_per_rush ELSE excluded.yards_per_rush END,
+      turnovers=excluded.turnovers,
+      sacks_allowed=CASE WHEN COALESCE(excluded.sack_adjustment_version,0)<COALESCE(team_game_stats.sack_adjustment_version,0) THEN team_game_stats.sacks_allowed ELSE excluded.sacks_allowed END,
+      sack_yards_lost=CASE WHEN COALESCE(excluded.sack_adjustment_version,0)<COALESCE(team_game_stats.sack_adjustment_version,0) THEN team_game_stats.sack_yards_lost ELSE excluded.sack_yards_lost END,
+      sack_adjustment_version=MAX(COALESCE(excluded.sack_adjustment_version,0),COALESCE(team_game_stats.sack_adjustment_version,0)),updated_at=CURRENT_TIMESTAMP`, rows.stats);
 
   await upsertJsonRows(db, `INSERT INTO team_game_advanced_stats (game_id,season,week,team,opponent,off_line_yards,off_second_level_yards,off_open_field_yards,off_passing_success_rate,off_passing_explosiveness,def_line_yards,def_second_level_yards,def_open_field_yards,def_passing_success_rate,def_passing_explosiveness,component_json,updated_at)
     SELECT json_extract(value,'$.gameId'),json_extract(value,'$.season'),json_extract(value,'$.week'),json_extract(value,'$.team'),json_extract(value,'$.opponent'),json_extract(value,'$.offLineYards'),json_extract(value,'$.offSecondLevelYards'),json_extract(value,'$.offOpenFieldYards'),json_extract(value,'$.offPassingSuccessRate'),json_extract(value,'$.offPassingExplosiveness'),json_extract(value,'$.defLineYards'),json_extract(value,'$.defSecondLevelYards'),json_extract(value,'$.defOpenFieldYards'),json_extract(value,'$.defPassingSuccessRate'),json_extract(value,'$.defPassingExplosiveness'),value,CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
@@ -907,9 +1081,9 @@ async function persistSeason(db: D1Database, rows: PersistSeasonPayload) {
     SELECT json_extract(value,'$.season'),json_extract(value,'$.completedGameCount'),json_extract(value,'$.rowCount'),json_extract(value,'$.componentVersion'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
     ON CONFLICT(season) DO UPDATE SET completed_game_count=excluded.completed_game_count,row_count=excluded.row_count,component_version=excluded.component_version,updated_at=CURRENT_TIMESTAMP`, rows.advancedSyncStates);
 
-  await upsertJsonRows(db, `INSERT INTO model_predictions (game_id,season,week,generated_from_week,home_team,away_team,home_score,away_score,home_win_probability,model_home_spread,model_total,vegas_spread,vegas_total,spread_edge,total_edge,spread_error,total_error,spread_result,total_result,model_version,created_at)
-    SELECT json_extract(value,'$.gameId'),json_extract(value,'$.season'),json_extract(value,'$.week'),json_extract(value,'$.generatedFromWeek'),json_extract(value,'$.homeTeam'),json_extract(value,'$.awayTeam'),json_extract(value,'$.homeScore'),json_extract(value,'$.awayScore'),json_extract(value,'$.homeWinProbability'),json_extract(value,'$.modelHomeSpread'),json_extract(value,'$.modelTotal'),json_extract(value,'$.vegasSpread'),json_extract(value,'$.vegasTotal'),json_extract(value,'$.spreadEdge'),json_extract(value,'$.totalEdge'),json_extract(value,'$.spreadError'),json_extract(value,'$.totalError'),json_extract(value,'$.spreadResult'),json_extract(value,'$.totalResult'),json_extract(value,'$.modelVersion'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
-    ON CONFLICT(game_id) DO UPDATE SET season=excluded.season,week=excluded.week,generated_from_week=excluded.generated_from_week,home_team=excluded.home_team,away_team=excluded.away_team,home_score=excluded.home_score,away_score=excluded.away_score,home_win_probability=excluded.home_win_probability,model_home_spread=excluded.model_home_spread,model_total=excluded.model_total,vegas_spread=excluded.vegas_spread,vegas_total=excluded.vegas_total,spread_edge=excluded.spread_edge,total_edge=excluded.total_edge,spread_error=excluded.spread_error,total_error=excluded.total_error,spread_result=excluded.spread_result,total_result=excluded.total_result,model_version=excluded.model_version,created_at=CURRENT_TIMESTAMP`, rows.predictions);
+  await upsertJsonRows(db, `INSERT INTO model_predictions (game_id,season,week,generated_from_week,home_team,away_team,home_score,away_score,home_win_probability,model_home_spread,model_total,vegas_spread,vegas_total,spread_edge,total_edge,spread_error,total_error,spread_result,total_result,model_version,forecast_json,created_at)
+    SELECT json_extract(value,'$.gameId'),json_extract(value,'$.season'),json_extract(value,'$.week'),json_extract(value,'$.generatedFromWeek'),json_extract(value,'$.homeTeam'),json_extract(value,'$.awayTeam'),json_extract(value,'$.homeScore'),json_extract(value,'$.awayScore'),json_extract(value,'$.homeWinProbability'),json_extract(value,'$.modelHomeSpread'),json_extract(value,'$.modelTotal'),json_extract(value,'$.vegasSpread'),json_extract(value,'$.vegasTotal'),json_extract(value,'$.spreadEdge'),json_extract(value,'$.totalEdge'),json_extract(value,'$.spreadError'),json_extract(value,'$.totalError'),json_extract(value,'$.spreadResult'),json_extract(value,'$.totalResult'),json_extract(value,'$.modelVersion'),COALESCE(json_extract(value,'$.forecast'),'{}'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
+    ON CONFLICT(game_id) DO UPDATE SET season=excluded.season,week=excluded.week,generated_from_week=excluded.generated_from_week,home_team=excluded.home_team,away_team=excluded.away_team,home_score=excluded.home_score,away_score=excluded.away_score,home_win_probability=excluded.home_win_probability,model_home_spread=excluded.model_home_spread,model_total=excluded.model_total,vegas_spread=excluded.vegas_spread,vegas_total=excluded.vegas_total,spread_edge=excluded.spread_edge,total_edge=excluded.total_edge,spread_error=excluded.spread_error,total_error=excluded.total_error,spread_result=excluded.spread_result,total_result=excluded.total_result,model_version=excluded.model_version,forecast_json=excluded.forecast_json,created_at=CURRENT_TIMESTAMP`, rows.predictions);
 
   await upsertJsonRows(db, `INSERT INTO model_snapshots (season,week,team_count,game_count,completed_game_count,source,model_version,created_at)
     SELECT json_extract(value,'$.season'),json_extract(value,'$.week'),json_extract(value,'$.teamCount'),json_extract(value,'$.gameCount'),json_extract(value,'$.completedGameCount'),json_extract(value,'$.source'),json_extract(value,'$.modelVersion'),CURRENT_TIMESTAMP FROM json_each(?) WHERE 1
@@ -920,6 +1094,68 @@ const emptyPersistRows = (): PersistSeasonPayload => ({
   teams: [], preseasonInputs: [], games: [], stats: [], advancedStats: [], lines: [], profiles: [], advancedProfiles: [], advancedSyncStates: [], predictions: [], snapshots: [],
 });
 
+/** Recover only reviewed finals and box scores when the primary source is unavailable.
+ * Advanced metrics and projections remain pending for the canonical CFBD feed. */
+export async function refreshSeasonMarketLines(env:PipelineEnv,season:number){
+  if(!env.CFBD_API_KEY)throw Error("CFBD_API_KEY is not configured");
+  const payload=await cfbd("/lines",env.CFBD_API_KEY,{year:season});
+  const lines=normalizeLines(payload,season);
+  if(!lines.length)throw Error("The sportsbook source returned no lines; existing stored lines were preserved");
+  const rows=emptyPersistRows();rows.lines=lines;await persistSeason(env.DB,rows);
+  return {season,lines:lines.length};
+}
+
+export async function rebuildStoredBasicProfiles(env:PipelineEnv,season:number){
+  const [games,stats,teams]=await Promise.all([
+    loadSeasonGames(env.DB,season),loadSeasonStats(env.DB,season),
+    env.DB.prepare("SELECT team FROM cfb_teams WHERE season=?").bind(season).all<{team:string}>(),
+  ]);
+  const eligible=new Set(teams.results.map(row=>row.team));
+  const priors=await loadPreseasonProfiles(env.DB,season,eligible);
+  const profiles=buildProfiles(games,stats,season,eligible,priors);
+  if(profiles.some(p=>[...p.off,...p.def,...p.oi,...p.di].some(n=>!Number.isFinite(n))))throw Error("Stored percentage profile validation failed");
+  const rows=emptyPersistRows();rows.profiles=profiles;
+  await persistSeason(env.DB,rows);
+  await invalidateSeasonFormulaMaterialization(env.DB,season);
+  return {basicThroughWeek:Math.max(0,...profiles.map(p=>p.week)),profileCount:profiles.length};
+}
+
+export async function importReviewedWeekResults(env:PipelineEnv,season:number){
+  const snapshots=reviewedResultsSnapshots.filter(snapshot=>snapshot.season===season);
+  if(!snapshots.length)return null;
+  const reports=[];
+  for(const snapshot of snapshots){const report=await importReviewedSnapshotResults(env,season,snapshot);if(report)reports.push(report);}
+  const latest=reports.at(-1);
+  if(!latest)return null;
+  const rebuilt=await rebuildStoredBasicProfiles(env,season);
+  return {...latest,...rebuilt,imports:reports};
+}
+
+async function importReviewedSnapshotResults(env:PipelineEnv,season:number,snapshot:ReviewedResultsSnapshot){
+  if(season!==snapshot.season)return null;
+  const stored=await loadSeasonGames(env.DB,season);
+  const validated=selectReviewedResults(stored,Date.now(),snapshot);
+  if(validated.length!==snapshot.games.length)throw Error("Reviewed recovery schedule is incomplete");
+  const previous=new Map(stored.map(game=>[game.id,game]));
+  const existing=await env.DB.prepare("SELECT game_id AS gameId,team FROM team_game_stats WHERE season=? AND week=?").bind(season,snapshot.week).all<{gameId:string;team:string}>();
+  const keys=new Set(existing.results.map(row=>`${row.gameId}|${row.team}`));
+  const changed=validated.filter(game=>!previous.get(game.id)?.completed||!keys.has(`${game.id}|${game.homeTeam}`)||!keys.has(`${game.id}|${game.awayTeam}`));
+  if(changed.length){
+    const changedIds=new Set(changed.map(game=>game.id));
+    const payload=snapshot.games.filter(game=>changedIds.has(game.id));
+    const stats=applyPlayFeedSackAdjustments(normalizeStats(payload,changed,season),payload.flatMap(game=>game.sackPlays),true);
+    if(stats.length!==changed.length*2||stats.some(row=>![row.totalYards,row.yardsPerPlay,row.yardsPerPass,row.yardsPerRush].every(Number.isFinite)))throw Error("Reviewed box-score validation failed");
+    const rows=emptyPersistRows();rows.games=changed;
+    // Fill missing rows only. Existing canonical stats always take precedence.
+    rows.stats=stats.filter(row=>!keys.has(`${row.gameId}|${row.team}`));
+    await persistSeason(env.DB,rows);
+    await invalidateSeasonFormulaMaterialization(env.DB,season);
+    await env.DB.prepare("INSERT INTO refresh_runs (season,week,source,status,game_count,detail,created_at) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)")
+      .bind(season,snapshot.week,snapshot.source,"partial",changed.length,`${snapshot.id}; ${changed.length} verified finals; ${rows.stats.length} box scores with play-verified sack accounting; advanced stats and projections pending primary feed`).run();
+  }
+  return {season,week:snapshot.week,source:snapshot.source,gameCount:validated.length,importedGames:changed.length,advancedPending:true};
+}
+
 async function loadSeasonGames(db: D1Database, season: number): Promise<NormalizedGame[]> {
   const result = await db.prepare(`SELECT game_id,season,week,season_type,start_date,completed,neutral_site,conference_game,venue,home_team,home_conference,home_points,away_team,away_conference,away_points
     FROM cfb_games WHERE season=? ORDER BY week,start_date,game_id`).bind(season).all<JsonRecord>();
@@ -927,7 +1163,7 @@ async function loadSeasonGames(db: D1Database, season: number): Promise<Normaliz
 }
 
 async function loadSeasonStats(db: D1Database, season: number): Promise<NormalizedStat[]> {
-  const result = await db.prepare(`SELECT game_id,season,week,team,opponent,home_away,points,total_yards,yards_per_play,pass_yards,pass_attempts,pass_completions,yards_per_pass,rush_yards,rush_attempts,yards_per_rush,turnovers
+  const result = await db.prepare(`SELECT game_id,season,week,team,opponent,home_away,points,total_yards,yards_per_play,pass_yards,pass_attempts,pass_completions,yards_per_pass,rush_yards,rush_attempts,yards_per_rush,turnovers,sacks_allowed,sack_yards_lost,sack_adjustment_version
     FROM team_game_stats WHERE season=? ORDER BY week,game_id,team`).bind(season).all<JsonRecord>();
   return (result.results as JsonRecord[]).map((row: JsonRecord) => ({
     gameId: textValue(row, "game_id") ?? "",
@@ -947,6 +1183,9 @@ async function loadSeasonStats(db: D1Database, season: number): Promise<Normaliz
     rushAttempts: numberValue(row, "rush_attempts") ?? 0,
     yardsPerRush: numberValue(row, "yards_per_rush") ?? 0,
     turnovers: numberValue(row, "turnovers") ?? 0,
+    sacksAllowed: numberValue(row, "sacks_allowed") ?? 0,
+    sackYardsLost: numberValue(row, "sack_yards_lost") ?? 0,
+    sackAdjustmentVersion: numberValue(row, "sack_adjustment_version") ?? 0,
   })).filter((row: NormalizedStat) => row.gameId && row.team && row.week > 0);
 }
 
@@ -1084,7 +1323,15 @@ export function applyPreseasonRosterAdjustments(profiles: Profile[], inputs: Pre
   });
 }
 
-export async function loadPreseasonProfiles(db: D1Database, season: number, eligibleTeams: Set<string>): Promise<Profile[]> {
+export function neutralSeasonProfiles(season:number,eligibleTeams:Set<string>):Profile[] {
+  return [...eligibleTeams].map(team=>({season,week:0,team,gamesPlayed:0,
+    off:[baselines.ypp,baselines.ypa,baselines.ypc,baselines.patt,baselines.ratt],
+    def:[baselines.ypp,baselines.ypa,baselines.ypc,baselines.patt,baselines.ratt],
+    oi:[1,1,1,1,1],di:[1,1,1,1,1],preseasonElo:1500,
+  }));
+}
+
+export async function loadPreseasonProfiles(db: D1Database, season: number, eligibleTeams: Set<string>, variant:"baseline"|"defense"|"quarterback"|"roster"|"no-depth"="no-depth"): Promise<Profile[]> {
   const firstPriorSeason = Math.max(FIRST_HISTORICAL_SEASON, season - 4);
   const [result, inputResult, advancedResult, gameResult] = await Promise.all([
     db.prepare(`SELECT
@@ -1206,14 +1453,22 @@ export async function loadPreseasonProfiles(db: D1Database, season: number, elig
     recruitingRank: numberValue(row, "recruitingRank"),
     recruitingPoints: numberValue(row, "recruitingPoints"),
   })).filter((row) => row.team && eligibleTeams.has(row.team));
+  const timelines=variant==="baseline"||variant==="defense"||variant==="no-depth"?new Map<string,RosterProjection[]>():await loadRosterTimelines(db,season);
+  if(variant==="quarterback")for(const [team,rows] of timelines)timelines.set(team,rows.map(r=>({...r,
+    offense:{...r.offense,passing:r.units.QB.adjustment,overall:.6*r.units.QB.adjustment,rushing:0},
+    defense:{...r.defense,overall:0,passing:0,rushing:0},
+  })));
+  const rosters=new Map([...timelines].flatMap(([team,rows])=>{const r=rosterAtWeek(rows,0);return r?[[team,r] as const]:[];}));
   return buildPreseasonStateTransition({
     season,
+    rosters,
+    legacyDefenseMirroring:variant==="baseline",
     teams: eligibleTeams,
     historyByTeam,
     inputs,
     baselines: rawBaseline,
     coefficients: PRESEASON_TRANSITION_V2,
-  });
+  }).map(profile=>({...profile,rosterTimeline:timelines.get(profile.team)}));
 }
 
 export async function calculateCachedPerformance(db: D1Database, season: number) {
@@ -1253,7 +1508,7 @@ export async function calculateCachedPerformance(db: D1Database, season: number)
   };
   const straightUpRows = predictions.flatMap((prediction) => {
     const game = gamesById.get(prediction.gameId);
-    if (!game || game.homePoints === null || game.awayPoints === null || game.homePoints === game.awayPoints) return [];
+    if (!marketEligible(prediction) || !game || game.homePoints === null || game.awayPoints === null || game.homePoints === game.awayPoints) return [];
     const correct = (prediction.homeWinProbability >= 0.5 && game.homePoints > game.awayPoints) || (prediction.homeWinProbability < 0.5 && game.homePoints < game.awayPoints);
     return [correct];
   });
@@ -1262,7 +1517,7 @@ export async function calculateCachedPerformance(db: D1Database, season: number)
     season,
     modelVersion: MODEL_VERSION,
     minMarketWeek: 5,
-    gameCount: predictions.length,
+    gameCount: predictions.filter(marketEligible).length,
     profileCount: profiles.length,
     straightUp: { wins: straightUpWins, graded: straightUpRows.length, accuracy: straightUpRows.length ? straightUpWins / straightUpRows.length : null },
     spread: metric("spread"),
@@ -1270,7 +1525,7 @@ export async function calculateCachedPerformance(db: D1Database, season: number)
   };
 }
 
-type WeekCoverage = { week: number; gameCount: number; statGameCount: number; completionGameCount: number; sourceGapGameCount: number };
+type WeekCoverage = { week: number; gameCount: number; statGameCount: number; completionGameCount: number; sackGameCount: number; sourceGapGameCount: number };
 
 // Historical source feeds occasionally publish a completed schedule result but
 // omit the corresponding team box score. One explicit source gap must not pin
@@ -1311,21 +1566,29 @@ async function getSeasonCoverage(db: D1Database, season: number): Promise<Season
       (SELECT COUNT(*) FROM cfb_games WHERE season=?) AS gameCount,
       (SELECT COUNT(*) FROM cfb_games WHERE season=? AND season_type='postseason') AS postseasonGameCount,
       (SELECT COUNT(DISTINCT team) FROM weekly_profiles WHERE season=?) AS profileTeamCount,
-      (SELECT COUNT(*) FROM model_predictions WHERE season=? AND model_version=?) AS predictionCount,
+      (SELECT COUNT(*) FROM model_predictions WHERE season=? AND model_version=? AND json_extract(forecast_json,'$.formulaRevision')=?) AS predictionCount,
       (SELECT COUNT(*) FROM betting_lines WHERE season=?) AS lineCount,
       (SELECT COUNT(*) FROM cfb_games WHERE season=? AND season_type='regular' AND completed=1 AND week BETWEEN 1 AND 15) AS completedRegularGameCount,
       (SELECT COUNT(*) FROM cfb_games WHERE season=? AND season_type='postseason' AND completed=1) AS completedPostseasonGameCount,
       COALESCE((SELECT completed_game_count FROM advanced_sync_state WHERE season=?),0) AS advancedCompletedGameCount,
       COALESCE((SELECT row_count FROM advanced_sync_state WHERE season=?),0) AS advancedRowCount,
       COALESCE((SELECT component_version FROM advanced_sync_state WHERE season=?),0) AS advancedComponentVersion,
-      (SELECT COUNT(*) FROM model_snapshots WHERE season=? AND model_version=?) AS formulaSnapshotCount`).bind(season, season, season, season, season, season, season, MODEL_VERSION, season, season, season, season, season, season, season, MODEL_VERSION).first<{ teamCount: number; logoCount: number; preseasonInputCount: number; gameCount: number; postseasonGameCount: number; profileTeamCount: number; predictionCount: number; lineCount: number; completedRegularGameCount: number; completedPostseasonGameCount: number; advancedCompletedGameCount: number; advancedRowCount: number; advancedComponentVersion: number; formulaSnapshotCount: number }>(),
+      (SELECT COUNT(*) FROM model_snapshots WHERE season=? AND model_version=? AND source=?) AS formulaSnapshotCount`).bind(
+        season, season, season, season, season, season,
+        season, MODEL_VERSION, formulaRevision(season),
+        season, season, season, season, season, season,
+        season, MODEL_VERSION, snapshotSource(season),
+      ).first<{ teamCount: number; logoCount: number; preseasonInputCount: number; gameCount: number; postseasonGameCount: number; profileTeamCount: number; predictionCount: number; lineCount: number; completedRegularGameCount: number; completedPostseasonGameCount: number; advancedCompletedGameCount: number; advancedRowCount: number; advancedComponentVersion: number; formulaSnapshotCount: number }>(),
     db.prepare(`SELECT g.week AS week,COUNT(DISTINCT g.game_id) AS gameCount,COUNT(DISTINCT s.game_id) AS statGameCount,
         COUNT(DISTINCT CASE WHEN sc.row_count>=2 AND sc.missing_completions=0 THEN g.game_id END) AS completionGameCount,
+        COUNT(DISTINCT CASE WHEN sc.row_count>=2 AND sc.unverified_sacks=0 THEN g.game_id END) AS sackGameCount,
         COALESCE(gap.source_gap_count,0) AS sourceGapGameCount
       FROM cfb_games g
       LEFT JOIN team_game_stats s ON s.game_id=g.game_id
       LEFT JOIN (
-        SELECT game_id,COUNT(*) AS row_count,SUM(CASE WHEN pass_attempts>0 AND pass_completions IS NULL THEN 1 ELSE 0 END) AS missing_completions
+        SELECT game_id,COUNT(*) AS row_count,
+          SUM(CASE WHEN pass_attempts>0 AND pass_completions IS NULL THEN 1 ELSE 0 END) AS missing_completions,
+          SUM(CASE WHEN COALESCE(sack_adjustment_version,0)<1 THEN 1 ELSE 0 END) AS unverified_sacks
         FROM team_game_stats GROUP BY game_id
       ) sc ON sc.game_id=g.game_id
       LEFT JOIN (
@@ -1335,11 +1598,14 @@ async function getSeasonCoverage(db: D1Database, season: number): Promise<Season
       GROUP BY g.week,gap.source_gap_count ORDER BY g.week`).bind(season).all<WeekCoverage>(),
     db.prepare(`SELECT g.week AS week,COUNT(DISTINCT g.game_id) AS gameCount,COUNT(DISTINCT s.game_id) AS statGameCount,
         COUNT(DISTINCT CASE WHEN sc.row_count>=2 AND sc.missing_completions=0 THEN g.game_id END) AS completionGameCount,
+        COUNT(DISTINCT CASE WHEN sc.row_count>=2 AND sc.unverified_sacks=0 THEN g.game_id END) AS sackGameCount,
         0 AS sourceGapGameCount
       FROM cfb_games g
       LEFT JOIN team_game_stats s ON s.game_id=g.game_id
       LEFT JOIN (
-        SELECT game_id,COUNT(*) AS row_count,SUM(CASE WHEN pass_attempts>0 AND pass_completions IS NULL THEN 1 ELSE 0 END) AS missing_completions
+        SELECT game_id,COUNT(*) AS row_count,
+          SUM(CASE WHEN pass_attempts>0 AND pass_completions IS NULL THEN 1 ELSE 0 END) AS missing_completions,
+          SUM(CASE WHEN COALESCE(sack_adjustment_version,0)<1 THEN 1 ELSE 0 END) AS unverified_sacks
         FROM team_game_stats GROUP BY game_id
       ) sc ON sc.game_id=g.game_id
       WHERE g.season=? AND g.season_type='postseason' AND g.completed=1
@@ -1350,6 +1616,7 @@ async function getSeasonCoverage(db: D1Database, season: number): Promise<Season
     gameCount: Number(row.gameCount),
     statGameCount: Number(row.statGameCount),
     completionGameCount: Number(row.completionGameCount),
+    sackGameCount: Number(row.sackGameCount),
     sourceGapGameCount: Number(row.sourceGapGameCount ?? 0),
   }));
   return {
@@ -1377,6 +1644,34 @@ export function currentCollegeFootballSeason(date = new Date()) {
   return date.getUTCMonth() >= 6 ? date.getUTCFullYear() : date.getUTCFullYear() - 1;
 }
 
+export function shouldRefreshActiveSeason(input:{
+  incompletePastGames:number;
+  lastCompleteAt:string|null;
+  now?:Date;
+  maxAgeMs?:number;
+}) {
+  if(input.incompletePastGames<=0)return false;
+  if(!input.lastCompleteAt)return true;
+  const completedAt=new Date(input.lastCompleteAt).getTime();
+  if(!Number.isFinite(completedAt))return true;
+  return (input.now??new Date()).getTime()-completedAt>=(input.maxAgeMs??ACTIVE_SEASON_REFRESH_MAX_AGE_MS);
+}
+
+export async function getActiveSeasonFreshness(env:PipelineEnv,now=new Date()){
+  const season=currentCollegeFootballSeason(now);
+  const [games,run]=await Promise.all([
+    env.DB.prepare(`SELECT COUNT(*) AS count FROM cfb_games
+      WHERE season=? AND completed=0 AND start_date IS NOT NULL
+        AND datetime(start_date)<=datetime(?,'-3 hours')`)
+      .bind(season,now.toISOString()).first<{count:number}>(),
+    env.DB.prepare("SELECT created_at AS createdAt FROM refresh_runs WHERE season=? AND status='complete' ORDER BY id DESC LIMIT 1")
+      .bind(season).first<{createdAt:string}>(),
+  ]);
+  const incompletePastGames=Number(games?.count??0);
+  const lastCompleteAt=run?.createdAt??null;
+  return {season,incompletePastGames,lastCompleteAt,shouldRefresh:shouldRefreshActiveSeason({incompletePastGames,lastCompleteAt,now})};
+}
+
 export type BackfillSeasonStatus = {
   season: number;
   teamCount: number;
@@ -1396,9 +1691,11 @@ export type BackfillSeasonStatus = {
   lineCount: number;
   completedWeekCount: number;
   statWeekCount: number;
+  sackWeekCount: number;
   completionWeekCount: number;
   postseasonCompletedWeekCount: number;
   postseasonStatWeekCount: number;
+  postseasonSackWeekCount: number;
   postseasonCompletionWeekCount: number;
   stage: "teams" | "priors" | "schedule" | "stats" | "advanced" | "passing" | "formulas" | "ready";
   progressPercent: number;
@@ -1445,34 +1742,40 @@ export async function getBackfillStatus(env: PipelineEnv) {
     env.DB.prepare("SELECT season,completed_game_count AS count,component_version AS componentVersion FROM advanced_sync_state WHERE season>=?").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number; componentVersion: number }>(),
     env.DB.prepare("SELECT season,COUNT(DISTINCT team) AS count FROM weekly_profiles WHERE season>=? GROUP BY season").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number }>(),
     env.DB.prepare("SELECT season,COUNT(*) AS count FROM weekly_profiles WHERE season>=? GROUP BY season").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number }>(),
-    env.DB.prepare("SELECT season,COUNT(*) AS count FROM model_predictions WHERE season>=? AND model_version=? GROUP BY season").bind(FIRST_HISTORICAL_SEASON, MODEL_VERSION).all<{ season: number; count: number }>(),
-    env.DB.prepare("SELECT season,COUNT(*) AS count FROM model_snapshots WHERE season>=? AND model_version=? GROUP BY season").bind(FIRST_HISTORICAL_SEASON, MODEL_VERSION).all<{ season: number; count: number }>(),
+    env.DB.prepare("SELECT season,COUNT(*) AS count FROM model_predictions WHERE season>=? AND model_version=? AND json_extract(forecast_json,'$.formulaRevision')=CASE WHEN season=2026 THEN ? ELSE ? END GROUP BY season").bind(FIRST_HISTORICAL_SEASON, MODEL_VERSION, formulaRevision(2026), MODEL_FORMULA_REVISION).all<{ season: number; count: number }>(),
+    env.DB.prepare("SELECT season,COUNT(*) AS count FROM model_snapshots WHERE season>=? AND model_version=? AND source=CASE WHEN season=2026 THEN ? ELSE ? END GROUP BY season").bind(FIRST_HISTORICAL_SEASON, MODEL_VERSION, snapshotSource(2026), snapshotSource(2025)).all<{ season: number; count: number }>(),
     env.DB.prepare("SELECT season,COUNT(*) AS count FROM betting_lines WHERE season>=? GROUP BY season").bind(FIRST_HISTORICAL_SEASON).all<{ season: number; count: number }>(),
     env.DB.prepare(`SELECT g.season,g.week,COUNT(DISTINCT g.game_id) AS gameCount,COUNT(DISTINCT s.game_id) AS statGameCount,
         COUNT(DISTINCT CASE WHEN sc.row_count>=2 AND sc.missing_completions=0 THEN g.game_id END) AS completionGameCount,
+        COUNT(DISTINCT CASE WHEN sc.row_count>=2 AND sc.unverified_sacks=0 THEN g.game_id END) AS sackGameCount,
         COALESCE(gap.source_gap_count,0) AS sourceGapGameCount
       FROM cfb_games g
       LEFT JOIN team_game_stats s ON s.game_id=g.game_id
       LEFT JOIN (
-        SELECT game_id,COUNT(*) AS row_count,SUM(CASE WHEN pass_attempts>0 AND pass_completions IS NULL THEN 1 ELSE 0 END) AS missing_completions
+        SELECT game_id,COUNT(*) AS row_count,
+          SUM(CASE WHEN pass_attempts>0 AND pass_completions IS NULL THEN 1 ELSE 0 END) AS missing_completions,
+          SUM(CASE WHEN COALESCE(sack_adjustment_version,0)<1 THEN 1 ELSE 0 END) AS unverified_sacks
         FROM team_game_stats GROUP BY game_id
       ) sc ON sc.game_id=g.game_id
       LEFT JOIN (
         SELECT season,week,MAX(game_count) AS source_gap_count FROM refresh_runs WHERE status='source-gap' GROUP BY season,week
       ) gap ON gap.season=g.season AND gap.week=g.week
       WHERE g.season>=? AND g.season_type='regular' AND g.completed=1 AND g.week BETWEEN 1 AND 15
-      GROUP BY g.season,g.week,gap.source_gap_count`).bind(FIRST_HISTORICAL_SEASON).all<{ season: number; week: number; gameCount: number; statGameCount: number; completionGameCount: number; sourceGapGameCount: number }>(),
+      GROUP BY g.season,g.week,gap.source_gap_count`).bind(FIRST_HISTORICAL_SEASON).all<{ season: number; week: number; gameCount: number; statGameCount: number; completionGameCount: number; sackGameCount: number; sourceGapGameCount: number }>(),
     env.DB.prepare(`SELECT g.season,g.week,COUNT(DISTINCT g.game_id) AS gameCount,COUNT(DISTINCT s.game_id) AS statGameCount,
         COUNT(DISTINCT CASE WHEN sc.row_count>=2 AND sc.missing_completions=0 THEN g.game_id END) AS completionGameCount,
+        COUNT(DISTINCT CASE WHEN sc.row_count>=2 AND sc.unverified_sacks=0 THEN g.game_id END) AS sackGameCount,
         0 AS sourceGapGameCount
       FROM cfb_games g
       LEFT JOIN team_game_stats s ON s.game_id=g.game_id
       LEFT JOIN (
-        SELECT game_id,COUNT(*) AS row_count,SUM(CASE WHEN pass_attempts>0 AND pass_completions IS NULL THEN 1 ELSE 0 END) AS missing_completions
+        SELECT game_id,COUNT(*) AS row_count,
+          SUM(CASE WHEN pass_attempts>0 AND pass_completions IS NULL THEN 1 ELSE 0 END) AS missing_completions,
+          SUM(CASE WHEN COALESCE(sack_adjustment_version,0)<1 THEN 1 ELSE 0 END) AS unverified_sacks
         FROM team_game_stats GROUP BY game_id
       ) sc ON sc.game_id=g.game_id
       WHERE g.season>=? AND g.season_type='postseason' AND g.completed=1
-      GROUP BY g.season,g.week`).bind(FIRST_HISTORICAL_SEASON).all<{ season: number; week: number; gameCount: number; statGameCount: number; completionGameCount: number; sourceGapGameCount: number }>(),
+      GROUP BY g.season,g.week`).bind(FIRST_HISTORICAL_SEASON).all<{ season: number; week: number; gameCount: number; statGameCount: number; completionGameCount: number; sackGameCount: number; sourceGapGameCount: number }>(),
   ]);
   const counts = (rows: Array<{ season: number; count: number }>) => new Map(rows.map((row) => [Number(row.season), Number(row.count)]));
   const teams = counts(teamResult.results);
@@ -1491,16 +1794,16 @@ export async function getBackfillStatus(env: PipelineEnv) {
   const predictions = counts(predictionResult.results);
   const formulaSnapshots = counts(snapshotResult.results);
   const lines = counts(lineResult.results);
-  const weekCoverage = new Map<number, Array<{ gameCount: number; statGameCount: number; completionGameCount: number; sourceGapGameCount: number }>>();
+  const weekCoverage = new Map<number, Array<{ gameCount: number; statGameCount: number; completionGameCount: number; sackGameCount: number; sourceGapGameCount: number }>>();
   for (const row of weekResult.results) {
     const seasonRows = weekCoverage.get(Number(row.season)) ?? [];
-    seasonRows.push({ gameCount: Number(row.gameCount), statGameCount: Number(row.statGameCount), completionGameCount: Number(row.completionGameCount ?? 0), sourceGapGameCount: Number(row.sourceGapGameCount ?? 0) });
+    seasonRows.push({ gameCount: Number(row.gameCount), statGameCount: Number(row.statGameCount), completionGameCount: Number(row.completionGameCount ?? 0), sackGameCount: Number(row.sackGameCount ?? 0), sourceGapGameCount: Number(row.sourceGapGameCount ?? 0) });
     weekCoverage.set(Number(row.season), seasonRows);
   }
-  const postseasonWeekCoverage = new Map<number, Array<{ gameCount: number; statGameCount: number; completionGameCount: number; sourceGapGameCount: number }>>();
+  const postseasonWeekCoverage = new Map<number, Array<{ gameCount: number; statGameCount: number; completionGameCount: number; sackGameCount: number; sourceGapGameCount: number }>>();
   for (const row of postseasonWeekResult.results) {
     const seasonRows = postseasonWeekCoverage.get(Number(row.season)) ?? [];
-    seasonRows.push({ gameCount: Number(row.gameCount), statGameCount: Number(row.statGameCount), completionGameCount: Number(row.completionGameCount ?? 0), sourceGapGameCount: 0 });
+    seasonRows.push({ gameCount: Number(row.gameCount), statGameCount: Number(row.statGameCount), completionGameCount: Number(row.completionGameCount ?? 0), sackGameCount: Number(row.sackGameCount ?? 0), sourceGapGameCount: 0 });
     postseasonWeekCoverage.set(Number(row.season), seasonRows);
   }
   const status: BackfillSeasonStatus[] = seasons.map((season) => {
@@ -1522,31 +1825,41 @@ export async function getBackfillStatus(env: PipelineEnv) {
     const completedWeeks = weekCoverage.get(season) ?? [];
     const completedWeekCount = completedWeeks.length;
     const statWeekCount = completedWeeks.filter((row) => weeklySourceCoverageComplete(row.gameCount, row.statGameCount, row.sourceGapGameCount)).length;
+    const sackWeekCount = completedWeeks.filter((row) => weeklySourceCoverageComplete(row.gameCount, row.sackGameCount, row.sourceGapGameCount)).length;
     const completionWeekCount = completedWeeks.filter((row) => weeklySourceCoverageComplete(row.gameCount, row.completionGameCount, row.sourceGapGameCount)).length;
     const completedRegularGameCount = completedWeeks.reduce((sum, row) => sum + row.gameCount, 0);
     const completedPostseasonWeeks = postseasonWeekCoverage.get(season) ?? [];
     const postseasonCompletedWeekCount = completedPostseasonWeeks.length;
     const postseasonStatWeekCount = completedPostseasonWeeks.filter((row) => weeklySourceCoverageComplete(row.gameCount, row.statGameCount)).length;
+    const postseasonSackWeekCount = completedPostseasonWeeks.filter((row) => weeklySourceCoverageComplete(row.gameCount, row.sackGameCount)).length;
     const postseasonCompletionWeekCount = completedPostseasonWeeks.filter((row) => weeklySourceCoverageComplete(row.gameCount, row.completionGameCount)).length;
     const completedPostseasonGameCount = completedPostseasonWeeks.reduce((sum, row) => sum + row.gameCount, 0);
     const completedGameCount = completedRegularGameCount + completedPostseasonGameCount;
     // A preseason current-year load legitimately has no weekly profiles yet.
     const profilesReady = completedWeekCount === 0 && season === currentSeason ? true : profileTeamCount >= 100;
     const scheduleReady = gameCount > 0 && (season === currentSeason || postseasonGameCount > 0);
-    const statsReady = statWeekCount >= completedWeekCount && postseasonStatWeekCount >= postseasonCompletedWeekCount;
+    const sourceStatsReady = statWeekCount >= completedWeekCount && postseasonStatWeekCount >= postseasonCompletedWeekCount;
+    // A complete box score is enough to publish the active-season model.
+    // Sack-yard corrections remain visible through sackWeekCount and are
+    // applied when the itemized play feed catches up.
+    const statsReady = sourceStatsReady;
     const advancedReady = completedGameCount === 0 || (advancedCompletedGameCount >= completedGameCount && advancedComponentVersion >= ADVANCED_COMPONENT_VERSION);
     const passingReady = completedGameCount === 0 || (completionWeekCount >= completedWeekCount && postseasonCompletionWeekCount >= postseasonCompletedWeekCount);
     const formulasReady = formulaSnapshotCount > 0 && predictionCount >= gameCount && profilesReady;
     const ready = teamCount >= 100 && logoCount >= 100 && preseasonInputCount >= 100 && scheduleReady && statsReady && advancedReady && formulasReady && passingReady;
     const stage = ready ? "ready" : teamCount < 100 || logoCount < 100 ? "teams" : preseasonInputCount < 100 ? "priors" : !scheduleReady ? "schedule" : !statsReady ? "stats" : !advancedReady ? "advanced" : !formulasReady ? "formulas" : "passing";
     const totalCompletedWeeks = completedWeekCount + postseasonCompletedWeekCount;
-    const stageProgress = totalCompletedWeeks ? (statWeekCount + postseasonStatWeekCount) / totalCompletedWeeks : 1;
+    const coveredStatWeeks = statWeekCount + postseasonStatWeekCount;
+    const stageProgress = totalCompletedWeeks ? coveredStatWeeks / totalCompletedWeeks : 1;
     const completionProgress = totalCompletedWeeks ? (completionWeekCount + postseasonCompletionWeekCount) / totalCompletedWeeks : 1;
     const progressPercent = ready ? 100 : stage === "teams" ? Math.min(12, teamCount / 100 * 12) : stage === "priors" ? 16 : stage === "schedule" ? 20 : stage === "stats" ? 22 + stageProgress * 66 : stage === "advanced" ? 90 : stage === "formulas" ? 92 : 93 + completionProgress * 6;
-    return { season, teamCount, logoCount, preseasonInputCount, gameCount, postseasonGameCount, statRowCount, advancedRowCount, advancedProfileCount, advancedCompletedGameCount, advancedComponentVersion, formulaSnapshotCount, profileTeamCount, profileCount, predictionCount, lineCount, completedWeekCount, statWeekCount, completionWeekCount, postseasonCompletedWeekCount, postseasonStatWeekCount, postseasonCompletionWeekCount, stage, progressPercent: Math.round(progressPercent), ready };
+    return { season, teamCount, logoCount, preseasonInputCount, gameCount, postseasonGameCount, statRowCount, advancedRowCount, advancedProfileCount, advancedCompletedGameCount, advancedComponentVersion, formulaSnapshotCount, profileTeamCount, profileCount, predictionCount, lineCount, completedWeekCount, statWeekCount, sackWeekCount, completionWeekCount, postseasonCompletedWeekCount, postseasonStatWeekCount, postseasonSackWeekCount, postseasonCompletionWeekCount, stage, progressPercent: Math.round(progressPercent), ready };
   });
   const stagePriority: Record<BackfillSeasonStatus["stage"], number> = { teams:0,priors:1,schedule:2,stats:3,advanced:4,formulas:5,passing:6,ready:7 };
   const missing = status.filter((row) => !row.ready).sort((a,b) => {
+    // The live season owns the first repair slot so new results and projections
+    // cannot wait behind a long historical formula migration.
+    if (a.season === currentSeason || b.season === currentSeason) return a.season === currentSeason ? -1 : 1;
     // Finish the oldest season end-to-end before moving forward. Besides making
     // each vintage usable sooner, this guarantees later preseason priors can use
     // every earlier completed season already present in D1.
@@ -1599,7 +1912,48 @@ async function fetchWeekTeamStats(key: string, games: NormalizedGame[], season: 
     missingGames = scheduledGames.filter((game) => !importedIds.has(game.id));
   }
 
-  return { stats, scheduledGames, missingGames };
+  // The NCAA box score assigns sacks to team rushing, but some CFBD team-game
+  // rows expose the sack count without the associated yardage. One weekly play
+  // feed repairs that gap for every game in the slice before profiles and
+  // projections are rebuilt; failure remains non-blocking because the archived
+  // box score is still a valid fallback.
+  await pause(800);
+  let playPayload: unknown = [];
+  let playFeedChecked = false;
+  try {
+    playPayload = await cfbd("/plays", key, { year: season, week, seasonType, classification: "fbs" });
+    // An empty or partial response is not proof that the missing sack yards
+    // are zero. Only mark the slice verified when the feed includes at least
+    // one play for every completed game in that slice.
+    const playGameIds = new Set(asRecords(playPayload).map((row) => String(value(row, "gameId", "game_id") ?? "")));
+    playFeedChecked = scheduledGames.length > 0 && scheduledGames.every((game) => playGameIds.has(game.id));
+  } catch { /* Sack-yard enrichment must not block a valid team box score. */ }
+  stats = applyPlayFeedSackAdjustments(stats, playPayload, playFeedChecked);
+
+  return { stats, scheduledGames, missingGames, playFeedChecked };
+}
+
+async function unverifiedSackAdjustmentWeeks(db: D1Database, season: number) {
+  const result = await db.prepare(`SELECT DISTINCT g.week,g.season_type AS seasonType
+    FROM cfb_games g JOIN team_game_stats s ON s.game_id=g.game_id
+    WHERE g.season=? AND g.completed=1 AND COALESCE(s.sack_adjustment_version,0)<1
+      AND ((g.season_type='regular' AND g.week BETWEEN 1 AND 15) OR g.season_type='postseason')
+    ORDER BY CASE WHEN g.season_type='regular' THEN 0 ELSE 1 END,g.week
+    LIMIT 4`).bind(season).all<{ week: number; seasonType: "regular" | "postseason" }>();
+  return result.results;
+}
+
+async function invalidateSeasonFormulaMaterialization(db: D1Database, season: number) {
+  // Keep the previous score rows readable while the replacement is queued,
+  // but remove the current-revision marker so readiness and schedule routes
+  // cannot mistake them for projections built from the updated source data.
+  await Promise.all([
+    db.prepare(`UPDATE model_predictions
+      SET forecast_json=CASE WHEN json_valid(forecast_json) THEN json_remove(forecast_json,'$.formulaRevision') ELSE '{}' END
+      WHERE season=? AND model_version=?`).bind(season, MODEL_VERSION).run(),
+    db.prepare("UPDATE model_snapshots SET source='CollegeFootballData:stale' WHERE season=? AND model_version=?")
+      .bind(season, MODEL_VERSION).run(),
+  ]);
 }
 
 export async function hydratePostseasonGameStats(env: PipelineEnv, season: number, gameId: string) {
@@ -1686,12 +2040,8 @@ async function fetchAndPersistAdvancedSeason(env: PipelineEnv, season: number, g
   rows.advancedSyncStates = [{ season, completedGameCount: completedGames.length, rowCount: advancedStats.length, componentVersion: ADVANCED_COMPONENT_VERSION }];
   await persistSeason(env.DB, rows);
   // A changed completed-game count or component schema means the materialized
-  // projections were built from an older component archive. Remove derived
-  // model version; the immutable source games and stats remain untouched.
-  await Promise.all([
-    env.DB.prepare("DELETE FROM model_predictions WHERE season=? AND model_version=?").bind(season, MODEL_VERSION).run(),
-    env.DB.prepare("DELETE FROM model_snapshots WHERE season=? AND model_version=?").bind(season, MODEL_VERSION).run(),
-  ]);
+  // projections were built from an older component archive.
+  await invalidateSeasonFormulaMaterialization(env.DB, season);
   return { completedGameCount: completedGames.length, rowCount: advancedStats.length, coveredGameCount };
 }
 
@@ -1710,9 +2060,38 @@ async function finalizeSeason(env: PipelineEnv, season: number, trigger: SyncTri
     lines = normalizeLines(payload, season);
   }
   const eligibleTeams = new Set<string>((teamResult.results as Array<{ team: string }>).map((row) => row.team));
+  const directionalGames: DirectionalGame[] = [];
+  const playerRushes:PlayerRush[]=[];
+  if (season === 2026 && env.CFBD_API_KEY) {
+    const regularWeeks = [...new Set(games.filter(game => game.completed && game.seasonType !== "postseason").map(game => game.week))];
+    let rushingRoster=new Map<string,"RB"|"QB">();
+    try {
+      const roster=await cfbd("/roster",env.CFBD_API_KEY,{year:season,classification:"fbs"});
+      if(Array.isArray(roster))rushingRoster=new Map(roster.flatMap((item):[string,"RB"|"QB"][]=>{
+        if(!item||typeof item!=="object")return [];
+        const row=item as Record<string,unknown>;
+        const position=String(row.position??"").toUpperCase();
+        return position==="QB"?[[String(row.id),"QB"]]:["RB","HB","FB"].includes(position)?[[String(row.id),"RB"]]:[];
+      }));
+    } catch(error){if(error instanceof CollegeFootballDataError&&error.status===429)throw error;}
+    for (const week of regularWeeks) {
+      try {
+        const payload = await cfbd("/rushing/teams/games", env.CFBD_API_KEY, { year: season, week, seasonType: "regular", classification: "fbs" });
+        directionalGames.push(...parseDirectionalGames(payload));
+      } catch (error) {
+        if (error instanceof CollegeFootballDataError && error.status === 429) throw error;
+        // The regular rushing/passing projection remains valid if the optional
+        // direction feed is unavailable for a week.
+      }
+      if(rushingRoster.size)try{
+        const payload=await cfbd("/rushing/players/games",env.CFBD_API_KEY,{year:season,week,seasonType:"regular",classification:"fbs"});
+        playerRushes.push(...parsePlayerRushes(payload,rushingRoster,stats));
+      }catch(error){if(error instanceof CollegeFootballDataError&&error.status===429)throw error;}
+    }
+  }
   const preseasonProfiles = await loadPreseasonProfiles(db, season, eligibleTeams);
   await refreshViabilityCalibrationFromDatabase(db);
-  const { profiles, advancedProfiles, predictions, snapshots, maxWeek } = buildSeasonArtifacts(games, stats, advancedStats, lines, season, eligibleTeams, preseasonProfiles);
+  const { profiles, advancedProfiles, predictions, snapshots, maxWeek } = buildSeasonArtifacts(games, stats, advancedStats, lines, season, eligibleTeams, preseasonProfiles, directionalGames,playerRushes);
   const currentSeason = currentCollegeFootballSeason();
   if (games.length === 0 || eligibleTeams.size < 100) throw new Error(`CollegeFootballData returned an incomplete ${season} season (${eligibleTeams.size} teams, ${games.length} games)`);
   if (games.some((game) => game.completed) && season !== currentSeason && (stats.length < 100 || profiles.length < 100)) {
@@ -1804,6 +2183,28 @@ export async function syncSeasonStep(env: PipelineEnv, season: number, trigger: 
       return { season, stage: "stats" as const, seasonType: "postseason" as const, week: missingPostseasonWeek.week, stats: stats.length, games: importedGames, sourceGapGames: missingGames.length, durationMs: Date.now() - started };
     }
 
+    if (season === currentCollegeFootballSeason()) {
+      const [repair] = await unverifiedSackAdjustmentWeeks(db, season);
+      if (repair) {
+        const games = await loadSeasonGames(db, season);
+        const { stats, playFeedChecked } = await fetchWeekTeamStats(env.CFBD_API_KEY, games, season, repair.week, repair.seasonType);
+        if (!stats.length) throw new Error(`CollegeFootballData returned no sack-adjustment box scores for ${season} week ${repair.week}`);
+        const rows = emptyPersistRows();
+        rows.stats = stats;
+        await persistSeason(db, rows);
+        if (playFeedChecked) await invalidateSeasonFormulaMaterialization(db, season);
+        if (playFeedChecked) {
+          await recordRun(db, season, repair.week, "running", new Set(stats.map((row) => row.gameId)).size,
+            `${trigger} stage sacks; verified NCAA sack-yard reclassification for ${repair.seasonType} week ${repair.week}; projections queued for rebuild`);
+          return { season, stage: "stats" as const, seasonType: repair.seasonType, week: repair.week, stats: stats.length, sackFeedChecked: true, durationMs: Date.now() - started };
+        }
+        // CFBD can publish final box scores before every play. Continue to
+        // advanced components and formulas with the box-score sack fallback.
+        await recordRun(db, season, repair.week, "running", new Set(stats.map((row) => row.gameId)).size,
+          `${trigger} stage sacks; play feed pending for ${repair.seasonType} week ${repair.week}; building provisional projections from box scores`);
+      }
+    }
+
     const completedGameCount = coverage.completedRegularGameCount + coverage.completedPostseasonGameCount;
     if (completedGameCount > 0 && (coverage.advancedCompletedGameCount < completedGameCount || coverage.advancedComponentVersion < ADVANCED_COMPONENT_VERSION)) {
       const games = await loadSeasonGames(db, season);
@@ -1827,10 +2228,7 @@ export async function syncSeasonStep(env: PipelineEnv, season: number, trigger: 
       const completionRows = stats.filter((row) => row.passAttempts === 0 || row.passCompletions !== null).length;
       const refreshedCoverage = await getSeasonCoverage(db, season);
       if (refreshedCoverage.completedWeeks.every((row) => weeklySourceCoverageComplete(row.gameCount, row.completionGameCount, row.sourceGapGameCount))) {
-        await Promise.all([
-          db.prepare("DELETE FROM model_predictions WHERE season=? AND model_version=?").bind(season, MODEL_VERSION).run(),
-          db.prepare("DELETE FROM model_snapshots WHERE season=? AND model_version=?").bind(season, MODEL_VERSION).run(),
-        ]);
+        await invalidateSeasonFormulaMaterialization(db, season);
       }
       const gapDetail = missingGames.length ? `; source gap remains for ${missingGames.map((game) => game.id).join(", ")}` : "";
       await recordRun(db, season, missingCompletionWeek.week, "running", new Set(stats.map((row) => row.gameId)).size, `${trigger} stage passing; hydrated ${completionRows} completion/attempt rows for week ${missingCompletionWeek.week}${gapDetail}`);
@@ -1875,6 +2273,8 @@ export async function syncArchiveBatch(
     try {
       const result = await syncSeasonStep(env, season, trigger);
       results.push(result);
+
+      if ("sackFeedChecked" in result && result.sackFeedChecked === false) break;
 
       // "complete" means the current formula materialization finished. Passing
       // detail may still be due, so re-check the server-owned queue before
@@ -1952,8 +2352,34 @@ export async function syncSeason(env: PipelineEnv, season: number, trigger: Sync
       const statWrite = emptyPersistRows();
       statWrite.stats = stats;
       await persistSeason(db, statWrite);
+      // A final box-score correction also changes opponent-relative profiles,
+      // even when CFBD has not yet published every itemized play.
+      if (season === currentCollegeFootballSeason()) await invalidateSeasonFormulaMaterialization(db, season);
       if (refreshTarget.seasonType === "regular" && missingGames.length === 1 && refreshTarget.row.gameCount >= 10) await recordRun(db, season, refreshTarget.row.week, "source-gap", 1, `CFBD has no team box score for ${missingGames[0].id}: ${missingGames[0].awayTeam} at ${missingGames[0].homeTeam}; excluded from statistical profiles`);
       coverage = await getSeasonCoverage(db, season);
+    }
+
+    // Rows created before itemized sack-yard support are upgraded in a bounded
+    // set of weekly slices. Once marked, future refreshes touch only new or
+    // newly completed games instead of downloading the full season again.
+    let repairedSackWeeks = 0;
+    for (const repair of (await unverifiedSackAdjustmentWeeks(db, season)).slice(0, 1)) {
+      await pause(1000);
+      const { stats, playFeedChecked } = await fetchWeekTeamStats(env.CFBD_API_KEY, games, season, repair.week, repair.seasonType);
+      if (!stats.length) continue;
+      const repairWrite = emptyPersistRows();
+      repairWrite.stats = stats;
+      await persistSeason(db, repairWrite);
+      if (playFeedChecked) repairedSackWeeks += 1;
+    }
+    if (repairedSackWeeks) await invalidateSeasonFormulaMaterialization(db, season);
+    coverage = await getSeasonCoverage(db, season);
+
+    const remainingSackRepairs = await unverifiedSackAdjustmentWeeks(db, season);
+    if (remainingSackRepairs.length && season !== currentCollegeFootballSeason()) {
+      const next = remainingSackRepairs[0];
+      await recordRun(db, season, next.week, "running", games.length, `${trigger} refresh preserved existing projections while ${remainingSackRepairs.length} sack-yard verification slices remain`);
+      return { season, stage: "stats" as const, latestWeek: coverage.completedWeeks.at(-1)?.week ?? 0, teams: teamRows.length, games: games.length, lines: lines.length, remainingSackWeeks: remainingSackRepairs.map((row) => ({ week: row.week, seasonType: row.seasonType })), durationMs: Date.now() - started };
     }
 
     const remainingWeeks = coverage.completedWeeks.filter((row) => !weeklySourceCoverageComplete(row.gameCount, row.statGameCount, row.sourceGapGameCount));
@@ -2014,4 +2440,30 @@ export async function syncHistorical(env: PipelineEnv, fromSeason = FIRST_HISTOR
   // One bounded, paced batch per invocation keeps the job below the Worker/D1
   // budget while avoiding a dependency on dozens of separate cron deliveries.
   return season ? (await syncArchiveBatch(env, season, "bootstrap")).results : [];
+}
+
+export async function validateRosterSeason(db:D1Database,season:number) {
+  const [allGames,allStats,allAdvanced,teamResult]=await Promise.all([loadSeasonGames(db,season),loadSeasonStats(db,season),loadSeasonAdvancedStats(db,season),db.prepare("SELECT team FROM cfb_teams WHERE season=?").bind(season).all<{team:string}>()]);
+  const eligible=new Set(teamResult.results.map(r=>r.team));
+  const games=allGames.filter(g=>g.week<=5&&g.seasonType==="regular");
+  const ids=new Set(games.map(g=>g.id));
+  const stats=allStats.filter(s=>ids.has(s.gameId));
+  const advanced=allAdvanced.filter(s=>ids.has(s.gameId));
+  const rows:RosterValidationRow[]=[];
+  for(const variant of ["baseline","defense","quarterback","roster"] as const){
+    const priors=await loadPreseasonProfiles(db,season,eligible,variant);
+    const artifacts=buildSeasonArtifacts(games,stats,advanced,[],season,eligible,priors);
+    const byGame=new Map(games.map(g=>[g.id,g]));
+    for(const p of artifacts.predictions){
+      const g=byGame.get(p.gameId)!;
+      if(!g.completed||g.homePoints===null||g.awayPoints===null||!eligible.has(g.homeTeam)||!eligible.has(g.awayTeam))continue;
+      const h=p.forecast.roster.home,a=p.forecast.roster.away;
+      const continuity=[h,a].flatMap(r=>r?Object.values(r.units).flatMap(u=>u.continuity===null?[]:[u.continuity]):[]);
+      rows.push({gameId:g.id,season,week:g.week,variant,home:p.homeScore,away:p.awayScore,probability:p.homeWinProbability,actualHome:g.homePoints,actualAway:g.awayPoints,coverage:Math.min(h?.coverage??0,a?.coverage??0),turnover:continuity.length?1-continuity.reduce((x,y)=>x+y,0)/continuity.length:null});
+    }
+  }
+  // Give every variant the same roster-based strata, even when it omits roster inputs.
+  const context=new Map(rows.filter(r=>r.variant==="roster").map(r=>[r.gameId,r]));
+  for(const row of rows){const c=context.get(row.gameId);row.coverage=c?.coverage??0;row.turnover=c?.turnover??null;}
+  return {season,...summarizeRosterValidation(rows)};
 }

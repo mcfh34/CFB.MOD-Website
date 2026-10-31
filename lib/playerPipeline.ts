@@ -22,6 +22,7 @@ import {
   type ProductionScaleBin,
 } from "./playerProductionRatings";
 import type { PublishedDepthChart } from "./publishedDepthCharts";
+import { captureCurrentRosterSnapshots } from "./rosterPipeline";
 
 type JsonRecord = Record<string, unknown>;
 type PlayerStage = "roster" | "stats" | "success" | "usage" | "ppa" | "transfers" | "recruiting" | "finalize" | "ready";
@@ -491,6 +492,7 @@ export async function syncPlayerSeasonStep(env: PipelineEnv, season = INITIAL_PL
         .bind(JSON.stringify(model), quality, PLAYER_MODEL_VERSION, season, team);
     });
     await batchStatements(env.DB, statements, 25);
+    await captureCurrentRosterSnapshots(env.DB,season);
     await markPlayerProductionBaselineDirty(env.DB, season);
     await writeState(env.DB, season, "ready", {
       teamCount: result.results.length,
@@ -546,7 +548,7 @@ export async function queueActivePlayerSeasonRefresh(env: Pick<PipelineEnv, "DB"
   const result = await env.DB.prepare(`UPDATE player_sync_state SET
       stage='roster',roster_count=0,stat_count=0,success_count=0,usage_count=0,ppa_count=0,
       transfer_count=0,transfer_year=?,recruiting_count=0,recruiting_year=?,model_version=0,
-      detail=?,updated_at=CURRENT_TIMESTAMP WHERE season=?`)
+      detail=?,updated_at=CURRENT_TIMESTAMP WHERE season=? AND stage='ready'`)
     .bind(PLAYER_TRANSFER_START_YEAR, playerRecruitingStartYear(season), `${season} active roster refresh queued`, season)
     .run();
   return Number(result.meta.changes ?? 0) > 0;

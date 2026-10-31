@@ -10,6 +10,13 @@ export type ScoringModelInput = {
   scoringProjection?: number | null;
 };
 
+export type PossessionEfficiencySplit = {
+  ypa: number;
+  ypc: number;
+  baselineYpa: number;
+  baselineYpc: number;
+};
+
 export type PossessionFeatureName =
   | "driveAnchor"
   | "scoringAnchor"
@@ -36,7 +43,10 @@ export type ScoreModelContribution = {
  * independent point deduction; every signal enters the single regularized
  * points-per-possession model once.
  */
+export type ScoreReconciliation = {rawHome:number;rawAway:number;rawTotal:number;finalTotal:number;margin:number;components:{id:string;label:string;points:number}[]};
+
 export type PossessionScoreReceipt = {
+  reconciliation?: ScoreReconciliation;
   expectedPossessions: number;
   expectedPointsPerPossession: number;
   rawExpectedPoints: number;
@@ -192,7 +202,14 @@ export function buildPossessionFeatures(
   possessions: number,
   viability: OffensiveViability,
   simpleBaselinePoints = 27,
+  split: PossessionEfficiencySplit | null = null,
 ): PossessionFeatures {
+  const passingEfficiency = split
+    ? Math.log(clamp(ratio(split.ypa, split.baselineYpa), 0.55, 1.65))
+    : 0;
+  const rushingEfficiency = split
+    ? Math.log(clamp(ratio(split.ypc, split.baselineYpc), 0.55, 1.65))
+    : 0;
   if (!projection || !profile) {
     const scoringAnchor = clamp(simpleBaselinePoints / Math.max(1, possessions), 0.45, 5.4);
     return {
@@ -201,10 +218,12 @@ export function buildPossessionFeatures(
       efficiency: 0,
       explosiveness: 0,
       finishing: 0,
-      protection: 0,
+      // Box-score-only teams still carry the sack-adjusted passing result.
+      // This keeps the reclassification active before advanced coverage fills in.
+      protection: passingEfficiency * 0.45,
       fieldPosition: 0,
       viability: viability.risk,
-      runPassBalance: 0,
+      runPassBalance: rushingEfficiency * 0.3,
       dataQuality: 0,
     };
   }
@@ -223,14 +242,18 @@ export function buildPossessionFeatures(
     Math.log(clamp(ratio(projection.overall.thirdDownSuccessRate, baseline.thirdDownSuccessRate), 0.55, 1.65)),
     Math.log(clamp(ratio(projection.overall.redZoneEfficiency, baseline.redZoneEfficiency), 0.65, 1.45)),
   ]);
-  const protection = average([
+  const advancedProtection = average([
     Math.log(clamp(ratio(baseline.havocRate, projection.overall.havocRate), 0.55, 1.75)),
     Math.log(clamp(ratio(projection.pass.passingDownSuccessRate, baseline.passingDownSuccessRate), 0.55, 1.65)),
   ]);
-  const runPassBalance = Math.min(
+  // YPA and YPC must remain separate here. Recombining them as overall YPP
+  // erases a sack transfer because total offense is intentionally conserved.
+  const protection = split ? 0.55 * advancedProtection + 0.45 * passingEfficiency : advancedProtection;
+  const advancedRunPassBalance = Math.min(
     Math.log(clamp(ratio(projection.run.rushingSuccessRate, baseline.rushingSuccessRate), 0.55, 1.65)),
     Math.log(clamp(ratio(projection.pass.passingSuccessRate, baseline.passingSuccessRate), 0.55, 1.65)),
   );
+  const runPassBalance = split ? 0.7 * advancedRunPassBalance + 0.3 * rushingEfficiency : advancedRunPassBalance;
   const fieldPosition = (
     finite(projection.specialTeams.fieldPosition, finite(baseline.fieldPosition, 25)) - finite(baseline.fieldPosition, 25)
   ) / 10 + finite(projection.specialTeams.hiddenYards, 0) / 100;
@@ -263,8 +286,9 @@ export function buildPossessionScoreReceipt(
   possessions: number,
   viability: OffensiveViability,
   simpleBaselinePoints = 27,
+  split: PossessionEfficiencySplit | null = null,
 ): PossessionScoreReceipt {
-  const features = buildPossessionFeatures(projection, profile, possessions, viability, simpleBaselinePoints);
+  const features = buildPossessionFeatures(projection, profile, possessions, viability, simpleBaselinePoints, split);
   const model = possessionModel.pointsPerPossession;
   const contributions = featureOrder.map((id) => {
     const standardizedValue = (features[id] - model.means[id]) / model.deviations[id];
@@ -275,7 +299,7 @@ export function buildPossessionScoreReceipt(
   const warnings: string[] = [];
   if (rawExpectedPoints < 3) warnings.push("Sub-three-point offense requires elite defensive evidence and should be reviewed.");
   if (possessions < 9.2 && (projection?.overall.playsPerDrive ?? 6) < 5.2) warnings.push("Fast-play profile conflicts with an unusually low possession estimate.");
-  return { expectedPossessions: possessions, expectedPointsPerPossession, rawExpectedPoints, finalExpectedPoints: rawExpectedPoints, features, contributions, viability, warnings };
+  return { expectedPossessions: possessions, expectedPointsPerPossession, rawExpectedPoints, finalExpectedPoints: rawExpectedPoints, features, contributions, viability, warnings } as PossessionScoreReceipt;
 }
 
 function standardizedPrediction(
@@ -299,12 +323,15 @@ export function calibrateGameTotal(home: PossessionScoreReceipt, away: Possessio
 
 /** Separate margin layer: scoring, outcome strength and resume proof each enter once. */
 export function calibrateGameMargin(rawMargin: number, outcomeMargin: number, proofGap: number, neutral: boolean) {
-  return standardizedPrediction(possessionModel.margin, {
+  const predicted=standardizedPrediction(possessionModel.margin, {
     rawMargin,
     outcomeMargin,
     proofGap,
     homeField: neutral ? 0 : 1,
   });
+  // A fitted intercept from a home-heavy training set must not favor the
+  // arbitrarily designated home team in a neutral-site matchup.
+  return predicted-standardizedPrediction(possessionModel.margin,{rawMargin:0,outcomeMargin:0,proofGap:0,homeField:0});
 }
 
 export function projectionGuardrails(homePoints: number, awayPoints: number, possessions: number, marketTotal: number | null = null) {
@@ -364,3 +391,31 @@ export const holdoutMarketCalibration = {
   ats:{training:{wins:163,losses:137,pushes:8,passed:2003,accuracy:0.54333},holdout:{wins:43,losses:28,pushes:0,passed:542,accuracy:0.60563}},
   totals:{training:{wins:375,losses:329,pushes:13,passed:1492,accuracy:0.53267},holdout:{wins:57,losses:62,pushes:0,passed:494,accuracy:0.47899}},
 } as const;
+
+export function marginContributions(rawMargin:number,outcomeMargin:number,proofGap:number,neutral:boolean,earlyFormMargin=0):{id:string;label:string;points:number}[] {
+  const model=possessionModel.margin;
+  const values={rawMargin,outcomeMargin:outcomeMargin+earlyFormMargin,proofGap,homeField:neutral?0:1};
+  const labels={rawMargin:"Possession scoring",outcomeMargin:"Outcome ratings",proofGap:"Opponent and win evidence",homeField:"Home field"};
+  const rows=[{id:"baseline",label:"Neutral baseline",points:0},...Object.keys(values).map(key=>{
+    const k=key as keyof typeof values;
+    return {id:k,label:labels[k],points:model.coefficients[k]*values[k]/model.deviations[k]};
+  })];
+  if(earlyFormMargin){
+    const outcome=rows.find((row)=>row.id==="outcomeMargin");
+    const earlyPoints=model.coefficients.outcomeMargin*earlyFormMargin/model.deviations.outcomeMargin;
+    if(outcome)outcome.points-=earlyPoints;
+    rows.splice(3,0,{id:"earlyForm",label:"Early-season scoring dominance",points:earlyPoints});
+  }
+  return rows;
+}
+
+export function explainScoreMargin(r:ScoreReconciliation, home:string, away:string) {
+  const favorite=r.margin>=0?home:away;
+  const rawMargin=r.rawHome-r.rawAway;
+  const rawFavorite=rawMargin>=0?home:away;
+  const direction=r.margin>=0?1:-1;
+  const drivers=r.components.filter(c=>c.id!=="baseline"&&c.id!=="coherence"&&c.points*direction>0).sort((a,b)=>Math.abs(b.points)-Math.abs(a.points));
+  const support=drivers.slice(0,2).map(c=>`${c.label.toLowerCase()} (${Math.abs(c.points).toFixed(1)} points)`).join(" and ");
+  if(rawFavorite!==favorite && Math.abs(rawMargin)>.2)return `The raw possession projection favors ${rawFavorite} by ${Math.abs(rawMargin).toFixed(1)}, but ${support||"the fitted margin adjustments"} shifts the final prediction to ${favorite} by ${Math.abs(r.margin).toFixed(1)}.`;
+  return `${favorite} is favored by ${Math.abs(r.margin).toFixed(1)}. The largest supporting margin contributions are ${support||"the fitted baseline"}; the adjusted total is ${r.finalTotal.toFixed(1)}.`;
+}

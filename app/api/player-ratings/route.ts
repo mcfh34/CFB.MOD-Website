@@ -27,6 +27,7 @@ import {
   playerStatsColumns,
   playerStatsDefaultSortKey,
   playerStatsMetricColumns,
+  playerStatsGroupColumns,
   playerMeetsScatterParticipationThreshold,
   playerStatsOrdinalRanks,
   playerStatsQualification,
@@ -603,6 +604,7 @@ export async function GET(request: Request) {
     : playerStatsDefaultSortKey(statsPosition);
   const requestedStatsMetric = text(url.searchParams.get("metric")) as PlayerStatsMetricKey;
   const statsMetricColumns = playerStatsMetricColumns(statsPosition);
+  const statsGroup = url.searchParams.get("group") === "advanced" ? "advanced" : "basic";
   const statsMetric = statsMetricColumns.some((column) => column.key === requestedStatsMetric)
     ? requestedStatsMetric
     : statsMetricColumns.some((column) => column.key === statsSort)
@@ -870,7 +872,7 @@ export async function GET(request: Request) {
       let overall: number | null;
       let ratingPercentile: number | null = null;
       let source: "OBSERVED" | "PROJECTED" | "UNAVAILABLE";
-      if ((baseline.currentGenerationReady || seasonGenerationReady) && normalizedScore !== null && normalizedPercentile !== null) {
+      if (seasonGenerationReady && normalizedScore !== null && normalizedPercentile !== null) {
         overall = baseline.currentGenerationReady
           ? productionRatingFromScale(position, normalizedScore, baseline.scale)
           : provisionalProductionOverallFromPercentile(normalizedPercentile);
@@ -879,7 +881,7 @@ export async function GET(request: Request) {
           : normalizedPercentile;
         source = overall === null ? "UNAVAILABLE" : "OBSERVED";
       } else if (productionScore !== null) {
-        if (baseline.currentGenerationReady) {
+        if (seasonGenerationReady && baseline.currentGenerationReady) {
           overall = productionRatingFromScale(position, productionScore, baseline.scale);
           ratingPercentile = productionPercentileFromScale(position, productionScore, baseline.scale);
         } else {
@@ -970,18 +972,19 @@ export async function GET(request: Request) {
       const opponentUnitQuality = context?.opponentUnitQuality ?? null;
       const supportQuality = context?.supportQuality ?? null;
       const seasonPercentile = finiteNumber(lineSeasonPercentiles.get(teamName));
+      // A current-season line score reconstructed from weekly profiles is not
+      // on the completed-season OL scale until this season's generation lands.
+      const provisionalLine = !seasonGenerationReady;
       const overall = productionScore === null
         ? null
-        : baseline.currentGenerationReady
-          ? productionRatingFromScale("OL", productionScore, baseline.scale)
-          : seasonPercentile === null
-            ? null
-            : provisionalProductionOverallFromPercentile(seasonPercentile);
+        : provisionalLine
+          ? seasonPercentile === null ? null : provisionalProductionOverallFromPercentile(seasonPercentile)
+          : productionRatingFromScale("OL", productionScore, baseline.scale);
       const ratingPercentile = productionScore === null
         ? null
-        : baseline.currentGenerationReady
-          ? productionPercentileFromScale("OL", productionScore, baseline.scale)
-          : seasonPercentile;
+        : provisionalLine
+          ? seasonPercentile
+          : productionPercentileFromScale("OL", productionScore, baseline.scale);
       return {
         id:`${teamName}-offensive-line-unit`,
         season,
@@ -1009,7 +1012,7 @@ export async function GET(request: Request) {
         recruitingStars:null,
         ratingSource:"UNRATED" as const,
         projectedStarter:true,
-        evidence:`${opponentEdgePercent(opponentRelative) === null ? "Opponent-relative unit sample" : `${signedPercent(opponentEdgePercent(opponentRelative) ?? 0)} run output vs opponent allowance`} · one five-man unit grade`,
+        evidence:`${provisionalLine ? "Provisional same-season line comparison" : opponentEdgePercent(opponentRelative) === null ? "Opponent-relative unit sample" : `${signedPercent(opponentEdgePercent(opponentRelative) ?? 0)} run output vs opponent allowance`} · one five-man unit grade`,
         statProfile:[
           ...(opponentEdgePercent(opponentRelative) === null ? [] : [{
             label:"RUN VS OPP",
@@ -1081,6 +1084,13 @@ export async function GET(request: Request) {
         defaultPlayerStatsSortDirection(statsMetric,statsPosition),
         playerStatsRankKey,
       );
+      const groupRanks=new Map(playerStatsGroupColumns(statsPosition,statsGroup).map((column)=>[
+        column.key,
+        playerStatsOrdinalRanks(
+          positionStats.filter((row)=>playerQualifiesForStat(row,statsPosition,column.key)),
+          column.key,column.defaultDirection,playerStatsRankKey,
+        ),
+      ]));
       const allEraScoreResult=await runtime.DB.prepare(`SELECT score,COUNT(*) AS scoreCount
           FROM player_production_scores
           WHERE season BETWEEN ? AND ? AND position=? AND score IS NOT NULL
@@ -1107,6 +1117,10 @@ export async function GET(request: Request) {
           ...publicRow,
           rank:scopedRanks.get(playerStatsRankKey(row))??0,
           nationalRank:nationalRanks.get(playerStatsRankKey(row))??0,
+          metricRanks:Object.fromEntries([...groupRanks].flatMap(([key,ranks])=>{
+            const rank=ranks.get(playerStatsRankKey(row));
+            return rank ? [[key,rank]] : [];
+          })),
           allEraRank:historicalProductionRank(allEraScore,allEraScoreGroups),
         };
       });
@@ -1120,7 +1134,7 @@ export async function GET(request: Request) {
         positions:supportedPositions,
         teams:teamResult.results,
         conferences:[...new Set(teamResult.results.map((row:Record<string, unknown>)=>text(row.conference)).filter(Boolean))].sort(),
-        filters:{conference:selectedConference,position:statsPosition,query:searchQuery,metric:statsMetric,sort:statsSort,direction},
+        filters:{conference:selectedConference,position:statsPosition,query:searchQuery,group:statsGroup,metric:statsMetric,sort:statsSort,direction},
         qualification:{label:qualificationRule.label,excluded:scopedPositionStats.length-scopedQualifiedStats.length,considered:scopedPositionStats.length},
         coverage:{advanced:advancedCount,total},
         rankingContext:{nationalCount:qualifiedNationalStats.length,allEraCount,firstSeason:FIRST_PLAYER_SEASON,lastSeason:INITIAL_PLAYER_SEASON},
@@ -1129,7 +1143,7 @@ export async function GET(request: Request) {
       },200,"public, max-age=300, stale-while-revalidate=1800");
     }
     const rated = [...individualRatings, ...lineUnitRatings]
-      .filter((row): row is typeof row & { overall:number } => row.overall !== null);
+      .filter((row): row is typeof row & { overall:number } => row.overall !== null && (season !== currentSeason || row.source === "OBSERVED" && row.hasStatEvidence));
 
     rated.sort((left, right) => {
       const leftValue = sort === "name" ? left.name
@@ -1182,13 +1196,13 @@ export async function GET(request: Request) {
       ? "public, max-age=300, stale-while-revalidate=1800"
       : "no-store");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Player ratings are temporarily unavailable";
+    const message = error instanceof Error ? error.message : "";
     const overloaded = /D1 DB is overloaded|requests queued for too long/i.test(message);
     const result = response({
       configured:Boolean(runtime.CFBD_API_KEY),
       season,
       status:overloaded ? "waiting" : "error",
-      message:overloaded ? "The player database is briefly queued. Retrying automatically." : message,
+      message:overloaded ? "The player database is briefly queued. Retrying automatically." : "Player ratings are temporarily unavailable.",
       retryAfterSeconds:overloaded ? 30 : undefined,
       rows:[],
       teams:[],

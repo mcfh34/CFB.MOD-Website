@@ -1,3 +1,5 @@
+import {analyzeDefensiveKeys,type DefensiveKeysAnalysis} from "./defensiveKeys";
+import { explainScoreMargin } from "./scoringModel";
 import { baselines, modelCalibration } from "../app/modelData";
 import type { AdvancedMetricKey, AdvancedProfile, AdvancedSideProjection } from "./advancedMetrics";
 import { buildMatchupIntelligence, type MatchupIntelligence } from "./matchupIntelligence";
@@ -30,6 +32,7 @@ export type PositionGroupEdge = {
 };
 
 export type MatchupEdgeAnalysis = {
+  defensiveKeys?: {home:DefensiveKeysAnalysis;away:DefensiveKeysAnalysis};
   favorite: string;
   underdog: string;
   projectedMargin: number;
@@ -234,7 +237,7 @@ export function analyzeMatchupEdges(
   const positionGroups = buildPositionGroups(homeTeam, awayTeam, homeAdvanced, awayAdvanced);
   const favoritePositionEdges = positionGroups.filter((edge) => edge.edgeTeam === favorite);
   const favoriteEdges = [pass, run, defense].filter((edge) => edge.edgeTeam === favorite);
-  const summary = margin < 1
+  const summary = homeScoreReceipt?.reconciliation ? explainScoreMargin(homeScoreReceipt.reconciliation,homeTeam,awayTeam) : margin < 1
     ? `This is effectively a toss-up. ${pass.detail} ${run.detail}`
     : favoritePositionEdges.length
       ? `${favorite} is favored by ${rounded(margin)} with position-level support from ${favoritePositionEdges.slice(0, 3).map((edge) => edge.label.toLowerCase()).join(", ")}.`
@@ -250,7 +253,7 @@ export function analyzeMatchupEdges(
   ].filter((read): read is PassingSchemeRead => Boolean(read));
   const factors = [pass.detail, run.detail, defense.detail, ...positionGroups.map((edge) => `${edge.detail} ${edge.edgeTeam === homeTeam ? edge.homeDetail : edge.edgeTeam === awayTeam ? edge.awayDetail : `${edge.homeDetail} vs ${edge.awayDetail}`}`)];
   factors.push(...schematicReads.filter((read) => read.strength !== "even").map((read) => read.detail));
-  if (!neutralSite) factors.push(`Home field contributes ${modelCalibration.homeFieldAdvantage.toFixed(1)} points to ${homeTeam}.`);
+  if (!neutralSite) factors.push(`The fitted home-field adjustment favors ${homeTeam}.`);
   const intelligence = buildMatchupIntelligence(
     homeTeam, awayTeam, homeAdvanced, awayAdvanced, homeAdvancedProfile, awayAdvancedProfile,
     homeScoreReceipt, awayScoreReceipt, homeViability, awayViability,
@@ -259,5 +262,9 @@ export function analyzeMatchupEdges(
   return {
     favorite, underdog, projectedMargin: margin, confidence, headline: `${favorite} · ${confidence.toUpperCase()} EDGE`, summary,
     pass, run, defense, positionGroups, schematicReads, factors, intelligence,
+    defensiveKeys:{
+      home:analyzeDefensiveKeys({team:homeTeam,opponent:awayTeam,opponentProjection:awayAdvanced,defenseProfile:homeAdvancedProfile,offenseProfile:awayAdvancedProfile}),
+      away:analyzeDefensiveKeys({team:awayTeam,opponent:homeTeam,opponentProjection:homeAdvanced,defenseProfile:awayAdvancedProfile,offenseProfile:homeAdvancedProfile}),
+    },
   };
 }

@@ -1,3 +1,6 @@
+import type { DirectionalProfile } from "./rushingMatchup";
+import type { TurnoverProfile, RushingPersonnel } from "./predictiveSignals";
+
 export const advancedMetricKeys = [
   "pointsPerGame",
   "yardsPerPlay",
@@ -58,6 +61,9 @@ export type AdvancedProfile = {
     advancedGames: number;
     completionGames: number;
   };
+  directional?: DirectionalProfile;
+  turnoverProfile?: TurnoverProfile;
+  rushingPersonnel?: RushingPersonnel;
 };
 
 export type AdvancedRunProjection = {
@@ -204,6 +210,9 @@ export function parseAdvancedProfile(input: unknown): AdvancedProfile | null {
       completionGames: Math.max(0, Math.trunc(finiteOrNull(coverage.completionGames) ?? 0)),
     },
   };
+  if (row.directional && typeof row.directional === "object") parsed.directional = row.directional as DirectionalProfile;
+  if (row.turnoverProfile && typeof row.turnoverProfile === "object") parsed.turnoverProfile = row.turnoverProfile as TurnoverProfile;
+  if (row.rushingPersonnel && typeof row.rushingPersonnel === "object") parsed.rushingPersonnel = row.rushingPersonnel as RushingPersonnel;
   const available = advancedMetricKeys.some((key) => parsed.offense.raw[key] !== null || parsed.defense.raw[key] !== null);
   return available ? parsed : null;
 }

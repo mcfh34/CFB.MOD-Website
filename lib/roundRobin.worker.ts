@@ -1,0 +1,2 @@
+import {buildRoundRobinStandingsAsync,type RoundRobinProfile} from "./roundRobin";
+self.onmessage=async(event:MessageEvent<RoundRobinProfile[]>)=>{try{const rows=await buildRoundRobinStandingsAsync(event.data,undefined,count=>self.postMessage({type:"progress",count}));self.postMessage({type:"complete",rows});}catch(error){self.postMessage({type:"error",message:error instanceof Error?error.message:"Comparison failed"});}};

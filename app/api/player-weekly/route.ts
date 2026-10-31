@@ -102,6 +102,6 @@ export async function GET(request:Request){
       if(error.retryAfterSeconds>0)response.headers.set("retry-after",String(error.retryAfterSeconds));
       return response;
     }
-    return json({status:"error",season,team,games:[],message:error instanceof Error?error.message:"Weekly player data is temporarily unavailable."},500);
+    return json({status:"error",season,team,games:[],message:"Weekly player data is temporarily unavailable."},500);
   }
 }

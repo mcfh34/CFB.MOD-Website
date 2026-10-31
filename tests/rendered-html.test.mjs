@@ -33,12 +33,12 @@ test("renders development preview metadata", async () => {
   const html = await response.text();
   assert.match(html, developmentPreviewMeta);
   assert.match(html, /id=["']primary-navigation["']/i);
-  assert.match(html, /aria-label=["']Primary mobile navigation["']/i);
+  assert.match(html, /aria-label=["']Choose a page["']/i);
   assert.match(html, /aria-controls=["']mobile-more-menu["']/i);
-  assert.match(html, /class=["'][^"']*simple-home/i);
-  assert.match(html, /aria-label=["']Harper Plus pages["']/i);
-  assert.match(html, /href=["']https:\/\/formsubmit\.co\/el\/sifele["']/i);
-  assert.match(html, /OPEN CONTACT FORM/i);
+  assert.match(html, /class=["'][^"']*weekly-newspaper/i);
+  assert.match(html, /THE HARPER\+ WEEKLY/i);
+  assert.match(html, /aria-label=["']Weekly review year["']/i);
+  assert.match(html, /aria-label=["']Weekly review week["']/i);
   assert.doesNotMatch(html, /formsubmit\.co\/(?:ajax\/)?mcfh34@gmail\.com/i);
 });
 
@@ -60,11 +60,11 @@ test("ships the leakage-safe preseason transition and its calibration audit",asy
   assert.match(backtest,/Weeks 1–4 margin MAE/i);
   assert.match(backtest,/ratingCalibration/i);
   assert.match(backtest,/Georgia regression test/i);
-  assert.match(pipeline,/harper-plus-v16-preseason-state-transition/i);
+  assert.match(pipeline,/harper-plus-v18-early-form/i);
   assert.match(pipeline,/return buildPreseasonStateTransition\(/i);
   assert.doesNotMatch(pipeline,/const PRESEASON_WEIGHTS\s*=/i);
   assert.match(rankings,/Results Rankings intentionally keep the 1500 default/i);
-  assert.match(simulation,/usePreseasonElo:\s*true/i);
+  assert.match(simulation,/usePreseasonElo:\s*usesPreseasonPriors/i);
 });
 
 test("carries sparse weekly profiles forward for the complete team field",async()=>{
@@ -135,27 +135,39 @@ test("ships the rebuilt opponent-relative Matchup Lab",async()=>{
 });
 
 test("ships the dedicated responsive application shell", async () => {
-  const [shell, page, layout, interfaceStyles, globalStyles, dataRoute, dataPipeline, logoAssets, gamePlayerRoute, gameMarketSummary] = await Promise.all([
+  const [shell, page, layout, interfaceStyles, shellStyles, weeklyStyles, weeklyReview, weeklyLogic, globalStyles, dataRoute, dataPipeline, logoAssets, gamePlayerRoute, gameMarketSummary, scoresFilters, scoresBoard, scoresToolbar] = await Promise.all([
     readFile(new URL("../app/components/AppShell.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/interface.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/shell-refresh.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/weekly-newspaper.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/WeeklyReview.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/weeklyReview.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/api/data/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/dataPipeline.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/teamLogoAssets.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/game-players/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/gameMarketSummary.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/scores/ScoresFilters.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/scores/ScoresBoard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/scores/ScoresToolbar.tsx", import.meta.url), "utf8"),
   ]);
+  const scoresSource=`${page}\n${scoresFilters}\n${scoresBoard}\n${scoresToolbar}`;
 
   assert.match(page, /<AppShell/i);
   assert.match(layout, /import "\.\/interface\.css"/i);
+  assert.match(layout, /import "\.\/shell-refresh\.css"/i);
+  assert.match(layout, /import "\.\/weekly-newspaper\.css"/i);
   assert.doesNotMatch(layout, /readability\.css/i);
-  assert.match(shell, /primaryMobileSections/i);
-  assert.match(shell, /app-mobile-tabs/i);
-  assert.match(shell, /app-mobile-primary-button/i);
-  assert.match(shell, /!compact && !top \? <span className="app-nav-mark"/i);
-  assert.match(shell, /className="main-header app-desktop-header"/i);
+  assert.match(shell, /navigationGroups/i);
+  assert.match(shell, /function NavigationIcon/i);
+  assert.doesNotMatch(shell, /mark:"(?:H\+|VS|W\/L|DBD|137)"/i);
+  assert.match(shell, /className="app-sidebar"/i);
+  assert.match(shell, /className={`app-mobile-menu-button/i);
+  assert.doesNotMatch(shell, /app-mobile-tabs/i);
+  assert.match(shell, /<span className="app-nav-mark"/i);
   assert.match(shell, /harper-plus-theme/i);
   assert.match(shell, /className="app-theme-toggle"/i);
   assert.match(shell, /Switch to \$\{nextTheme\} theme/i);
@@ -165,7 +177,7 @@ test("ships the dedicated responsive application shell", async () => {
   assert.match(layout, /suppressHydrationWarning/i);
   assert.match(interfaceStyles, /html\[data-theme="light"\]/i);
   assert.match(interfaceStyles, /\.app-theme-toggle-label \{[\s\S]*text-transform:uppercase/i);
-  assert.match(interfaceStyles, /--app-panel-inset:#f1ede3/i);
+  assert.match(interfaceStyles, /--app-panel-inset:#e8e3d8/i);
   assert.match(interfaceStyles, /--app-on-accent:#f8f5ed/i);
   assert.match(interfaceStyles, /Harper\+ v44 — editorial newspaper treatment/i);
   assert.match(interfaceStyles, /--app-news-serif:Georgia,"Times New Roman",Times,serif/i);
@@ -182,16 +194,16 @@ test("ships the dedicated responsive application shell", async () => {
   assert.match(globalStyles, /\.position-xray-grid article \{[^}]*background:var\(--app-panel-inset\)/i);
   assert.match(globalStyles, /\.validation-slices-disclosure \{[^}]*background:var\(--app-panel-inset\)/i);
   assert.match(globalStyles, /\.player-number \{[^}]*background:var\(--app-ink\)[^}]*color:var\(--app-on-accent\)/i);
-  assert.match(shell, /navigation\.map[\s\S]*app-top-navigation-button|navigation\.map[\s\S]*top \/>/i);
+  assert.match(shell, /navigationGroups\.map/i);
   assert.match(shell, /app-more-sheet/i);
   assert.match(shell, /Game Day/i);
   assert.match(shell, /Rankings/i);
   assert.match(shell, /Research/i);
-  assert.match(shell, /label:"Accuracy History"/i);
+  assert.doesNotMatch(shell, /label:"Accuracy History"/i);
+  assert.match(shell, /label:"Model Performance"/i);
   assert.match(shell, /label:"What If"/i);
   assert.doesNotMatch(shell, /label:"Season Sim"/i);
   assert.match(shell, /label:"Standings"/i);
-  assert.match(shell, /compact \|\| top \? item\.shortLabel : item\.label/i);
   assert.doesNotMatch(shell, /label:"Model HQ"/i);
   assert.match(page, /function AccuracyHistoryPage/i);
   assert.match(page, /function CompactAccuracyTable/i);
@@ -203,6 +215,21 @@ test("ships the dedicated responsive application shell", async () => {
   assert.match(page, /Select conference standings/i);
   assert.match(page, /OFFICIAL POLICY/i);
   assert.match(page, /<CompactAccuracyTable home \/>/i);
+  assert.match(page, /<WeeklyReview/i);
+  assert.match(page, /section === "performance" \? <ModelPerformancePage/i);
+  assert.match(weeklyReview, /view:"rankings"/i);
+  assert.doesNotMatch(weeklyReview, /view:"projected-ranks"/i);
+  assert.match(weeklyReview, /includeActualAdvanced:"1"/i);
+  assert.match(weeklyReview, /projectedRankLine/i);
+  assert.match(weeklyLogic, /weeklyGameFactors/i);
+  assert.match(weeklyLogic, /Third down decided the possession battle/i);
+  assert.match(weeklyLogic, /red zone separated them/i);
+  assert.match(weeklyLogic, /passingPpa/i);
+  assert.match(dataRoute, /accuracyScope==="all"\?fullSimulation\.rankings/i);
+  assert.match(dataRoute, /includeActualAdvanced/i);
+  assert.match(weeklyReview, /\/api\/weekly-performers/i);
+  assert.match(weeklyStyles, /weekly-front-page/i);
+  assert.match(weeklyStyles, /font-size:clamp\(26px,8vw,34px\)/i);
   assert.match(page, /function WhatIfPage/i);
   assert.match(page, /tab==="simulation"\?<SeasonSimulationPage[\s\S]*embedded/i);
   assert.doesNotMatch(page, /section === "simulation"/i);
@@ -216,7 +243,12 @@ test("ships the dedicated responsive application shell", async () => {
   assert.match(dataRoute, /view === "standings"/i);
   assert.match(dataRoute, /buildConferenceStandings/i);
   assert.match(dataRoute, /JOIN cfb_teams ht ON ht\.season=g\.season AND ht\.team=g\.home_team/i);
-  assert.match(dataRoute, /all predicted games/i);
+  assert.match(dataRoute, /const winnerSampleSql = accuracyScope === "all" \? completedWeekFiveSql/i);
+  assert.match(dataRoute, /const marketWindowSql = completedWeekFiveSql/i);
+  assert.match(dataRoute, /accuracyConditions=\["p\.season>=\?","\(p\.week>=5 OR g\.season_type='postseason'\)"\]/i);
+  assert.match(dataRoute, /all completed games from Week 5\+/i);
+  assert.match(dataPipeline, /if \(!marketEligible\(prediction\) \|\| !game/i);
+  assert.match(page, /useState<CalibrationScope>\("all"\)/i);
   assert.match(page, /SEASON TO DATE/i);
   assert.match(interfaceStyles, /game-detail-scoreboard > span b[\s\S]*white-space:nowrap!important/i);
   assert.match(interfaceStyles, /env\(safe-area-inset-top\)/i);
@@ -230,21 +262,18 @@ test("ships the dedicated responsive application shell", async () => {
   assert.match(page, /ranking-record-pair/);
   assert.match(page, /row\.conferenceRecord/);
   assert.match(interfaceStyles, /weekly-projected-ranking-entry[\s\S]*min-width:860px/);
-  assert.match(interfaceStyles, /Desktop chrome follows a compact broadcast-site pattern/i);
-  assert.match(interfaceStyles, /\.app-desktop-header[\s\S]*grid-template-columns:184px minmax\(0,1fr\) 94px/i);
-  assert.match(interfaceStyles, /Keep every desktop destination visible/i);
-  assert.match(interfaceStyles, /\.app-desktop-header > nav[\s\S]*overflow-x:hidden!important/i);
-  assert.match(interfaceStyles, /\.app-top-navigation-button[\s\S]*flex:1 1 0!important[\s\S]*min-width:0!important/i);
+  assert.match(shellStyles, /persistent desktop rail and one-button mobile page menu/i);
+  assert.match(shellStyles, /\.app-workspace \{[\s\S]*margin-left:var\(--app-rail-width\)!important/i);
+  assert.match(shellStyles, /\.app-mobile-menu-button \{[\s\S]*position:fixed[\s\S]*bottom:calc\(14px \+ env\(safe-area-inset-bottom\)\)/i);
   assert.match(interfaceStyles, /\.standings-row[\s\S]*grid-template-columns:42px minmax\(190px,1\.5fr\)/i);
   assert.match(interfaceStyles, /\.accuracy-entity-filters[\s\S]*grid-template-columns:minmax\(0,1fr\) 28px minmax\(0,1fr\) auto/i);
-  assert.match(interfaceStyles, /\.app-top-navigation-button\.active::after[\s\S]*background:var\(--app-ink\)/i);
-  assert.match(interfaceStyles, /@media \(max-width:900px\)[\s\S]*\.app-desktop-header \{[\s\S]*display:none!important/i);
+  assert.match(shellStyles, /@media \(max-width:900px\)[\s\S]*\.app-sidebar,[\s\S]*display:none!important/i);
   assert.match(interfaceStyles, /\.stats-head > :first-child[\s\S]*position:sticky/i);
-  assert.match(page, /className="schedule-filter" aria-label="Schedule filters"/i);
-  assert.match(page, /className="schedule-filter-toggle"/i);
+  assert.match(scoresSource, /role="dialog" aria-label="Additional score filters"/i);
+  assert.match(scoresSource, /className="schedule-filter-toggle"/i);
   assert.match(page, /function GameStatLegend/i);
   assert.match(page, /AVG \{stat\.averageDisplay\}/i);
-  assert.match(page, /className="schedule-filter-status" role="status" aria-live="polite"/i);
+  assert.match(scoresSource, /className="schedule-filter-status" role="status" aria-live="polite"/i);
   assert.match(shell, /className="app-background-maintenance" aria-hidden="true"/i);
   assert.match(interfaceStyles, /\.app-background-maintenance \{[\s\S]*display:none!important/i);
   assert.match(interfaceStyles, /\.game-stat-readout\.good[\s\S]*var\(--app-positive\)/i);
@@ -265,13 +294,16 @@ test("ships the dedicated responsive application shell", async () => {
   assert.match(page, /includeGameTimeRanks:"1"/i);
   assert.match(page, /function TeamScheduleList/i);
   assert.match(page, /function scheduleColumnGridStyle/i);
-  assert.match(page, /team-schedule-list schedule-column-grid/i);
-  assert.match(page, /mobile-score-day[\s\S]*schedule-column-grid/i);
-  assert.match(page, /Harper\+ entering-week rank/i);
+  assert.match(page, /team-schedule-list compact-team-schedule/i);
+  assert.match(page, /seasonForecast:"1",team:resolvedSelectedName,compactSchedule:"1"/i);
+  assert.doesNotMatch(page, /onClick=\{\(\)=>setActiveTab\("depth"\)\}/i);
+  assert.doesNotMatch(page, /const playerLayer=usePlayerLayer\(season,resolvedSelectedName/i);
+  assert.match(scoresSource, /mobile-score-day[\s\S]*schedule-column-grid/i);
+  assert.match(scoresSource, /Harper Plus projected final season rank/i);
   assert.match(dataRoute, /function schedulePregameRanks/i);
   assert.match(dataRoute, /scoreRankingSnapshotWeek\(Number\(row\.week/);
   assert.match(dataRoute, /homePregameRank/i);
-  assert.match(dataRoute, /hydratePostseasonGameStats/i);
+  assert.doesNotMatch(dataRoute, /hydratePostseasonGameStats/i);
   assert.match(dataPipeline, /export async function hydratePostseasonGameStats/i);
   assert.match(dataPipeline, /seasonType: "postseason"/i);
   assert.match(dataPipeline, /completedPostseasonWeeks/i);
@@ -304,14 +336,14 @@ test("ships the dedicated responsive application shell", async () => {
   assert.match(page, /gameStatLeaderSide/i);
   assert.match(page, /leader==="away"[\s\S]*variant="helmet"/i);
   assert.match(page, /className="game-team-site-label">AWAY/i);
-  assert.match(page, /<b>HOME TEAM<\/b>/i);
+  assert.match(page, /<b>DATE · TIME<\/b>/i);
   assert.match(page, /CLOSING SPREAD/i);
   assert.match(page, /marketTotalLabel\(row\)/i);
   assert.match(page, /function modelSpreadLabel/i);
   assert.match(page, /function compactMarketSpreadLabel/i);
-  assert.match(page, /<i>MKT SPREAD<\/i><b>\{compactMarketSpreadLabel\(row\)\}<\/b>/i);
-  assert.match(page, /<i>H\+ TOTAL<\/i><b>\{modelTotalLabel\(row\)\}<\/b>/i);
-  assert.match(page, /H\+ MODEL SPREAD/i);
+  assert.match(scoresSource, /side===favorite/);
+  assert.match(scoresSource, /completed\?"FINAL":row\.neutralSite\?"NEUTRAL":"UPCOMING"/i);
+  assert.match(page, /H\+ SPREAD/i);
   assert.match(page, /OFFICIAL ATS SET/i);
   assert.match(page, /<GameModelAudit row=\{row\}\/>/i);
   assert.match(gameMarketSummary, /export function modelSpreadRead/i);
@@ -343,15 +375,21 @@ test("ships the dedicated responsive application shell", async () => {
 });
 
 test("separates results-only Rankings from the shared Scores and Season Sim forecast",async()=>{
-  const [page,dataRoute,playerRoute,conferenceFilters,weeklySnapshot,styles]=await Promise.all([
+  const [page,dataRoute,playerRoute,conferenceFilters,weeklySnapshot,styles,scoreStyles,scoresBoard,scoresToolbar,scoresForecast,scoresFilters]=await Promise.all([
     readFile(new URL("../app/page.tsx",import.meta.url),"utf8"),
     readFile(new URL("../app/api/data/route.ts",import.meta.url),"utf8"),
     readFile(new URL("../app/api/player-ratings/route.ts",import.meta.url),"utf8"),
     readFile(new URL("../lib/conferenceFilters.ts",import.meta.url),"utf8"),
     readFile(new URL("../lib/weeklyRankingSnapshot.ts",import.meta.url),"utf8"),
     readFile(new URL("../app/interface.css",import.meta.url),"utf8"),
+    readFile(new URL("../app/score-rushing.css",import.meta.url),"utf8"),
+    readFile(new URL("../app/components/scores/ScoresBoard.tsx",import.meta.url),"utf8"),
+    readFile(new URL("../app/components/scores/ScoresToolbar.tsx",import.meta.url),"utf8"),
+    readFile(new URL("../app/components/scores/ScoresForecastPanel.tsx",import.meta.url),"utf8"),
+    readFile(new URL("../app/components/scores/ScoresFilters.tsx",import.meta.url),"utf8"),
   ]);
-  assert.ok((page.match(/value=\{POWER_4_FILTER\}/g)??[]).length>=6);
+  const scoresSource=`${page}\n${scoresBoard}\n${scoresToolbar}\n${scoresForecast}\n${scoresFilters}`;
+  assert.ok((`${page}\n${scoresFilters}`.match(/value=\{(?:POWER_4_FILTER|props\.powerConferenceValue)\}/g)??[]).length>=6);
   assert.match(conferenceFilters,/\["ACC", "Big 12", "Big Ten", "SEC"\]/);
   assert.match(dataRoute,/view === "simulation" \|\| view === "projected-ranks"/);
   assert.match(dataRoute,/const topRankings=fullSimulation\.rankings\.slice\(0,25\)/);
@@ -368,45 +406,62 @@ test("separates results-only Rankings from the shared Scores and Season Sim fore
   assert.match(page,/useSeasonRankings\(season,snapshotWeek\)/);
   assert.match(page,/const snapshotWeek=enteringWeekSnapshotWeek\(week\);[\s\S]*useSeasonSimulation\(season, snapshotWeek\)/);
   assert.match(page,/Week \$\{week\} results are excluded here/);
-  assert.match(page,/same projected-final order produced by Season Sim/);
-  assert.match(page,/<h1>Score H\+ Top 25<\/h1>/);
+  assert.match(scoresSource,/same projected-final order produced by Season Sim/);
+  assert.match(page,/activeView==="scores"\?"SCORES":"H\+ Forecast Top 25"/);
+  assert.match(page,/function ScoresForecastView/);
+  assert.match(page,/activeView==="forecast"\?<ScoresForecastView/);
   assert.doesNotMatch(page,/<h1>Scores \+ H\+ Top 25<\/h1>/);
   assert.match(page,/H\+ FORECAST TOP 25/);
   assert.match(page,/function WeeklyProjectedRankingsTable/);
-  assert.match(page,/useProjectedFinalRanks\(season,week,resolvedSelectedName\?\?""\)/);
+  assert.match(page,/useProjectedFinalRanks\(season,week,resolvedSelectedName\?\?"",Boolean\(selected\)&&!teamScheduleLoading\)/);
   assert.match(page,/className="team-record-callout"/);
   assert.match(page,/PROJECTED RECORD/);
-  assert.match(page,/FINALS \+ FUTURE PICKS/);
-  assert.match(page,/ranked\?\.projectedRecord/);
+  assert.match(page,/REGULAR SEASON · FINALS \+ PICKS/);
+  assert.match(page,/ranked\?\.regularSeasonRecord/);
   assert.match(styles,/\.team-record-callout strong/);
-  assert.match(page,/rank&&rank<=25/);
-  assert.match(page,/H\+ #\{rank\}/);
+  assert.match(page,/rank&&Number\.isInteger\(rank\)&&rank>0/);
+  assert.match(scoresSource,/className="game-detail-logo-rank"[\s\S]*>\#\{rank\}/);
   assert.match(dataRoute,/Season Sim projected-final ranking/i);
   assert.match(dataRoute,/Results-only Harper BCS v5/i);
   assert.match(dataRoute,/no future projections/i);
   assert.match(dataRoute,/buildSeasonSimulation\(season,rankingWeek,rankingWeek,simulationSchedule,profiles\)/);
   assert.match(weeklySnapshot,/normalizedWeek>0\?normalizedWeek-1/);
   assert.match(weeklySnapshot,/normalizedWeek-1/);
-  assert.ok((page.match(/includeGameTimeRanks:"1"/g)??[]).length>=5);
-  assert.match(page,/game-detail-pregame-rank/);
+  assert.match(page,/compactSchedule:"1", includeActualAdvanced:"1"/);
+  assert.match(page,/game-detail-logo-rank/);
   assert.match(page,/schedule-game-rank/);
   assert.match(styles,/\.mobile-game-team-rank/);
   assert.match(styles,/\.mobile-game-team-rank[\s\S]*font:900 9px/);
-  assert.match(styles,/\.game-detail-pregame-rank/);
+  assert.match(scoreStyles,/\.game-detail-logo-rank/);
   assert.match(styles,/\.scores-rankings-tabs/);
   assert.match(styles,/\.weekly-ranking-snapshot/);
   assert.match(styles,/\.results-only-ranking-entry/);
   assert.match(styles,/\.unified-ranking-row \.ranking-metrics > :first-child \{[\s\S]*width:100%[\s\S]*align-items:center[\s\S]*text-align:center/i);
-  assert.match(page,/className="mobile-game-matchup"/);
-  assert.match(page,/className="mobile-game-market-strip"/);
-  assert.match(page,/MKT SPREAD/);
-  assert.match(page,/H\+ SPREAD/);
-  assert.match(styles,/\.mobile-game-matchup \{[\s\S]*grid-template-columns:minmax\(0,1fr\) 64px minmax\(0,1fr\)/i);
+  assert.match(scoresSource,/className="score-card-teams"/);
+  assert.match(scoresSource,/teamRow\("away"\)\}\{teamRow\("home"\)/);
+  assert.match(scoresSource,/const closeFavorite=favoriteFromHomeSpread\(closingSpread,modelFavorite\)/);
+  assert.match(scoresSource,/const favorite=kind==="close"\?closeFavorite:modelFavorite/);
+  assert.match(scoresSource,/scoreboardDay\(row\.startDate\)===day/);
+  assert.match(scoresSource,/scoreboardTimeWindow\(row\.startDate\)===label/);
+  assert.match(scoresSource,/\["EARLY","AFTERNOON","NIGHT \/ TBD"\]/);
+  assert.match(scoresSource,/title=\{team\}>\{teamCode\(team\)\}/);
+  assert.match(scoresSource,/className="score-card-ledger-head"/);
+  assert.match(scoresSource,/score-card-value score-card-close/);
+  assert.match(scoresSource,/className="scores-compact-toolbar"/);
+  assert.match(page,/const \[week, setWeek\] = useState\(launch\?\.week\?\?1\)/);
+  assert.doesNotMatch(page,/<VintageControl[^>]*allWeeks[^>]*idPrefix="scores"/);
+  assert.doesNotMatch(page,/className="mobile-game-market-strip"/);
+  assert.match(scoreStyles,/Compact five-column college-football matchup ledger/i);
+  assert.match(scoreStyles,/\.score-window-board \{[\s\S]*grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,320px\),400px\)\)/i);
+  assert.match(scoreStyles,/\.score-card-team \{[\s\S]*grid-template-columns:46px minmax\(70px,1fr\) 34px 46px 50px/i);
+  assert.match(scoreStyles,/\.score-card-ledger-head \{[\s\S]*grid-template-columns:46px minmax\(70px,1fr\) 34px 46px 50px/i);
+  assert.match(scoreStyles,/\.score-card-team\.loser \.score-card-score b \{ color:var\(--app-faint\)/i);
+  assert.match(scoreStyles,/\.app-theme-toggle \{ border-color:transparent!important; \}/i);
   assert.match(styles,/html\[data-theme="light"\][\s\S]*\.mobile-game-card\.schedule-field-card \{[\s\S]*var\(--app-panel\)!important/i);
 });
 
 test("ships the matchup and season-path analysis surfaces", async () => {
-  const [source,styles,interfaceStyles,dataRoute,tacticalPlan,playDiagram,simulation,matchupEngine,teamStatsSort,footballIntelligence] = await Promise.all([
+  const [source,styles,interfaceStyles,dataRoute,tacticalPlan,playDiagram,simulation,matchupEngine,teamStatsSort,footballIntelligence,scoresFilters] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/interface.css", import.meta.url), "utf8"),
@@ -417,7 +472,9 @@ test("ships the matchup and season-path analysis surfaces", async () => {
     readFile(new URL("../lib/matchupEngine.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/teamStatsSort.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/footballIntelligence.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/scores/ScoresFilters.tsx", import.meta.url), "utf8"),
   ]);
+  const scoresSource=`${source}\n${scoresFilters}`;
   assert.match(source, /UNIT MATCHUPS/i);
   assert.match(source, /Who controls each position group\?/i);
   assert.match(source, /OL vs DL/i);
@@ -456,7 +513,7 @@ test("ships the matchup and season-path analysis surfaces", async () => {
   assert.match(source, /<h2>Stat profile<\/h2>/i);
   assert.match(source, /OPPONENT OUTPUT ALLOWED/i);
   assert.doesNotMatch(source, /<PlayerMatchupImpact/i);
-  assert.match(source, /WHY \{gameFavoriteName\(row\)\.toUpperCase\(\)\} IS FAVORED/i);
+  assert.match(source, /function GameUntestedUnits/i);
   assert.match(source, /BEST WINS/i);
   assert.match(source, /WORST LOSSES/i);
   assert.match(source, /function UnifiedRankingEntry/i);
@@ -538,13 +595,13 @@ test("ships the matchup and season-path analysis surfaces", async () => {
   assert.match(interfaceStyles, /Season Sim follows the decision flow: CFP bracket, title weekend, final Top 25/i);
   assert.match(source, /Every Season/i);
   assert.match(source, /BEST WINS/i);
-  assert.match(source, /schedule-conference/i);
-  assert.match(source, /schedule-picks/i);
-  assert.match(source, /ATS picks only/i);
-  assert.match(source, /O\/U test picks only/i);
-  assert.match(source, /Week, then date/i);
+  assert.match(scoresSource, /schedule-conference/i);
+  assert.match(scoresSource, /schedule-picks/i);
+  assert.match(scoresSource, /ATS picks only/i);
+  assert.match(scoresSource, /O\/U test picks only/i);
+  assert.match(scoresSource, /Week, then date/i);
   assert.match(source, /includeMarketDecisions/i);
-  assert.match(source, /<MobileScoreboard rows=\{activeRows\}/i);
+  assert.match(source, /<ScoresBoard[\s\S]*rows=\{activeRows\}/i);
   assert.doesNotMatch(source, /schedule-desktop-ledger|PROJECTED AFTER GAME/i);
   assert.match(dataRoute, /buildScheduleRecordTimeline/i);
   assert.match(source, /idPrefix="matchup-home"/i);
@@ -597,8 +654,9 @@ test("ships the bounded archive scheduler without removing its global lease", as
   ]);
   assert.match(page, /60_000/);
   assert.doesNotMatch(page, /fetch\("\/api\/bootstrap", \{ cache:"no-store" \}\)/);
-  assert.match(bootstrap, /ARCHIVE_REPAIR_COOLDOWN_SECONDS/);
   assert.match(bootstrap, /syncArchiveBatch/);
+  assert.doesNotMatch(bootstrap, /captureCurrentRosterSnapshots/);
+  assert.doesNotMatch(bootstrap, /maintainDepthChartArchive/);
   assert.match(worker, /syncArchiveBatch\(env, repairSeason, "scheduled"\)/);
   assert.match(config, /"\*\/2 \* \* \* \*"/);
   assert.match(bootstrap, /getBackfillStatus/);
@@ -613,8 +671,8 @@ test("repairs historical player ratings independently of an unpublished active-s
   assert.match(pipeline, /MAX\(season\) AS lastReadySeason/);
   assert.match(pipeline, /nextSeason <= lastReadySeason/);
   assert.match(pipeline, /lastReadySeason \+ 1/);
-  assert.match(bootstrap, /playerSyncError/);
-  assert.match(bootstrap, /if \(!status\.missing\.length\) \{/);
+  assert.match(bootstrap, /getPlayerArchiveStatus/);
+  assert.doesNotMatch(bootstrap, /refreshPlayerProductionBaselineIfNeeded/);
   assert.match(worker, /refreshPlayerProductionBaselineIfNeeded\(env\.DB\)/);
 });
 
@@ -765,15 +823,17 @@ test("ships the filter-only team and player scatterplot visualizer",async()=>{
     readFile(new URL("../lib/scatterplot.ts",import.meta.url),"utf8"),
   ]);
   assert.match(shell,/id:"visualize",label:"Visualize"/);
-  assert.match(shell,/id:"overview",label:"Home"/);
+  assert.match(shell,/id:"overview",label:"Weekly Review"/);
+  assert.match(shell,/id:"performance",label:"Model Performance"/);
   assert.match(shell,/navigate\("overview"\).*aria-label="Harper Plus home"/);
   assert.match(page,/function DataVisualizerPage/);
   assert.match(page,/useState<TeamScatterFamily>\("basic"\)/);
   assert.match(page,/useState\("ypp"\)/);
   assert.match(page,/useState\("ypa"\)/);
   assert.match(page,/useState<Section>\("overview"\)/);
-  assert.match(page,/function SimpleHomePage/);
-  assert.match(page,/navigation\.filter\(\(item\)=>item\.id!=="overview"\)/);
+  assert.match(page,/function ModelPerformancePage/);
+  assert.match(page,/section === "overview" \? <WeeklyReview/);
+  assert.match(shell,/navigation\.filter\(\(item\) => item\.group === group\)/);
   assert.match(page,/href="https:\/\/formsubmit\.co\/el\/sifele"/);
   assert.match(page,/OPEN CONTACT FORM/);
   assert.doesNotMatch(page,/formsubmit\.co\/(?:ajax\/)?mcfh34@gmail\.com/);
@@ -783,6 +843,16 @@ test("ships the filter-only team and player scatterplot visualizer",async()=>{
   assert.match(page,/PLAYER STATS/);
   assert.match(page,/Choose X axis statistic/);
   assert.match(page,/Choose Y axis statistic/);
+  assert.match(page,/useState<TeamScatterSide>\("offense"\)/);
+  assert.match(page,/useState<TeamScatterSide>\("defense"\)/);
+  assert.match(page,/Choose X axis offense or defense/);
+  assert.match(page,/Choose Y axis offense or defense/);
+  assert.match(page,/<option value="defense">DEFENSE<\/option>/);
+  assert.doesNotMatch(page,/DEFENSE ALLOWED|Defense allowed/);
+  assert.match(page,/teamScatterBasicValue\(row,activeX\.key,xSide,scale\)/);
+  assert.match(page,/teamScatterBasicValue\(row,activeY\.key,ySide,scale\)/);
+  assert.match(page,/label:`\$\{xSide==="offense"\?"OFFENSE":"DEFENSE"\}/);
+  assert.match(page,/label:`\$\{ySide==="offense"\?"OFFENSE":"DEFENSE"\}/);
   assert.match(page,/Filter scatterplot by conference/);
   assert.match(page,/Filter scatterplot by teams/);
   assert.match(page,/ALL YEARS · 14–\$\{String\(activeModelSeason\)\.slice\(-2\)\}/);
@@ -812,6 +882,22 @@ test("ships the filter-only team and player scatterplot visualizer",async()=>{
   assert.match(page,/mode==="team"\?\(plottedTeamLogo\?<img/);
   assert.match(page,/<PlayerStatsJersey team=\{point\.team\}/);
   assert.match(page,/scatter-average-line/);
+  assert.match(page,/xHigherIsBetter\?scatterPosition\(value,xDomain\):1-scatterPosition\(value,xDomain\)/);
+  assert.match(page,/yHigherIsBetter\?1-scatterPosition\(value,yDomain\):scatterPosition\(value,yDomain\)/);
+  assert.match(page,/x1=\{xAt\(xDomain\.min\)\}[\s\S]*x2=\{xAt\(xDomain\.max\)\}/);
+  assert.match(page,/PERFORMANCE ZONES/);
+  assert.match(page,/compactProfiles=1/);
+  assert.match(page,/dynamic\.rows\.length\?dynamic\.rows:modelFallbackRows/);
+  assert.match(page,/scatter-quality-boundary/);
+  assert.match(page,/SCATTER_QUALITY_ZONES/);
+  assert.match(page,/SCATTER_QUALITY_BOUNDARY_COLORS/);
+  assert.match(page,/scatter-zone-headings/);
+  assert.match(page,/import\("html2canvas"\)/);
+  assert.match(page,/PDFDocument\.create\(\)/);
+  assert.match(page,/anchor\.download=filename/);
+  assert.match(styles,/\.scatter-quality-zone/);
+  assert.match(styles,/\.scatter-zone-headings/);
+  assert.match(styles,/\.scatter-export-toolbar/);
   assert.match(page,/scatter-trend-line/);
   assert.match(page,/WEEKLY PROGRESSION/);
   assert.match(page,/PFF 2025 OFFENSE/);
@@ -849,6 +935,8 @@ test("ships the filter-only team and player scatterplot visualizer",async()=>{
   assert.match(styles,/\.scatter-controls/);
   assert.match(styles,/\.scatter-multi-select/);
   assert.match(styles,/\.scatter-multi-menu/);
+  assert.match(page,/SELECT ALL/);
+  assert.match(page,/CLEAR ALL/);
   assert.match(styles,/\.scatter-stage/);
   assert.match(styles,/\.scatter-marker\.team-marker[\s\S]*width:48px[\s\S]*height:48px/);
   assert.match(styles,/\.scatter-marker > img[\s\S]*width:38px[\s\S]*height:38px/);
@@ -858,6 +946,7 @@ test("ships the filter-only team and player scatterplot visualizer",async()=>{
   assert.match(styles,/\.player-weekly-average/);
   assert.match(styles,/\.player-weekly-opponent-logo/);
   assert.match(styles,/\.scatter-controls select[\s\S]*background-color:var\(--app-panel-inset\)/);
+  assert.match(styles,/html\[data-theme="light"\] \.app-page-slot \.scatter-multi-select > summary[\s\S]*color:var\(--app-ink\)!important/);
   assert.match(styles,/@media \(max-width:700px\)[\s\S]*\.scatter-controls/);
   assert.match(styles,/@media \(max-width:700px\)[\s\S]*\.scatter-stage \{[\s\S]*min-width:0/);
   assert.match(styles,/@media \(max-width:700px\)[\s\S]*\.scatter-controls select \{[\s\S]*font-size:16px/);
@@ -986,8 +1075,8 @@ test("ships the 2014-forward player archive, transfer-first ratings and depth-ch
   assert.match(styles, /slot-resolved offensive lines and recruiting-grade pucks/i);
   assert.match(styles, /site-wide containment and readable responsive layouts/i);
   assert.match(styles, /logo-first playboard pucks and a focused Model HQ/i);
-  assert.match(page, /function SimpleHomePage/i);
-  assert.match(page, /College Football Model/i);
+  assert.match(page, /function ModelPerformancePage/i);
+  assert.match(page, /Model Performance/i);
   assert.match(page, /Leave a note/i);
 });
 

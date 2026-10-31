@@ -1,12 +1,21 @@
+import {inspectMarketLine} from "../../../lib/marketLineAudit";
+import {simulationCutoffs} from "../../../lib/simulationCutoffs";
+import {shouldForecastScheduleGame} from "../../../lib/scheduleForecastPolicy";
+import {scoringEvidenceFields} from "../../../lib/matchupEvidenceFields";
+import { buildConferenceComparison, type ConferenceTeam, type ConferenceGame } from "../../../lib/conferenceComparison";
+import { buildConferenceAdjustments, type TeamConferenceAdjustment } from "../../../lib/conferenceAdjustment";
+import { validateRosterSeason } from "../../../lib/dataPipeline";
+import { rosterAtWeek, type RosterProjection } from "../../../lib/rosterModel";
 import {
   buildPregameElo,
   buildPregameMatchupEvidence,
   calculateCachedPerformance,
   currentCollegeFootballSeason,
+  cfbd,
   FIRST_HISTORICAL_SEASON,
-  hydratePostseasonGameStats,
   latestProfile,
   loadPreseasonProfiles,
+  formulaRevision,
   MODEL_VERSION,
   project,
   type NormalizedGame,
@@ -14,21 +23,29 @@ import {
 } from "../../../lib/dataPipeline";
 import { modelCalibration } from "../../modelData";
 import { buildBcsRankings, finalMatchupRating, type BcsRankingRow, type RankingGame, type RankingProfile } from "../../../lib/rankings";
-import { buildSeasonSimulation, compactSeasonSimulationForClient, type SimulationGameOverride, type SimulationScheduleGame } from "../../../lib/simulation";
+import { rankOffenseAndDefense, type UnitRankingProfile } from "../../../lib/unitRankings";
+import { datedPregameScores } from "../../../lib/teamSchedulePerformance";
+import { projectSeasonMatchup, seasonSnapshotRankings, buildSeasonSimulation, compactSeasonSimulationForClient, type SimulationGameOverride, type SimulationScheduleGame } from "../../../lib/simulation";
 import { analyzeMatchupEdges } from "../../../lib/matchupAnalysis";
 import { parseAdvancedProfile, type AdvancedSideProjection } from "../../../lib/advancedMetrics";
 import { evaluateMarketProjection, evaluateTotalDiagnostic, marketModelCalibration } from "../../../lib/marketModel";
 import { isStoredMarketLineQuarantined, marketLineSeasonStatus, wilsonConfidenceInterval } from "../../../lib/marketLineQuality";
 import { currentViabilityCalibration } from "../../../lib/offensiveViability";
+import { projectedGameStatProfile } from "../../../lib/gameStatProjection";
+import { pregameMatchupStats } from "../../../lib/pregameMatchupStats";
+import { matchupTests } from "../../../lib/matchupTests";
 import { buildScheduleRecordTimeline, type ScheduleRecordGame } from "../../../lib/scheduleRecords";
+import { buildLatestSeasonRecords, buildWeeklyPregameRecords, type WeeklyRecordGame } from "../../../lib/weeklyRecords";
+import { weeklyApPoll } from "../../../lib/weeklyApPoll";
 import { findHistoricalComparisons, type FootballProfile } from "../../../lib/footballIntelligence";
 import { buildMatchupContext, type MatchupContextGameRow, type MatchupContextProfile } from "../../../lib/matchupContext";
 import { buildConferenceStandings, type ConferenceStandingGame, type ConferenceStandingTeam } from "../../../lib/conferenceStandings";
 import { conferenceFilterSqlValues } from "../../../lib/conferenceFilters";
 import { conferenceChampionshipGameIds } from "../../../lib/gamePhases";
 import { scoreRankingSnapshotWeek } from "../../../lib/weeklyRankingSnapshot";
+import { usesPreseasonPriors } from "../../../lib/seasonPolicy";
 import { latestTeamProfilesAtOrBeforeWeek } from "../../../lib/profileSnapshots";
-import { projectMatchupEngine } from "../../../lib/matchupEngine";
+import { projectMatchupEngine, projectMatchupAtSite } from "../../../lib/matchupEngine";
 import {
   buildWinConditionAnalysis,
   type WinConditionHistoricalSample,
@@ -181,6 +198,8 @@ function actualGameStatProfile(row:Record<string,unknown>,side:"home"|"away"){
     rushAttempts:nullableNumber(row[`${prefix}ActualRushAttempts`]),
     yardsPerRush:nullableNumber(row[`${prefix}ActualYardsPerRush`]),
     turnovers:nullableNumber(row[`${prefix}ActualTurnovers`]),
+    sacksAllowed:nullableNumber(row[`${prefix}ActualSacksAllowed`]),
+    sackYardsLost:nullableNumber(row[`${prefix}ActualSackYardsLost`]),
   };
 }
 
@@ -202,6 +221,7 @@ function actualGameAdvancedProfile(row:Record<string,unknown>,side:"home"|"away"
   const passAttempts=nullableNumber(row[`${side}ActualPassAttempts`]);
   const passCompletions=nullableNumber(row[`${side}ActualPassCompletions`]);
   const passYards=nullableNumber(row[`${side}ActualPassYards`]);
+  const sackYardsLost=nullableNumber(row[`${side}ActualSackYardsLost`])??0;
   const profile={
     successRate:value("offSuccessRate"),
     explosiveness:value("offExplosiveness"),
@@ -220,7 +240,7 @@ function actualGameAdvancedProfile(row:Record<string,unknown>,side:"home"|"away"
     rushingExplosiveness:value("offRushingExplosiveness"),
     rushingPpa:value("offRushingPpa"),
     completionRate:passAttempts!==null&&passCompletions!==null&&passAttempts>0?passCompletions/passAttempts:null,
-    yardsPerCompletion:passYards!==null&&passCompletions!==null&&passCompletions>0?passYards/passCompletions:null,
+    yardsPerCompletion:passYards!==null&&passCompletions!==null&&passCompletions>0?(passYards+sackYardsLost)/passCompletions:null,
     passingSuccessRate:value("offPassingSuccessRate","ActualPassingSuccessRate"),
     passingExplosiveness:value("offPassingExplosiveness","ActualPassingExplosiveness"),
     passingPpa:value("offPassingPpa"),
@@ -286,24 +306,10 @@ function gameStatBenchmarkProfile(row:Record<string,unknown>|null){
       rushAttempts:nullableNumber(row.benchmarkRushAttempts),
       yardsPerRush:nullableNumber(row.benchmarkYardsPerRush),
       turnovers:nullableNumber(row.benchmarkTurnovers),
+      sacksAllowed:nullableNumber(row.benchmarkSacksAllowed),
+      sackYardsLost:nullableNumber(row.benchmarkSackYardsLost),
     },
     advanced:values("benchmark"),
-  };
-}
-
-function projectedGameStatProfile(stats:{ypp:number;ypa:number;ypc:number;patt:number;ratt:number}){
-  const plays=Math.max(0,stats.patt)+Math.max(0,stats.ratt);
-  return {
-    totalYards:stats.ypp*plays,
-    yardsPerPlay:stats.ypp,
-    passYards:stats.ypa*stats.patt,
-    passAttempts:stats.patt,
-    passCompletions:null,
-    yardsPerPass:stats.ypa,
-    rushYards:stats.ypc*stats.ratt,
-    rushAttempts:stats.ratt,
-    yardsPerRush:stats.ypc,
-    turnovers:null,
   };
 }
 
@@ -365,6 +371,7 @@ async function freshPreseasonRows(db:D1Database, season:number, preloadedProfile
     offYppIndex:profile.oi[0],offYpaIndex:profile.oi[1],offYpcIndex:profile.oi[2],offPattIndex:profile.oi[3],offRattIndex:profile.oi[4],
     defYppIndex:profile.di[0],defYpaIndex:profile.di[1],defYpcIndex:profile.di[2],defPattIndex:profile.di[3],defRattIndex:profile.di[4],
     advancedProfile:profile.advanced ?? null,
+    roster:profile.roster??null,rosterTimeline:profile.rosterTimeline??[],
     preseasonElo:profile.preseasonElo ?? 1500,
     transitionDiagnostic:profile.transitionDiagnostic ?? null,
   }));
@@ -375,7 +382,27 @@ async function freshPreseasonRows(db:D1Database, season:number, preloadedProfile
  * Weekly refreshes only contain teams that played, so sparse in-season rows
  * must be layered over the complete Week 0 preseason field.
  */
+async function conferenceAdjustmentInputs(db:D1Database,season:number):Promise<{teams:ConferenceTeam[];games:ConferenceGame[]}>{
+  const [teams,games]=await Promise.all([
+    db.prepare("SELECT team,conference FROM cfb_teams WHERE season=?").bind(season).all<ConferenceTeam>(),
+    db.prepare(`SELECT g.game_id AS gameId,g.week,g.season_type AS seasonType,g.completed,g.neutral_site AS neutralSite,
+      g.home_team AS homeTeam,g.away_team AS awayTeam,g.home_points AS homePoints,g.away_points AS awayPoints,
+      p.generated_from_week AS generatedFromWeek,p.home_score AS predictedHomeScore,p.away_score AS predictedAwayScore,
+      CAST(json_extract(p.forecast_json,'$.conferenceMargin') AS REAL) AS predictionConferenceMargin
+      FROM cfb_games g LEFT JOIN model_predictions p ON p.game_id=g.game_id
+      WHERE g.season=? AND g.completed=1 AND g.season_type<>'postseason'`).bind(season).all<ConferenceGame>(),
+  ]);
+  return {teams:teams.results,games:games.results};
+}
+
 async function loadPointInTimeProfileRows(db:D1Database,season:number,effectiveWeek:number):Promise<Record<string,unknown>[]> {
+  const [rows,input]=await Promise.all([loadBasePointInTimeProfileRows(db,season,effectiveWeek),effectiveWeek>0?conferenceAdjustmentInputs(db,season):null]);
+  const adjustments=input?buildConferenceAdjustments(input.teams,input.games,effectiveWeek):new Map<string,TeamConferenceAdjustment>();
+  return rows.map(row=>({...row,conferenceAdjustment:adjustments.get(String(row.team))?.points??0,
+    conferenceAdjustmentGames:adjustments.get(String(row.team))?.games??0,conferenceAdjustmentWeek:effectiveWeek}));
+}
+
+async function loadBasePointInTimeProfileRows(db:D1Database,season:number,effectiveWeek:number):Promise<Record<string,unknown>[]> {
   if(effectiveWeek<=0)return freshPreseasonRows(db,season);
 
   const [weeklyResult,teamCountRow]=await Promise.all([
@@ -401,7 +428,13 @@ async function loadPointInTimeProfileRows(db:D1Database,season:number,effectiveW
   ]);
   const weeklyRows=weeklyResult.results;
   const eligibleTeamCount=Number(teamCountRow?.count??0);
-  if(eligibleTeamCount>0&&weeklyRows.length>=eligibleTeamCount)return weeklyRows;
+  // Week 4 onward in 2026 uses current-season evidence alone. The archived
+  // weekly field is complete, so rebuilding 138 preseason roster projections
+  // on every Matchup Lab, Scores, Rankings and Sim request is wasted work.
+  if(season===2026&&effectiveWeek>=3&&weeklyRows.length>=eligibleTeamCount&&eligibleTeamCount>=100){
+    return weeklyRows.map(row=>({...row,advancedProfile:parseAdvancedProfile(row.advancedProfile),roster:null,rosterTimeline:[],preseasonElo:1500}));
+  }
+  // Always attach dated roster evidence, even when the weekly team field is complete.
 
   const preseasonRows=await freshPreseasonRows(db,season);
   const candidates=[...preseasonRows,...weeklyRows].map((row)=>({
@@ -409,10 +442,22 @@ async function loadPointInTimeProfileRows(db:D1Database,season:number,effectiveW
     team:String(row.team??""),
     week:Number(row.week??0),
   }));
-  return latestTeamProfilesAtOrBeforeWeek(candidates,effectiveWeek);
+  const asProfile=(row:Record<string,unknown>):Profile=>({
+    season,week:Number(row.week??0),team:String(row.team),gamesPlayed:Number(row.gamesPlayed??0),
+    off:tuple(row,"off"),def:tuple(row,"def"),oi:tuple(row,"off","Index"),di:tuple(row,"def","Index"),
+    advanced:parseAdvancedProfile(row.advancedProfile),roster:row.roster as RosterProjection|undefined,rosterTimeline:row.rosterTimeline as RosterProjection[]|undefined,
+  });
+  const profileCandidates=candidates.map(asProfile);
+  return latestTeamProfilesAtOrBeforeWeek(candidates,effectiveWeek).map(row=>{
+    const p=latestProfile(profileCandidates,row.team,effectiveWeek);
+    return p?{...row,roster:p.roster??null,advancedProfile:p.advanced,
+      offYppIndex:p.oi[0],offYpaIndex:p.oi[1],offYpcIndex:p.oi[2],
+      defYppIndex:p.di[0],defYpaIndex:p.di[1],defYpcIndex:p.di[2]}:row;
+  });
 }
 
 async function attachPreseasonTransitionElo(db:D1Database,season:number,rows:Record<string,unknown>[]){
+  if(season===2026 && Math.max(0,...rows.map(row=>Number(row.week??0)))>=3)return rows.map(row=>({...row,preseasonElo:1500,roster:undefined,rosterTimeline:[],transitionDiagnostic:null}));
   if(!rows.length)return rows;
   if(rows.every((row)=>row.preseasonElo!==null&&row.preseasonElo!==undefined&&Number.isFinite(Number(row.preseasonElo))))return rows;
   const eligibleTeams=new Set(rows.map((row)=>String(row.team)).filter(Boolean));
@@ -518,7 +563,7 @@ async function preseasonBacktestDataset(db:D1Database,currentSeason:number){
   return{seasons:completedSeasons,currentSeason:teamsBySeason.has(currentSeason)?buildSeason(currentSeason):null};
 }
 
-function schedulePregameRanks(season:number,scheduleRows:Record<string,unknown>[],profileRows:Record<string,unknown>[],seasonGames:Record<string,unknown>[]){
+function schedulePregameRanks(season:number,scheduleRows:Record<string,unknown>[],profileRows:Record<string,unknown>[],seasonGames:Record<string,unknown>[],conferenceInput?:{teams:ConferenceTeam[];games:ConferenceGame[]}){
   const result=new Map<string,{homePregameRank:number|null;awayPregameRank:number|null;rankingWeek:number|null}>();
   if(!profileRows.length)return result;
   const profileWeeks=[...new Set(profileRows.map((row)=>Number(row.week)).filter(Number.isFinite))].sort((left,right)=>left-right);
@@ -541,10 +586,11 @@ function schedulePregameRanks(season:number,scheduleRows:Record<string,unknown>[
     }
     let teamRanks=rankingsByWeek.get(rankingWeek);
     if(!teamRanks){
+      const adjustments=conferenceInput?buildConferenceAdjustments(conferenceInput.teams,conferenceInput.games,rankingWeek):null;
       const profiles=rankingProfiles(latestTeamProfilesAtOrBeforeWeek(
         profileRows.map((profile)=>({...profile,team:String(profile.team),week:Number(profile.week)})),
         rankingWeek,
-      ));
+      ).map(profile=>({...profile,conferenceAdjustment:adjustments?.get(String(profile.team))?.points??0})));
       const projection=buildSeasonSimulation(season,rankingWeek,rankingWeek,simulationSchedule,profiles);
       teamRanks=new Map(projection.rankings.map((entry)=>[entry.team,entry.rank]));
       rankingsByWeek.set(rankingWeek,teamRanks);
@@ -579,15 +625,19 @@ async function winConditionSnapshot(db:D1Database,season:number,requestedWeek:nu
   const finalContext=requestedWeek===16&&effectiveWeek>0;
   const games=(await db.prepare(finalContext
     ?`SELECT game_id AS gameId,week,start_date AS startDate,season_type AS seasonType,neutral_site AS neutralSite,conference_game AS conferenceGame,
-        home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints
+        home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.home_team) AS homePlays,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.away_team) AS awayPlays
       FROM cfb_games WHERE season=? AND completed=1 AND home_points IS NOT NULL AND away_points IS NOT NULL ORDER BY start_date,game_id`
     :`SELECT game_id AS gameId,week,start_date AS startDate,season_type AS seasonType,neutral_site AS neutralSite,conference_game AS conferenceGame,
-        home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints
+        home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.home_team) AS homePlays,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.away_team) AS awayPlays
       FROM cfb_games WHERE season=? AND completed=1 AND season_type<>'postseason' AND week<=? AND home_points IS NOT NULL AND away_points IS NOT NULL ORDER BY week,start_date,game_id`)
     .bind(...(finalContext?[season]:[season,effectiveWeek])).all<RankingGame & {seasonType:string}>()).results;
   const championshipIds=conferenceChampionshipGameIds(games);
   const rankingGames=games.map((game)=>({...game,conferenceChampionship:championshipIds.has(game.gameId)}));
-  const rankings=buildBcsRankings(rankingGames,rankingProfiles(profileRows));
+  const rankings=buildBcsRankings(rankingGames,rankingProfiles(profileRows),{usePreseasonElo:usesPreseasonPriors(season,effectiveWeek+1)});
   const evidence=new Map(rankings.map((row)=>[row.team,row]));
   const rows=profileRows.map((row)=>{
     const ranking=evidence.get(String(row.team));
@@ -600,6 +650,7 @@ async function winConditionSnapshot(db:D1Database,season:number,requestedWeek:nu
       bestOpponentStrength:ranking?.bestOpponentStrength??0.5,
       qualityWinStrength:ranking?.qualityWinStrength??0.5,
       matchupReliability:ranking?.matchupReliability??1,
+      ...scoringEvidenceFields(ranking),
       record:ranking?.record??(effectiveWeek===0?"0-0":"—"),
       resultsRank:ranking?.rank??null,
     };
@@ -610,6 +661,7 @@ async function winConditionSnapshot(db:D1Database,season:number,requestedWeek:nu
 function snapshotEngineTeam(row:Record<string,unknown>){
   return {
     team:String(row.team),
+    roster:row.roster as RosterProjection|undefined,
     offense:[row.offYppIndex,row.offYpaIndex,row.offYpcIndex,row.offPattIndex,row.offRattIndex].map(Number),
     defense:[row.defYppIndex,row.defYpaIndex,row.defYpcIndex,row.defPattIndex,row.defRattIndex].map(Number),
     evidence:{
@@ -618,9 +670,11 @@ function snapshotEngineTeam(row:Record<string,unknown>){
       bestOpponentStrength:Number(row.bestOpponentStrength??0.5),
       qualityWinStrength:Number(row.qualityWinStrength??0.5),
       reliability:Number(row.matchupReliability??1),
+      ...scoringEvidenceFields(row),
     },
     advanced:parseAdvancedProfile(row.advancedProfile),
     outcomeRating:Number(row.outcomeRating??row.eloRating??1500),
+    conferenceAdjustment:Number(row.conferenceAdjustment??0),
   };
 }
 
@@ -699,16 +753,56 @@ export async function GET(request: Request) {
   const includeAnalysis = url.searchParams.get("includeAnalysis") === "1";
   const includeGameProfiles = includeAnalysis || url.searchParams.get("includeGameProfiles") === "1";
   const includeGameTimeRanks = url.searchParams.get("includeGameTimeRanks") === "1";
+  const includeActualAdvanced = Boolean(gameId) || url.searchParams.get("includeActualAdvanced") === "1";
   const includeMarketDecisions = url.searchParams.get("includeMarketDecisions") === "1";
   const compactSchedule = url.searchParams.get("compactSchedule") === "1";
+  const includeGameBenchmarks = url.searchParams.get("includeGameBenchmarks") === "1";
   const accuracyScope = url.searchParams.get("scope") === "all" ? "all" : "qualified";
   const scenarioOverrides=simulationGameOverrides(url);
   const db = runtime.DB;
 
   try {
+    if(view==="market-line-audit"){
+      type AuditRow=import("../../../lib/marketLineQuality").MarketLineCandidate&{gameId:string;season:number;week:number;homeTeam:string;awayTeam:string;updatedAt:string|null};
+      const records=await db.prepare(`SELECT l.game_id AS gameId,l.season,l.week,g.home_team AS homeTeam,g.away_team AS awayTeam,
+        l.provider,l.spread,l.spread_open AS spreadOpen,l.formatted_spread AS formattedSpread,l.over_under AS overUnder,
+        l.over_under_open AS overUnderOpen,l.home_moneyline AS homeMoneyline,l.away_moneyline AS awayMoneyline,l.updated_at AS updatedAt
+        FROM betting_lines l JOIN cfb_games g ON g.game_id=l.game_id WHERE l.season BETWEEN 2014 AND ?`).bind(currentSeason).all<AuditRow>();
+      const bySeason=new Map<number,{season:number;rows:number;flagged:number;missingSpread:number;missingTotal:number;lastImportedAt:string|null}>();
+      const issues:Array<{gameId:string;season:number;homeTeam:string;awayTeam:string;provider:string|null;issues:string[]}>=[];
+      for(const row of records.results){
+        const audit=inspectMarketLine(row);
+        if(isStoredMarketLineQuarantined(row.season,row.provider))audit.issues.push("legacy:unverified-consensus");
+        const summary=bySeason.get(row.season)??{season:row.season,rows:0,flagged:0,missingSpread:0,missingTotal:0,lastImportedAt:null};
+        summary.rows++;if(audit.issues.length){summary.flagged++;if(issues.length<50)issues.push({gameId:row.gameId,season:row.season,homeTeam:row.homeTeam,awayTeam:row.awayTeam,provider:row.provider,issues:audit.issues});}
+        if(audit.line.spread===null)summary.missingSpread++;
+        if(audit.line.overUnder===null)summary.missingTotal++;
+        if(row.updatedAt&&(!summary.lastImportedAt||row.updatedAt>summary.lastImportedAt))summary.lastImportedAt=row.updatedAt;
+        bySeason.set(row.season,summary);
+      }
+      return Response.json({scope:"stored source consistency only; not fresh sportsbook verification",rows:records.results.length,seasons:[...bySeason.values()].sort((a,b)=>b.season-a.season),issues},{headers:{"cache-control":"no-store"}});
+    }
+    if(view==="weekly-ap-poll"){
+      if(!runtime.CFBD_API_KEY)return Response.json({season,week:requestedWeek,rows:[],source:"unavailable"});
+      try{
+        const [polls,teams]=await Promise.all([
+          cfbd("/rankings",runtime.CFBD_API_KEY,{year:season,seasonType:"regular"}),
+          db.prepare("SELECT team,team_id AS teamId FROM cfb_teams WHERE season=?").bind(season).all<{team:string;teamId:number|null}>(),
+        ]);
+        const teamNames=new Map(teams.results.filter(row=>row.teamId!==null).map(row=>[Number(row.teamId),row.team]));
+        const rows=weeklyApPoll(polls,season,requestedWeek,teamNames);
+        const response=Response.json({season,week:requestedWeek,rows,source:rows.length?"AP Top 25":"unavailable"});
+        response.headers.set("cache-control",season<currentSeason?"public, max-age=86400":"public, max-age=600");
+        return response;
+      }catch{return Response.json({season,week:requestedWeek,rows:[],source:"unavailable"},{headers:{"cache-control":"public, max-age=60"}});}
+    }
+    if(view==="roster-validation") {
+      if(season<2025||season>=currentSeason)return Response.json({error:"Use a completed holdout season from 2025 onward; earlier seasons informed the scoring model."},{status:400});
+      return Response.json(await validateRosterSeason(db,season),{headers:{"cache-control":"public, max-age=3600"}});
+    }
     if (view === "status") {
       const snapshots = await db.prepare("SELECT season,week,team_count AS teamCount,game_count AS gameCount,completed_game_count AS completedGameCount,source,model_version AS modelVersion,created_at AS createdAt FROM model_snapshots ORDER BY season DESC,week DESC").all();
-      const latestRun = await db.prepare("SELECT season,week,source,status,game_count AS gameCount,detail,created_at AS createdAt FROM refresh_runs ORDER BY id DESC LIMIT 1").first();
+      const latestRun = await db.prepare("SELECT season,week,source,status,game_count AS gameCount,created_at AS createdAt FROM refresh_runs ORDER BY id DESC LIMIT 1").first();
       return Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), snapshots: snapshots.results, latestRun });
     }
 
@@ -729,7 +823,8 @@ export async function GET(request: Request) {
         const gameRow=await db.prepare(`SELECT g.game_id AS gameId,g.season,g.week,g.season_type AS seasonType,g.start_date AS startDate,g.completed,g.neutral_site AS neutralSite,
             g.home_team AS homeTeam,g.home_conference AS homeConference,g.home_points AS homePoints,g.away_team AS awayTeam,g.away_conference AS awayConference,g.away_points AS awayPoints,
             ht.logo AS homeLogo,at.logo AS awayLogo,p.generated_from_week AS generatedFromWeek,p.home_score AS predictedHomeScore,p.away_score AS predictedAwayScore,
-            p.home_win_probability AS storedHomeWinProbability,p.model_home_spread AS storedModelHomeSpread,p.model_total AS storedModelTotal,p.model_version AS storedModelVersion
+            p.home_win_probability AS storedHomeWinProbability,p.model_home_spread AS storedModelHomeSpread,p.model_total AS storedModelTotal,p.model_version AS storedModelVersion,
+            json_extract(p.forecast_json,'$.formulaRevision') AS storedFormulaRevision
           FROM cfb_games g LEFT JOIN model_predictions p ON p.game_id=g.game_id
           LEFT JOIN cfb_teams ht ON ht.season=g.season AND ht.team=g.home_team LEFT JOIN cfb_teams at ON at.season=g.season AND at.team=g.away_team
           WHERE g.season=? AND g.game_id=? LIMIT 1`).bind(season,gameId).first<Record<string,unknown>>();
@@ -744,7 +839,9 @@ export async function GET(request: Request) {
             FROM weekly_profiles wp LEFT JOIN weekly_advanced_profiles ap ON ap.season=wp.season AND ap.week=wp.week AND ap.team=wp.team
             WHERE wp.season=? ORDER BY wp.week,wp.team`).bind(season).all<Record<string,unknown>>(),
           db.prepare(`SELECT game_id AS gameId,season,week,season_type AS seasonType,start_date AS startDate,completed,neutral_site AS neutralSite,conference_game AS conferenceGame,venue,
-              home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints
+              home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.home_team) AS homePlays,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.away_team) AS awayPlays
             FROM cfb_games WHERE season=? ORDER BY CASE WHEN start_date IS NULL THEN 1 ELSE 0 END,start_date,season_type,week,game_id`).bind(season).all<Record<string,unknown>>(),
           db.prepare("SELECT team FROM cfb_teams WHERE season=?").bind(season).all<{team:string}>(),
         ]);
@@ -768,15 +865,23 @@ export async function GET(request: Request) {
         const pregameEvidence=buildPregameMatchupEvidence(games,eloSnapshots,eligibleTeams).get(game.id);
         const maxProfileWeek=Math.max(0,...profiles.map((profile)=>profile.week));
         const generatedFromWeek=nullableNumber(gameRow.generatedFromWeek)??(game.seasonType==="postseason"?maxProfileWeek:Math.max(0,game.week-1));
+        const adjustmentInput=await conferenceAdjustmentInputs(db,season);
+        const adjustments=buildConferenceAdjustments(adjustmentInput.teams,adjustmentInput.games,generatedFromWeek);
+        const datedProfile=(team:string)=>{const profile=latestProfile(profiles,team,generatedFromWeek);return profile?{...profile,conferenceAdjustment:adjustments.get(team)?.points??0}:null;};
         const calibrated=project(
-          latestProfile(profiles,game.homeTeam,generatedFromWeek),latestProfile(profiles,game.awayTeam,generatedFromWeek),game.neutralSite,
+          datedProfile(game.homeTeam),datedProfile(game.awayTeam),game.neutralSite,
           pregameElo?.get(game.homeTeam)??(eligibleTeams.has(game.homeTeam)?1500:modelCalibration.fcsElo),
           pregameElo?.get(game.awayTeam)??(eligibleTeams.has(game.awayTeam)?1500:modelCalibration.fcsElo),
           pregameEvidence?.get(game.homeTeam),pregameEvidence?.get(game.awayTeam),
-          {homeIsFcs:!eligibleTeams.has(game.homeTeam),awayIsFcs:!eligibleTeams.has(game.awayTeam)},
+          {
+            homeIsFcs:!eligibleTeams.has(game.homeTeam),
+            awayIsFcs:!eligibleTeams.has(game.awayTeam),
+            homeIsPower4:["ACC","Big 12","Big Ten","SEC"].includes(game.homeConference??""),
+            awayIsPower4:["ACC","Big 12","Big Ten","SEC"].includes(game.awayConference??""),
+          },
         );
         let projection=winConditionProjectionWithEdges(calibrated,game.homeTeam,game.awayTeam,game.neutralSite);
-        const storedCurrent=String(gameRow.storedModelVersion??"")===MODEL_VERSION;
+        const storedCurrent=String(gameRow.storedModelVersion??"")===MODEL_VERSION&&String(gameRow.storedFormulaRevision??"")===formulaRevision(season);
         const storedHomeScore=nullableNumber(gameRow.predictedHomeScore),storedAwayScore=nullableNumber(gameRow.predictedAwayScore);
         const storedSpread=nullableNumber(gameRow.storedModelHomeSpread),storedTotal=nullableNumber(gameRow.storedModelTotal),storedWin=nullableNumber(gameRow.storedHomeWinProbability);
         if(storedCurrent&&storedHomeScore!==null&&storedAwayScore!==null){
@@ -803,7 +908,7 @@ export async function GET(request: Request) {
       const [homeSnapshot,awaySnapshot]=await Promise.all([homeSnapshotPromise,awaySnapshotPromise]);
       const homeRow=homeSnapshot.byTeam.get(homeTeam),awayRow=awaySnapshot.byTeam.get(awayTeam);
       if(!homeRow||!awayRow)return Response.json({source:"database",analysis:null,message:"A selected team does not have a model profile at that snapshot."},{status:404});
-      const projection=projectMatchupEngine(snapshotEngineTeam(homeRow),snapshotEngineTeam(awayRow),neutralSite);
+      const projection=projectMatchupAtSite(snapshotEngineTeam(homeRow),snapshotEngineTeam(awayRow),neutralSite?"neutral":url.searchParams.get("awayHome")==="1"?"away":"home");
       const [homeSamples,awaySamples]=await Promise.all([
         winConditionHistoricalSamples(db,homeTeam,season,homeSnapshot.effectiveWeek),
         winConditionHistoricalSamples(db,awayTeam,awaySeason,awaySnapshot.effectiveWeek),
@@ -860,7 +965,7 @@ export async function GET(request: Request) {
         predictedHomeScore:nullableNumber(row.predictedHomeScore),predictedAwayScore:nullableNumber(row.predictedAwayScore),
       }));
       const logos=Object.fromEntries(teamRows.results.flatMap((row)=>row.logo?[[row.team,row.logo]]:[]));
-      const payload=buildMatchupContext({season,requestedWeek,effectiveWeek,homeTeam,awayTeam,profiles,games,logos});
+      const payload=buildMatchupContext({season,requestedWeek,effectiveWeek,homeTeam,awayTeam,profiles,games,logos,fbsTeams:teamRows.results.map(row=>row.team)});
       const response=Response.json({source:"database",configured:Boolean(runtime.CFBD_API_KEY),...payload});
       response.headers.set("cache-control","public, max-age=180, stale-while-revalidate=900");
       return response;
@@ -900,7 +1005,7 @@ export async function GET(request: Request) {
     }
 
     if (view === "all-time-profiles") {
-      const [result,gameResult] = await Promise.all([
+      const [result,gameResult,conferenceTeams] = await Promise.all([
         db.prepare(`WITH latest AS (
           SELECT season,MAX(week) AS week
           FROM weekly_profiles
@@ -925,17 +1030,23 @@ export async function GET(request: Request) {
         LEFT JOIN preseason_inputs pi ON pi.season=wp.season AND pi.team=wp.team
         WHERE wp.games_played>=4
         ORDER BY wp.season,wp.team`).bind(FIRST_HISTORICAL_SEASON).all<Record<string, unknown>>(),
-        db.prepare(`SELECT season,season_type AS seasonType,game_id AS gameId,week,start_date AS startDate,neutral_site AS neutralSite,
-          home_team AS homeTeam,home_points AS homePoints,away_team AS awayTeam,away_points AS awayPoints
-          FROM cfb_games WHERE season>=? AND completed=1 AND home_points IS NOT NULL AND away_points IS NOT NULL
-          ORDER BY season,start_date,game_id`).bind(FIRST_HISTORICAL_SEASON).all<RankingGame & { season:number;seasonType:string }>(),
+        db.prepare(`SELECT g.season,g.season_type AS seasonType,g.game_id AS gameId,g.week,g.start_date AS startDate,g.neutral_site AS neutralSite,g.completed,
+          g.home_team AS homeTeam,g.home_points AS homePoints,g.away_team AS awayTeam,g.away_points AS awayPoints,
+          p.generated_from_week AS generatedFromWeek,p.home_score AS predictedHomeScore,p.away_score AS predictedAwayScore,
+          CAST(json_extract(p.forecast_json,'$.conferenceMargin') AS REAL) AS predictionConferenceMargin
+          FROM cfb_games g LEFT JOIN model_predictions p ON p.game_id=g.game_id
+          WHERE g.season>=? AND g.completed=1 AND g.home_points IS NOT NULL AND g.away_points IS NOT NULL
+          ORDER BY g.season,g.start_date,g.game_id`).bind(FIRST_HISTORICAL_SEASON).all<RankingGame & ConferenceGame & { season:number;seasonType:string }>(),
+        db.prepare("SELECT season,team,conference FROM cfb_teams WHERE season>=?").bind(FIRST_HISTORICAL_SEASON).all<ConferenceTeam & {season:number}>(),
       ]);
-      const seasons = [...new Set(result.results.map((row) => Number(row.season)))];
+      const seasons = [...new Set<number>(result.results.map((row:Record<string,unknown>) => Number(row.season)))];
       const resume = new Map<string,BcsRankingRow>();
       const champions = new Map<number,string>();
+      const adjustmentBySeason=new Map<number,ReturnType<typeof buildConferenceAdjustments>>();
       for (const archivedSeason of seasons) {
         const profiles = result.results.filter((row)=>Number(row.season)===archivedSeason);
         const games = gameResult.results.filter((game)=>Number(game.season)===archivedSeason);
+        adjustmentBySeason.set(archivedSeason,buildConferenceAdjustments(conferenceTeams.results.filter((t:ConferenceTeam & {season:number})=>Number(t.season)===archivedSeason),games,Math.max(0,...profiles.map((row:Record<string,unknown>)=>Number(row.week)))));
         for (const row of buildBcsRankings(games,rankingProfiles(profiles))) resume.set(`${archivedSeason}\u0000${row.team}`,row);
         const titleGame = games.filter((game)=>game.seasonType==="postseason")
           .sort((a,b)=>String(b.startDate??"").localeCompare(String(a.startDate??""))||String(b.gameId).localeCompare(String(a.gameId)))[0];
@@ -951,6 +1062,7 @@ export async function GET(request: Request) {
         const resumeScore = ranking ? Math.max(0,Math.min(1,0.55*ranking.bcsScore+0.3*winPct+0.15*(nationalChampion?1:0))) : 0.5;
         return {
           ...row,
+          conferenceAdjustment:adjustmentBySeason.get(archivedSeason)?.get(String(row.team))?.points??0,
           advancedProfile:parseAdvancedProfile(row.advancedProfile),
           eloRating:ranking?.eloRating??1500,
           crossEraRating:ranking?finalMatchupRating(ranking,archivedGames,String(row.team)):1500,
@@ -958,6 +1070,7 @@ export async function GET(request: Request) {
           bestOpponentStrength:ranking?.bestOpponentStrength??0.5,
           qualityWinStrength:ranking?.qualityWinStrength??0.35,
           matchupReliability:ranking?.matchupReliability??0.72,
+          ...scoringEvidenceFields(ranking),
           resumeScore,
           nationalChampion,
           seasonRecord:ranking?.record??"—",
@@ -965,6 +1078,34 @@ export async function GET(request: Request) {
       });
       const response = Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), seasons, rows: enriched, viabilityCalibration:currentViabilityCalibration() });
       response.headers.set("cache-control", "public, max-age=300, stale-while-revalidate=1800");
+      return response;
+    }
+
+    if (view === "team-season-history") {
+      if (!team) return Response.json({rows:[]});
+      const [profiles,records] = await Promise.all([
+        db.prepare(`WITH snapshots AS (
+          SELECT wp.*,ROW_NUMBER() OVER(PARTITION BY season,team ORDER BY week DESC) AS snapshotOrder
+          FROM weekly_profiles wp WHERE season>=? AND season<=? AND week>0 AND week<=CASE WHEN season=? THEN ? ELSE 99 END
+        ), ranked AS (
+          SELECT season,week,team,games_played AS gamesPlayed,off_ypp_index AS offYppIndex,def_ypp_index AS defYppIndex,
+            off_ypa AS offYpa,off_ypc AS offYpc,def_ypa AS defYpa,def_ypc AS defYpc,
+            RANK() OVER(PARTITION BY season ORDER BY off_ypp_index DESC) AS offRank,
+            RANK() OVER(PARTITION BY season ORDER BY def_ypp_index ASC) AS defRank
+          FROM snapshots WHERE snapshotOrder=1
+        ) SELECT * FROM ranked WHERE team=? ORDER BY season DESC`)
+          .bind(FIRST_HISTORICAL_SEASON,season,season,requestedWeek,team).all<Record<string,unknown>>(),
+        db.prepare(`SELECT season,
+          SUM(CASE WHEN (home_team=? AND home_points>away_points) OR (away_team=? AND away_points>home_points) THEN 1 ELSE 0 END) AS wins,
+          SUM(CASE WHEN (home_team=? AND home_points<away_points) OR (away_team=? AND away_points<home_points) THEN 1 ELSE 0 END) AS losses,
+          SUM(CASE WHEN home_points=away_points THEN 1 ELSE 0 END) AS ties
+          FROM cfb_games WHERE (home_team=? OR away_team=?) AND completed=1 AND home_points IS NOT NULL AND away_points IS NOT NULL
+          AND season>=? AND season<=? AND week<=CASE WHEN season=? THEN ? ELSE 99 END GROUP BY season`)
+          .bind(team,team,team,team,team,team,FIRST_HISTORICAL_SEASON,season,season,requestedWeek).all<{season:number;wins:number;losses:number;ties:number}>(),
+      ]);
+      const bySeason=new Map(records.results.map(r=>[r.season,`${r.wins}–${r.losses}${r.ties?`–${r.ties}`:""}`]));
+      const response=Response.json({source:"database",season,team,rows:profiles.results.map(r=>({...r,seasonRecord:bySeason.get(Number(r.season))??"—"}))});
+      response.headers.set("cache-control","public, max-age=180, stale-while-revalidate=900");
       return response;
     }
 
@@ -1000,11 +1141,14 @@ export async function GET(request: Request) {
         profilePromise,
         db.prepare(`SELECT game_id AS gameId,week,start_date AS startDate,season_type AS seasonType,neutral_site AS neutralSite,
           conference_game AS conferenceGame,home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,
-          away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints
+          away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.home_team) AS homePlays,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.away_team) AS awayPlays
           FROM cfb_games WHERE season=? AND completed=1 AND season_type<>'postseason' AND week<=?
           AND home_points IS NOT NULL AND away_points IS NOT NULL ORDER BY week,start_date,game_id`).bind(season, requestedWeek).all<RankingGame>(),
       ]);
-      const rows = gameResult.results.length ? buildBcsRankings(gameResult.results as RankingGame[], rankingProfiles(profileRows)) : [];
+      const unitRanks=rankOffenseAndDefense(profileRows as UnitRankingProfile[]);
+      const rows = gameResult.results.length ? buildBcsRankings(gameResult.results as RankingGame[], rankingProfiles(profileRows)).map(row=>({...row,...unitRanks.get(row.team)})) : [];
       const response=Response.json({
         source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,requestedWeek,effectiveWeek,
         methodology:"Results-only Harper BCS v5 · completed games through the prior-week snapshot · closed-schedule SOS · verified-win evidence · opponent-relative game control · bad-result penalties · direct head-to-head · no future projections",
@@ -1014,6 +1158,23 @@ export async function GET(request: Request) {
       });
       response.headers.set("cache-control","public, max-age=300, stale-while-revalidate=900");
       return response;
+    }
+
+    if(view==="conference-comparison"){
+      const [teamResult,gameResult]=await Promise.all([
+        db.prepare("SELECT team,conference,logo FROM cfb_teams WHERE season=? ORDER BY team").bind(season).all<ConferenceTeam>(),
+        db.prepare(`SELECT g.game_id AS gameId,g.week,g.season_type AS seasonType,g.start_date AS startDate,g.completed,g.neutral_site AS neutralSite,
+          g.home_team AS homeTeam,g.away_team AS awayTeam,g.home_points AS homePoints,g.away_points AS awayPoints,
+          p.generated_from_week AS generatedFromWeek,p.home_score AS predictedHomeScore,p.away_score AS predictedAwayScore,
+          CAST(json_extract(p.forecast_json,'$.conferenceMargin') AS REAL) AS predictionConferenceMargin
+          FROM cfb_games g LEFT JOIN model_predictions p ON p.game_id=g.game_id
+          WHERE g.season=? AND g.completed=1 AND g.home_points IS NOT NULL AND g.away_points IS NOT NULL
+          ORDER BY g.week,g.start_date,g.game_id`).bind(season).all<ConferenceGame>(),
+      ]);
+      const report=buildConferenceComparison(teamResult.results,gameResult.results,requestedWeek,url.searchParams.get("postseason")==="1");
+      const adjustments=buildConferenceAdjustments(teamResult.results,gameResult.results,requestedWeek);
+      for(const row of report.rows){const team=teamResult.results.find((t:ConferenceTeam)=>t.conference===row.conference);row.teamAdjustment=/independent/i.test(row.conference)?null:team?adjustments.get(team.team)?.points??0:0;}
+      return Response.json({source:"database",season,requestedWeek,...report},{headers:{"cache-control":"public, max-age=120"}});
     }
 
     if (view === "standings") {
@@ -1036,7 +1197,9 @@ export async function GET(request: Request) {
           FROM cfb_teams WHERE season=? AND conference=? ORDER BY team`).bind(season,conference).all<Record<string,unknown>>(),
         db.prepare(`SELECT game_id AS gameId,week,start_date AS startDate,season_type AS seasonType,neutral_site AS neutralSite,conference_game AS conferenceGame,
           home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,
-          away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints
+          away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.home_team) AS homePlays,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.away_team) AS awayPlays
           FROM cfb_games WHERE season=? AND completed=1 AND season_type<>'postseason' AND week<=?
           AND home_points IS NOT NULL AND away_points IS NOT NULL ORDER BY week,start_date,game_id`).bind(season,requestedWeek).all<RankingGame>(),
       ]);
@@ -1073,8 +1236,8 @@ export async function GET(request: Request) {
         });
       }
       const effective = await db.prepare("SELECT MAX(week) AS week FROM weekly_profiles WHERE season=? AND week<=?").bind(season, requestedWeek).first<{ week: number | null }>();
-      const effectiveWeek = effective?.week ?? requestedWeek;
-      const profilePromise = loadPointInTimeProfileRows(db,season,effectiveWeek);
+      const {resultsWeek:effectiveWeek,profileWeek}=simulationCutoffs(requestedWeek,effective?.week??null);
+      const profilePromise = loadPointInTimeProfileRows(db,season,profileWeek);
       const [profileRows, scheduleResult] = await Promise.all([
         profilePromise,
         db.prepare(`SELECT g.game_id AS gameId,g.week,g.start_date AS startDate,g.season_type AS seasonType,g.completed,g.neutral_site AS neutralSite,
@@ -1085,12 +1248,13 @@ export async function GET(request: Request) {
           WHERE g.season=? ORDER BY g.week,g.start_date,g.game_id`).bind(season).all<SimulationScheduleGame>(),
       ]);
       const schedule=scheduleResult.results as SimulationScheduleGame[];
+      const pendingResults=schedule.filter(game=>game.week<=effectiveWeek&&!Boolean(game.completed)&&game.startDate&&Date.parse(game.startDate)<Date.now()-8*3600_000).length;
       const profiles=rankingProfiles(await attachPreseasonTransitionElo(db,season,profileRows));
       if(view==="simulation-scenario"){
         if(!team)return Response.json({source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,requestedWeek,effectiveWeek,message:"Select one team for the scenario."},{status:400});
         const baseline=buildSeasonSimulation(season,requestedWeek,effectiveWeek,schedule,profiles);
         const baselineTeam=baseline.rankings.find((row)=>row.team===team);
-        if(!baselineTeam)return Response.json({source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,requestedWeek,effectiveWeek,team,message:`No simulation profile is available for ${team}.`},{status:404});
+        if(!baselineTeam)return Response.json({source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,requestedWeek,effectiveWeek,profileWeek,team,message:`No simulation profile is available for ${team}.`},{status:404});
         const regularGames=baselineTeam.schedule.filter((game)=>game.seasonType==="regular");
         const regularById=new Map(regularGames.map((game)=>[game.gameId,game]));
         const regularOverrides=scenarioOverrides.filter((override)=>{
@@ -1115,7 +1279,7 @@ export async function GET(request: Request) {
         const scenarioGames=new Map((scenarioTeam?.schedule??[]).map((game)=>[game.gameId,game]));
         const selectableGames=[...regularGames,...conferenceGames];
         const response=Response.json({
-          source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,requestedWeek,effectiveWeek,team,
+          source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,requestedWeek,effectiveWeek,profileWeek,team,
           methodology:"An isolated Season Sim branch can replace completed or projected regular-season results and the selected team's simulated conference championship. It then rebuilds records, conference standings, projected final ranks, and every bracket round. The playoff field is the top-ranked teams in that branch and each seed equals its final Season Sim rank; real-life bracket placement and automatic qualifiers are not used. Scores, Rankings and the normal Season Sim remain unchanged.",
           appliedOverrides,
           games:selectableGames,
@@ -1130,23 +1294,23 @@ export async function GET(request: Request) {
       if(view === "projected-ranks"){
         const topRankings=fullSimulation.rankings.slice(0,25);
         const requestedTeamRanking=team?fullSimulation.rankings.find((row)=>row.team===team):undefined;
-        const responseRankings=requestedTeamRanking&&!topRankings.some((row)=>row.team===requestedTeamRanking.team)
+        const responseRankings=accuracyScope==="all"?fullSimulation.rankings:requestedTeamRanking&&!topRankings.some((row)=>row.team===requestedTeamRanking.team)
           ?[...topRankings,requestedTeamRanking]
           :topRankings;
         const response=Response.json({
-          source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,requestedWeek,effectiveWeek,
+          source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,requestedWeek,effectiveWeek,profileWeek,
           methodology:"Season Sim projected-final ranking: completed results and team strength through this frozen snapshot, then the Matchup Lab path, expected wins, schedule-transfer proof and one conference title game for the rest of the season. A stored title result replaces the generated title; it is never counted twice. This is the same ranking used on Scores for the matching entering week.",
           rankings:responseRankings.map(({schedule:unusedSchedule,...row})=>{
             void unusedSchedule;
             return row;
           }),
         });
-        response.headers.set("cache-control","public, max-age=300, stale-while-revalidate=900");
+        response.headers.set("cache-control",season===2026?"public, max-age=30":"public, max-age=300, stale-while-revalidate=900");
         return response;
       }
       const simulation = compactSeasonSimulationForClient(fullSimulation);
-      const response = Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), ...simulation });
-      response.headers.set("cache-control", "public, max-age=300, stale-while-revalidate=900");
+      const response = Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), ...simulation,profileWeek,pendingResults });
+      response.headers.set("cache-control", season===2026?"public, max-age=30":"public, max-age=300, stale-while-revalidate=900");
       return response;
     }
 
@@ -1192,8 +1356,9 @@ export async function GET(request: Request) {
     if (view === "performance") {
       const readMetrics = (version: string) => db.prepare(`SELECT
           COUNT(*) AS gameCount,
-          SUM(CASE WHEN g.home_points IS NOT NULL AND g.away_points IS NOT NULL AND g.home_points<>g.away_points THEN 1 ELSE 0 END) AS straightUpGraded,
-          SUM(CASE WHEN g.home_points IS NOT NULL AND g.away_points IS NOT NULL AND g.home_points<>g.away_points AND ((p.home_win_probability>=0.5 AND g.home_points>g.away_points) OR (p.home_win_probability<0.5 AND g.home_points<g.away_points)) THEN 1 ELSE 0 END) AS straightUpWins,
+          SUM(CASE WHEN (p.week>=5 OR g.season_type='postseason') THEN 1 ELSE 0 END) AS evaluatedGameCount,
+          SUM(CASE WHEN (p.week>=5 OR g.season_type='postseason') AND g.home_points IS NOT NULL AND g.away_points IS NOT NULL AND g.home_points<>g.away_points THEN 1 ELSE 0 END) AS straightUpGraded,
+          SUM(CASE WHEN (p.week>=5 OR g.season_type='postseason') AND g.home_points IS NOT NULL AND g.away_points IS NOT NULL AND g.home_points<>g.away_points AND ((p.home_win_probability>=0.5 AND g.home_points>g.away_points) OR (p.home_win_probability<0.5 AND g.home_points<g.away_points)) THEN 1 ELSE 0 END) AS straightUpWins,
           SUM(CASE WHEN (p.week>=5 OR g.season_type='postseason') AND ${trustedMarketLineSql} AND p.spread_result='W' THEN 1 ELSE 0 END) AS spreadWins,
           SUM(CASE WHEN (p.week>=5 OR g.season_type='postseason') AND ${trustedMarketLineSql} AND p.spread_result='L' THEN 1 ELSE 0 END) AS spreadLosses,
           SUM(CASE WHEN (p.week>=5 OR g.season_type='postseason') AND ${trustedMarketLineSql} AND p.spread_result='PUSH' THEN 1 ELSE 0 END) AS spreadPushes,
@@ -1241,7 +1406,7 @@ export async function GET(request: Request) {
         snapshotStatus: "live",
         lineQualityStatus: marketLineSeasonStatus(season),
         minMarketWeek: 5,
-        gameCount: count("gameCount"),
+        gameCount: count("evaluatedGameCount"),
         profileCount: Number(profileCount?.count ?? 0),
         straightUp: { wins: straightUpWins, graded: straightUpGraded, accuracy: straightUpGraded ? straightUpWins / straightUpGraded : null },
         spread: accuracyMetric(metrics ?? {}, "spread"),
@@ -1250,9 +1415,15 @@ export async function GET(request: Request) {
     }
 
     if (view === "calibration") {
-      const completedWeekFiveSql = `(p.week>=5 OR g.season_type='postseason')
-        AND g.completed=1 AND g.home_points IS NOT NULL AND g.away_points IS NOT NULL`;
-      const spreadEligibleSql = `${completedWeekFiveSql} AND ${trustedMarketLineSql} AND p.vegas_spread IS NOT NULL`;
+      const completedGameSql = `g.completed=1 AND g.home_points IS NOT NULL AND g.away_points IS NOT NULL`;
+      const completedWeekFiveSql = `(p.week>=5 OR g.season_type='postseason') AND ${completedGameSql}`;
+      const winnerSampleSql = accuracyScope === "all" ? completedWeekFiveSql : `${completedWeekFiveSql} AND p.spread_result IN ('W','L','PUSH')`;
+      const winnerEligibleSql = `${winnerSampleSql} AND p.home_win_probability IS NOT NULL AND g.home_points<>g.away_points`;
+      const winnerCorrectSql = `((p.home_win_probability>=0.5 AND g.home_points>g.away_points) OR (p.home_win_probability<0.5 AND g.home_points<g.away_points))`;
+      const selectedMoneylineSql = `(CASE WHEN p.home_win_probability>=0.5 THEN l.home_moneyline ELSE l.away_moneyline END)`;
+      const moneylinePricedSql = `${winnerEligibleSql} AND ${trustedMarketLineSql} AND (${selectedMoneylineSql}<=-100 OR ${selectedMoneylineSql}>=100)`;
+      const marketWindowSql = completedWeekFiveSql;
+      const spreadEligibleSql = `${marketWindowSql} AND ${trustedMarketLineSql} AND p.vegas_spread IS NOT NULL`;
       const spreadAllWinSql = `${spreadEligibleSql} AND p.spread_edge IS NOT NULL AND ABS(p.spread_edge)>=0.001
         AND ((p.spread_edge>0 AND g.home_points-g.away_points+p.vegas_spread>0)
           OR (p.spread_edge<0 AND g.home_points-g.away_points+p.vegas_spread<0))`;
@@ -1262,7 +1433,7 @@ export async function GET(request: Request) {
       const spreadAllPushSql = `${spreadEligibleSql} AND p.spread_edge IS NOT NULL AND ABS(p.spread_edge)>=0.001
         AND g.home_points-g.away_points+p.vegas_spread=0`;
       const spreadAllPassSql = `${spreadEligibleSql} AND (p.spread_edge IS NULL OR ABS(p.spread_edge)<0.001)`;
-      const totalEligibleSql = `${completedWeekFiveSql} AND ${trustedMarketLineSql} AND p.vegas_total IS NOT NULL`;
+      const totalEligibleSql = `${marketWindowSql} AND ${trustedMarketLineSql} AND p.vegas_total IS NOT NULL`;
       const totalAllWinSql = `${totalEligibleSql} AND p.total_edge IS NOT NULL AND ABS(p.total_edge)>=0.001
         AND ((p.total_edge>0 AND g.home_points+g.away_points-p.vegas_total>0)
           OR (p.total_edge<0 AND g.home_points+g.away_points-p.vegas_total<0))`;
@@ -1280,8 +1451,10 @@ export async function GET(request: Request) {
       const totalLossSql = accuracyScope === "all" ? totalAllLossSql : totalDiagnosticLossSql;
       const totalPushSql = accuracyScope === "all" ? totalAllPushSql : totalDiagnosticPushSql;
       const totalPassSql = accuracyScope === "all" ? totalAllPassSql : totalDiagnosticPassSql;
-      const accuracyConditions=["p.model_version=?"];
-      const accuracyBinds:Array<string|number>=[MODEL_VERSION];
+      // Predictions are retained by game, with their generating formula version.
+      // A new formula must not hide earlier seasons that have not been rebuilt.
+      const accuracyConditions=["p.season>=?","(p.week>=5 OR g.season_type='postseason')"];
+      const accuracyBinds:Array<string|number>=[FIRST_HISTORICAL_SEASON];
       if(team){accuracyConditions.push("(g.home_team=? OR g.away_team=?)");accuracyBinds.push(team,team);}
       else if(conference){
         const conferenceValues=conferenceFilterSqlValues(conference);
@@ -1290,9 +1463,14 @@ export async function GET(request: Request) {
         accuracyBinds.push(...conferenceValues,...conferenceValues);
       }
       const [result,teamOptionsResult,conferenceOptionsResult] = await Promise.all([
-        db.prepare(`SELECT p.season,
-        SUM(CASE WHEN ${completedWeekFiveSql} AND p.home_win_probability IS NOT NULL AND g.home_points<>g.away_points THEN 1 ELSE 0 END) AS straightUpGraded,
-        SUM(CASE WHEN ${completedWeekFiveSql} AND p.home_win_probability IS NOT NULL AND g.home_points<>g.away_points AND ((p.home_win_probability>=0.5 AND g.home_points>g.away_points) OR (p.home_win_probability<0.5 AND g.home_points<g.away_points)) THEN 1 ELSE 0 END) AS straightUpWins,
+        db.prepare(`SELECT p.season,GROUP_CONCAT(DISTINCT p.model_version) AS modelVersions,
+        SUM(CASE WHEN ${winnerEligibleSql} THEN 1 ELSE 0 END) AS straightUpGraded,
+        SUM(CASE WHEN ${winnerEligibleSql} AND ${winnerCorrectSql} THEN 1 ELSE 0 END) AS straightUpWins,
+        SUM(CASE WHEN ${moneylinePricedSql} THEN 1 ELSE 0 END) AS moneylinePriced,
+        SUM(CASE WHEN ${moneylinePricedSql} AND ${winnerCorrectSql} THEN 1 ELSE 0 END) AS moneylineWins,
+        SUM(CASE WHEN ${moneylinePricedSql} THEN CASE WHEN ${winnerCorrectSql}
+          THEN CASE WHEN ${selectedMoneylineSql}>0 THEN ${selectedMoneylineSql} ELSE 10000.0/ABS(${selectedMoneylineSql}) END
+          ELSE -100 END ELSE 0 END) AS moneylineNet,
         SUM(CASE WHEN ${spreadWinSql} THEN 1 ELSE 0 END) AS spreadWins,
         SUM(CASE WHEN ${spreadLossSql} THEN 1 ELSE 0 END) AS spreadLosses,
         SUM(CASE WHEN ${spreadPushSql} THEN 1 ELSE 0 END) AS spreadPushes,
@@ -1310,21 +1488,25 @@ export async function GET(request: Request) {
         JOIN cfb_teams ht ON ht.season=g.season AND ht.team=g.home_team
         JOIN cfb_teams at ON at.season=g.season AND at.team=g.away_team
         LEFT JOIN betting_lines l ON l.game_id=p.game_id
-        WHERE ${accuracyConditions.join(" AND ")} GROUP BY p.season ORDER BY p.season DESC`).bind(...accuracyBinds).all<Record<string, number | null>>(),
+        WHERE ${accuracyConditions.join(" AND ")} GROUP BY p.season ORDER BY p.season DESC`).bind(...accuracyBinds).all<Record<string, number | string | null>>(),
         db.prepare("SELECT DISTINCT team FROM cfb_teams ORDER BY team").all<{team:string}>(),
         db.prepare(`SELECT DISTINCT conference FROM cfb_teams WHERE conference IS NOT NULL AND TRIM(conference)<>''
           AND LOWER(conference) NOT LIKE '%independent%' ORDER BY conference`).all<{conference:string}>(),
       ]);
       const rows = result.results.map((row) => {
         const rowSeason = Number(row.season);
+        const modelVersions=String(row.modelVersions??"").split(",").filter(Boolean).sort();
         const straightUpGraded=Number(row.straightUpGraded??0);
         const straightUpWins=Number(row.straightUpWins??0);
-        return { season: rowSeason, snapshotStatus:"live", lineQualityStatus:marketLineSeasonStatus(rowSeason), straightUp:{wins:straightUpWins,losses:Math.max(0,straightUpGraded-straightUpWins),graded:straightUpGraded,accuracy:straightUpGraded?straightUpWins/straightUpGraded:null}, spread: accuracyMetric(row, "spread"), total: accuracyMetric(row, "total") };
+        const moneylinePriced=Number(row.moneylinePriced??0);
+        const moneylineWins=Number(row.moneylineWins??0);
+        return { season: rowSeason, modelVersions,formulaStatus:modelVersions.length===1&&modelVersions[0]===MODEL_VERSION?"current":"archived",snapshotStatus:"live", lineQualityStatus:marketLineSeasonStatus(rowSeason), straightUp:{wins:straightUpWins,losses:Math.max(0,straightUpGraded-straightUpWins),graded:straightUpGraded,accuracy:straightUpGraded?straightUpWins/straightUpGraded:null}, moneyline:{priced:moneylinePriced,missing:Math.max(0,straightUpGraded-moneylinePriced),wins:moneylineWins,losses:moneylinePriced-moneylineWins,net:Number(row.moneylineNet??0)}, spread: accuracyMetric(row, "spread"), total: accuracyMetric(row, "total") };
       });
       return Response.json({
         source:"database",configured:Boolean(runtime.CFBD_API_KEY),modelVersion:MODEL_VERSION,snapshotStatus:"live",minMarketWeek:5,scope:accuracyScope,
         filters:{team,conference:team?"":conference},teamOptions:teamOptionsResult.results.map((row)=>row.team),conferenceOptions:conferenceOptionsResult.results.map((row)=>row.conference),
-        validation:`prior-week-only · ${accuracyScope === "all" ? "all predicted games" : "qualified model fits"} · Week 5+ · FBS vs FBS · legacy consensus quarantined`,marketCalibration:marketModelCalibration,rows,
+        archivePolicy:"stored-formula-per-game",
+        validation:`stored formula versions per season · prior-week-only · ${accuracyScope === "all" ? "all completed games from Week 5+" : "qualified market fits from Week 5+"} · FBS vs FBS · legacy consensus quarantined`,marketCalibration:marketModelCalibration,rows,
       });
     }
 
@@ -1389,27 +1571,27 @@ export async function GET(request: Request) {
     }
 
     if (view === "schedule") {
-      if (gameId && runtime.CFBD_API_KEY) {
-        await hydratePostseasonGameStats({ DB: db, CFBD_API_KEY: runtime.CFBD_API_KEY }, season, gameId).catch(() => null);
-      }
       const conditions = ["g.season = ?"];
       const binds: Array<string | number> = [season];
       if (requestedWeek > 0) { conditions.push("g.week = ?"); binds.push(requestedWeek); }
       if (team) { conditions.push("(g.home_team = ? OR g.away_team = ?)"); binds.push(team, team); }
       if (gameId) { conditions.push("g.game_id = ?"); binds.push(gameId); }
-      const advancedColumns=gameId?`hga.component_json AS homeActualAdvancedJson,hga.off_line_yards AS homeActualLineYards,hga.off_second_level_yards AS homeActualSecondLevelYards,hga.off_open_field_yards AS homeActualOpenFieldYards,hga.off_passing_success_rate AS homeActualPassingSuccessRate,hga.off_passing_explosiveness AS homeActualPassingExplosiveness,
+      const advancedColumns=includeActualAdvanced?`hga.component_json AS homeActualAdvancedJson,hga.off_line_yards AS homeActualLineYards,hga.off_second_level_yards AS homeActualSecondLevelYards,hga.off_open_field_yards AS homeActualOpenFieldYards,hga.off_passing_success_rate AS homeActualPassingSuccessRate,hga.off_passing_explosiveness AS homeActualPassingExplosiveness,
         aga.component_json AS awayActualAdvancedJson,aga.off_line_yards AS awayActualLineYards,aga.off_second_level_yards AS awayActualSecondLevelYards,aga.off_open_field_yards AS awayActualOpenFieldYards,aga.off_passing_success_rate AS awayActualPassingSuccessRate,aga.off_passing_explosiveness AS awayActualPassingExplosiveness,`:"";
-      const advancedJoins=gameId?`LEFT JOIN team_game_advanced_stats hga ON hga.game_id=g.game_id AND hga.team=g.home_team
+      const advancedJoins=includeActualAdvanced?`LEFT JOIN team_game_advanced_stats hga ON hga.game_id=g.game_id AND hga.team=g.home_team
         LEFT JOIN team_game_advanced_stats aga ON aga.game_id=g.game_id AND aga.team=g.away_team`:"";
       const query = `SELECT g.game_id AS gameId,g.season,g.week,g.season_type AS seasonType,g.start_date AS startDate,g.completed,g.neutral_site AS neutralSite,g.venue,
         g.home_team AS homeTeam,g.home_conference AS homeConference,g.home_points AS homePoints,g.away_team AS awayTeam,g.away_conference AS awayConference,g.away_points AS awayPoints,
-        ht.logo AS homeLogo,at.logo AS awayLogo,
-        hgs.total_yards AS homeActualTotalYards,hgs.yards_per_play AS homeActualYardsPerPlay,hgs.pass_yards AS homeActualPassYards,hgs.pass_attempts AS homeActualPassAttempts,hgs.pass_completions AS homeActualPassCompletions,hgs.yards_per_pass AS homeActualYardsPerPass,hgs.rush_yards AS homeActualRushYards,hgs.rush_attempts AS homeActualRushAttempts,hgs.yards_per_rush AS homeActualYardsPerRush,hgs.turnovers AS homeActualTurnovers,
-        ags.total_yards AS awayActualTotalYards,ags.yards_per_play AS awayActualYardsPerPlay,ags.pass_yards AS awayActualPassYards,ags.pass_attempts AS awayActualPassAttempts,ags.pass_completions AS awayActualPassCompletions,ags.yards_per_pass AS awayActualYardsPerPass,ags.rush_yards AS awayActualRushYards,ags.rush_attempts AS awayActualRushAttempts,ags.yards_per_rush AS awayActualYardsPerRush,ags.turnovers AS awayActualTurnovers,
+        ht.logo AS homeLogo,at.logo AS awayLogo,ht.color AS homeColor,at.color AS awayColor,
+        hgs.total_yards AS homeActualTotalYards,hgs.yards_per_play AS homeActualYardsPerPlay,hgs.pass_yards AS homeActualPassYards,hgs.pass_attempts AS homeActualPassAttempts,hgs.pass_completions AS homeActualPassCompletions,hgs.yards_per_pass AS homeActualYardsPerPass,hgs.rush_yards AS homeActualRushYards,hgs.rush_attempts AS homeActualRushAttempts,hgs.yards_per_rush AS homeActualYardsPerRush,hgs.turnovers AS homeActualTurnovers,hgs.sacks_allowed AS homeActualSacksAllowed,hgs.sack_yards_lost AS homeActualSackYardsLost,
+        ags.total_yards AS awayActualTotalYards,ags.yards_per_play AS awayActualYardsPerPlay,ags.pass_yards AS awayActualPassYards,ags.pass_attempts AS awayActualPassAttempts,ags.pass_completions AS awayActualPassCompletions,ags.yards_per_pass AS awayActualYardsPerPass,ags.rush_yards AS awayActualRushYards,ags.rush_attempts AS awayActualRushAttempts,ags.yards_per_rush AS awayActualYardsPerRush,ags.turnovers AS awayActualTurnovers,ags.sacks_allowed AS awayActualSacksAllowed,ags.sack_yards_lost AS awayActualSackYardsLost,
         ${advancedColumns}
-        p.generated_from_week AS generatedFromWeek,p.home_score AS predictedHomeScore,p.away_score AS predictedAwayScore,p.home_win_probability AS homeWinProbability,p.model_home_spread AS modelHomeSpread,p.model_total AS modelTotal,p.model_version AS storedModelVersion,
-        COALESCE(p.vegas_spread,l.spread) AS vegasSpread,COALESCE(p.vegas_total,l.over_under) AS vegasTotal,p.spread_edge AS spreadEdge,p.total_edge AS totalEdge,p.spread_error AS spreadError,p.total_error AS totalError,p.spread_result AS spreadResult,p.total_result AS totalResult,
-        l.provider,l.formatted_spread AS formattedSpread,l.spread_open AS spreadOpen,l.over_under_open AS overUnderOpen
+        p.generated_from_week AS generatedFromWeek,p.home_score AS predictedHomeScore,p.away_score AS predictedAwayScore,p.home_win_probability AS homeWinProbability,p.model_home_spread AS modelHomeSpread,p.model_total AS modelTotal,p.model_version AS storedModelVersion,json_extract(p.forecast_json,'$.formulaRevision') AS storedFormulaRevision,${includeGameProfiles ? "p.forecast_json" : "'{}'"} AS forecastJson,
+        json_extract(p.forecast_json,'$.homeStats') AS storedHomeStatsJson,json_extract(p.forecast_json,'$.awayStats') AS storedAwayStatsJson,
+        json_extract(p.forecast_json,'$.homeSuccessRate') AS storedHomeSuccessRate,json_extract(p.forecast_json,'$.awaySuccessRate') AS storedAwaySuccessRate,
+        l.spread AS vegasSpread,l.over_under AS vegasTotal,p.spread_edge AS spreadEdge,p.total_edge AS totalEdge,p.spread_error AS spreadError,p.total_error AS totalError,p.spread_result AS spreadResult,p.total_result AS totalResult,
+        l.updated_at AS marketUpdatedAt,l.provider,l.formatted_spread AS formattedSpread,l.spread_open AS spreadOpen,l.over_under_open AS overUnderOpen,
+        l.spread AS latestSpread,l.over_under AS latestTotal,l.home_moneyline AS homeMoneyline,l.away_moneyline AS awayMoneyline
         FROM cfb_games g LEFT JOIN model_predictions p ON p.game_id=g.game_id LEFT JOIN betting_lines l ON l.game_id=g.game_id
         LEFT JOIN cfb_teams ht ON ht.season=g.season AND ht.team=g.home_team LEFT JOIN cfb_teams at ON at.season=g.season AND at.team=g.away_team
         LEFT JOIN team_game_stats hgs ON hgs.game_id=g.game_id AND hgs.team=g.home_team
@@ -1422,17 +1604,18 @@ export async function GET(request: Request) {
         db.prepare(`SELECT g.game_id AS gameId,g.week,g.start_date AS startDate,g.season_type AS seasonType,g.completed,g.neutral_site AS neutralSite,g.conference_game AS conferenceGame,
           g.home_team AS homeTeam,g.home_conference AS homeConference,g.home_points AS homePoints,g.away_team AS awayTeam,g.away_conference AS awayConference,g.away_points AS awayPoints,
           p.home_score AS predictedHomeScore,p.away_score AS predictedAwayScore,p.home_win_probability AS homeWinProbability
-          FROM cfb_games g LEFT JOIN model_predictions p ON p.game_id=g.game_id AND p.model_version=?
+          FROM cfb_games g LEFT JOIN model_predictions p ON p.game_id=g.game_id AND p.model_version=? AND json_extract(p.forecast_json,'$.formulaRevision')=?
           WHERE g.season=? ORDER BY CASE WHEN g.start_date IS NULL THEN 1 ELSE 0 END,g.start_date,g.season_type,g.week,g.game_id`)
-          .bind(MODEL_VERSION, season).all<Record<string, unknown>>(),
+          .bind(MODEL_VERSION, formulaRevision(season), season).all<Record<string, unknown>>(),
         db.prepare("SELECT team FROM cfb_teams WHERE season=?").bind(season).all<{team:string}>(),
-        gameId?db.prepare(`SELECT
+        gameId&&includeGameBenchmarks?db.prepare(`SELECT
           MIN(stats.season) AS benchmarkFirstSeason,MAX(stats.season) AS benchmarkLastSeason,COUNT(*) AS benchmarkSampleSize,
           AVG(stats.total_yards) AS benchmarkTotalYards,AVG(stats.yards_per_play) AS benchmarkYardsPerPlay,
           AVG(stats.pass_yards) AS benchmarkPassYards,AVG(stats.pass_attempts) AS benchmarkPassAttempts,
           AVG(stats.pass_completions) AS benchmarkPassCompletions,AVG(stats.yards_per_pass) AS benchmarkYardsPerPass,
           AVG(stats.rush_yards) AS benchmarkRushYards,AVG(stats.rush_attempts) AS benchmarkRushAttempts,
           AVG(stats.yards_per_rush) AS benchmarkYardsPerRush,AVG(stats.turnovers) AS benchmarkTurnovers,
+          AVG(stats.sacks_allowed) AS benchmarkSacksAllowed,AVG(stats.sack_yards_lost) AS benchmarkSackYardsLost,
           AVG(CAST(json_extract(advanced.component_json,'$.offSuccessRate') AS REAL)) AS benchmarkSuccessRate,
           AVG(CAST(json_extract(advanced.component_json,'$.offExplosiveness') AS REAL)) AS benchmarkExplosiveness,
           AVG(CAST(json_extract(advanced.component_json,'$.offPpa') AS REAL)) AS benchmarkPpa,
@@ -1450,7 +1633,7 @@ export async function GET(request: Request) {
           AVG(CAST(json_extract(advanced.component_json,'$.offRushingExplosiveness') AS REAL)) AS benchmarkRushingExplosiveness,
           AVG(CAST(json_extract(advanced.component_json,'$.offRushingPpa') AS REAL)) AS benchmarkRushingPpa,
           AVG(CASE WHEN stats.pass_attempts>0 AND stats.pass_completions IS NOT NULL THEN stats.pass_completions*1.0/stats.pass_attempts END) AS benchmarkCompletionRate,
-          AVG(CASE WHEN stats.pass_completions>0 THEN stats.pass_yards*1.0/stats.pass_completions END) AS benchmarkYardsPerCompletion,
+          AVG(CASE WHEN stats.pass_completions>0 THEN (stats.pass_yards+stats.sack_yards_lost)*1.0/stats.pass_completions END) AS benchmarkYardsPerCompletion,
           AVG(COALESCE(CAST(json_extract(advanced.component_json,'$.offPassingSuccessRate') AS REAL),advanced.off_passing_success_rate)) AS benchmarkPassingSuccessRate,
           AVG(COALESCE(CAST(json_extract(advanced.component_json,'$.offPassingExplosiveness') AS REAL),advanced.off_passing_explosiveness)) AS benchmarkPassingExplosiveness,
           AVG(CAST(json_extract(advanced.component_json,'$.offPassingPpa') AS REAL)) AS benchmarkPassingPpa,
@@ -1472,6 +1655,15 @@ export async function GET(request: Request) {
       for(const row of rows.results){
         if(conferenceChampionshipIds.has(String(row.gameId)))row.seasonType="conference-championship";
       }
+      for(const row of rows.results){
+        const audit=inspectMarketLine({homeTeam:String(row.homeTeam),awayTeam:String(row.awayTeam),provider:row.provider?String(row.provider):null,
+          spread:nullableNumber(row.vegasSpread),spreadOpen:nullableNumber(row.spreadOpen),formattedSpread:row.formattedSpread?String(row.formattedSpread):null,
+          overUnder:nullableNumber(row.vegasTotal),overUnderOpen:nullableNumber(row.overUnderOpen),homeMoneyline:nullableNumber(row.homeMoneyline),awayMoneyline:nullableNumber(row.awayMoneyline)});
+        Object.assign(row,{vegasSpread:audit.line.spread,vegasTotal:audit.line.overUnder,spreadOpen:audit.line.spreadOpen,overUnderOpen:audit.line.overUnderOpen,
+          formattedSpread:audit.line.formattedSpread,marketIssues:audit.issues});
+        if(audit.line.spread===null)Object.assign(row,{spreadEdge:null,spreadResult:null});
+        if(audit.line.overUnder===null)Object.assign(row,{totalEdge:null,totalResult:null});
+      }
       let rankingProfileRows=rankingProfileResult;
       let transitionPreseasonProfiles:Profile[]|null=null;
       if(includeGameTimeRanks){
@@ -1486,10 +1678,65 @@ export async function GET(request: Request) {
           })),
         ];
       }
-      const pregameRanks=schedulePregameRanks(season,rows.results,rankingProfileRows,recordGameResult.results);
+      const conferenceInput=await conferenceAdjustmentInputs(db,season);
+      const conferenceByWeek=new Map<number,ReturnType<typeof buildConferenceAdjustments>>();
+      const conferenceForWeek=(week:number)=>{
+        if(!conferenceByWeek.has(week))conferenceByWeek.set(week,conferenceInput?buildConferenceAdjustments(conferenceInput.teams,conferenceInput.games,week):new Map());
+        return conferenceByWeek.get(week)!;
+      };
+      const pregameRanks=schedulePregameRanks(season,rows.results,rankingProfileRows,recordGameResult.results,conferenceInput);
       const ranksFor=(row:Record<string,unknown>)=>pregameRanks.get(String(row.gameId))??{homePregameRank:null,awayPregameRank:null,rankingWeek:null};
       const statBenchmarks=gameStatBenchmarkProfile(benchmarkResult);
       if(statBenchmarks)for(const row of rows.results)row.statBenchmarks=statBenchmarks;
+      // Upcoming cards and Season Sim use the same dated profiles, ratings and
+      // score rounding. Completed games retain their original pregame receipts.
+      const liveForecasts=new Map<string,ReturnType<typeof projectSeasonMatchup>>();
+      let scheduleUnitRanks:ReturnType<typeof rankOffenseAndDefense>|null=null;
+      let forecastWeek=0;
+      const seasonForecast=url.searchParams.get("seasonForecast")==="1";
+      const preserveFinals=url.searchParams.get("resultMode")==="latest"||Boolean(team&&compactSchedule);
+      if(team&&compactSchedule){
+        const latest=await db.prepare("SELECT MAX(week) AS week FROM weekly_profiles WHERE season=?").bind(season).first<{week:number|null}>();
+        const currentRows=await loadPointInTimeProfileRows(db,season,latest?.week??0);
+        scheduleUnitRanks=rankOffenseAndDefense(currentRows as UnitRankingProfile[]);
+      }
+      if(seasonForecast || rows.results.some(row=>!Boolean(row.completed))){
+        const explicitWeek=Number(url.searchParams.get("forecastWeek"));
+        const cutoff=url.searchParams.has("forecastWeek") && Number.isFinite(explicitWeek)
+          ? Math.max(0,Math.min(16,explicitWeek)) : scoreRankingSnapshotWeek(requestedWeek,16);
+        const latest=await db.prepare("SELECT MAX(week) AS week FROM weekly_profiles WHERE season=? AND week<=?").bind(season,cutoff).first<{week:number|null}>();
+        forecastWeek=latest?.week??0;
+        const snapshotRows=await attachPreseasonTransitionElo(db,season,await loadPointInTimeProfileRows(db,season,forecastWeek));
+
+        const snapshotProfiles=rankingProfiles(snapshotRows);
+        const profilesByTeam=new Map(snapshotProfiles.map(profile=>[profile.team,profile]));
+        const schedule=recordGameResult.results as unknown as SimulationScheduleGame[];
+        const rankingByTeam=new Map(seasonSnapshotRankings(schedule,snapshotProfiles,forecastWeek,season).map(rank=>[rank.team,rank]));
+        const visibleGameIds=new Set(rows.results.map(row=>String(row.gameId)));
+        for(const game of recordGameResult.results){
+          // A team page needs only its visible games for the record ledger.
+          // Forecasting the rest of the league here duplicates Season Sim.
+          if((!seasonForecast||Boolean(team)&&compactSchedule)&&!visibleGameIds.has(String(game.gameId)))continue;
+          if(!shouldForecastScheduleGame(game,seasonForecast,forecastWeek,preserveFinals))continue;
+          const home=String(game.homeTeam),away=String(game.awayTeam);
+          const forecast=projectSeasonMatchup(profilesByTeam.get(home),profilesByTeam.get(away),rankingByTeam.get(home),rankingByTeam.get(away),!Boolean(game.neutralSite),false);
+          liveForecasts.set(String(game.gameId),forecast);
+          Object.assign(game,{completed:false,homePoints:null,awayPoints:null,predictedHomeScore:forecast.firstScore,predictedAwayScore:forecast.secondScore,homeWinProbability:forecast.firstWinProbability});
+        }
+        for(const row of rows.results){
+          const forecast=liveForecasts.get(String(row.gameId));
+          if(!forecast)continue;
+          Object.assign(row,{completed:false,homePoints:null,awayPoints:null,
+            homePredictedStats:forecast.homePredictedStats,awayPredictedStats:forecast.awayPredictedStats,
+            homePredictedAdvanced:forecast.homePredictedAdvanced,awayPredictedAdvanced:forecast.awayPredictedAdvanced,
+            predictedHomeScore:forecast.firstScore,predictedAwayScore:forecast.secondScore,
+            homeWinProbability:forecast.firstWinProbability,modelHomeSpread:forecast.modelHomeSpread,modelTotal:forecast.modelTotal,
+            generatedFromWeek:forecastWeek,storedModelVersion:MODEL_VERSION,storedFormulaRevision:formulaRevision(season),
+            spreadEdge:nullableNumber(row.vegasSpread)===null?null:Number(row.vegasSpread)-forecast.modelHomeSpread,
+            totalEdge:nullableNumber(row.vegasTotal)===null?null:forecast.modelTotal-Number(row.vegasTotal),
+            spreadResult:null,totalResult:null,forecastJson:"{}"});
+        }
+      }
       const recordTimeline = buildScheduleRecordTimeline(
         recordGameResult.results.map((row):ScheduleRecordGame => ({
           gameId:String(row.gameId),
@@ -1507,12 +1754,28 @@ export async function GET(request: Request) {
         })),
         new Set(recordTeamResult.results.map((row)=>row.team)),
       );
+      const pregameRecords=buildWeeklyPregameRecords(recordGameResult.results.map(row=>({
+        gameId:String(row.gameId),week:Number(row.week),startDate:row.startDate?String(row.startDate):null,
+        completed:Boolean(row.completed),homeTeam:String(row.homeTeam),awayTeam:String(row.awayTeam),
+        homePoints:nullableNumber(row.homePoints),awayPoints:nullableNumber(row.awayPoints),conferenceGame:Boolean(row.conferenceGame),
+      } satisfies WeeklyRecordGame)));
+      const latestRecords=buildLatestSeasonRecords(recordGameResult.results.map(row=>({
+        gameId:String(row.gameId),week:Number(row.week),completed:Boolean(row.completed),homeTeam:String(row.homeTeam),awayTeam:String(row.awayTeam),
+        homePoints:nullableNumber(row.homePoints),awayPoints:nullableNumber(row.awayPoints),conferenceGame:Boolean(row.conferenceGame),
+      })));
+      const latestRecordsFor=(row:Record<string,unknown>)=>({
+        homeCurrentRecord:latestRecords.get(String(row.homeTeam))?.record??"0–0",awayCurrentRecord:latestRecords.get(String(row.awayTeam))?.record??"0–0",
+        homeCurrentConferenceRecord:latestRecords.get(String(row.homeTeam))?.conferenceRecord??"0–0",awayCurrentConferenceRecord:latestRecords.get(String(row.awayTeam))?.conferenceRecord??"0–0",
+      });
+      const pregameRecordsFor=(row:Record<string,unknown>)=>pregameRecords.get(String(row.gameId))??null;
       const recordsFor = (row:Record<string,unknown>) => recordTimeline.get(String(row.gameId)) ?? {
         homeRecordAfter:null,
         awayRecordAfter:null,
+        homeStreakAfter:null,
+        awayStreakAfter:null,
         recordStatus:"unavailable" as const,
       };
-      const needsLiveProjection = rows.results.some((row) => nullableNumber(row.predictedHomeScore) === null || row.storedModelVersion !== MODEL_VERSION)
+      const needsLiveProjection = rows.results.some((row) => nullableNumber(row.predictedHomeScore) === null || row.storedModelVersion !== MODEL_VERSION || row.storedFormulaRevision !== formulaRevision(season))
         || includeMarketDecisions && rows.results.some((row) => !Boolean(row.completed) && (nullableNumber(row.vegasSpread) !== null || nullableNumber(row.vegasTotal) !== null));
 
       // The schedule is primarily a compact ledger. Once the versioned
@@ -1520,6 +1783,10 @@ export async function GET(request: Request) {
       // rebuild Elo/evidence, and generate hundreds of full X-rays.
       if ((compactSchedule || !needsLiveProjection) && !includeGameProfiles) {
         const compact = rows.results.map((row) => {
+          const pregame=team&&compactSchedule?datedPregameScores({
+            completed:Boolean(row.completed),week:Number(row.week),generatedFromWeek:nullableNumber(row.generatedFromWeek),
+            predictedHomeScore:nullableNumber(row.predictedHomeScore),predictedAwayScore:nullableNumber(row.predictedAwayScore),
+          }):null;
           const lineQuarantined = isStoredMarketLineQuarantined(Number(row.season), row.provider ? String(row.provider) : null);
           const spreadEdge = nullableNumber(row.spreadEdge);
           const spreadResult = String(row.spreadResult ?? "");
@@ -1534,10 +1801,23 @@ export async function GET(request: Request) {
             vegasTotal:lineQuarantined ? null : nullableNumber(row.vegasTotal),
             actualTotal:homePoints === null || awayPoints === null ? null : homePoints + awayPoints,
           });
+          const currentForecast=row.storedModelVersion===MODEL_VERSION&&row.storedFormulaRevision===formulaRevision(season);
+          const storedStats=(value:unknown)=>{if(!currentForecast||typeof value!=="string")return null;try{return JSON.parse(value);}catch{return null;}};
           return {
             ...withActualGameStats(row),
+            homePredictedStats:row.homePredictedStats??storedStats(row.storedHomeStatsJson),
+            awayPredictedStats:row.awayPredictedStats??storedStats(row.storedAwayStatsJson),
+            homePredictedAdvanced:row.homePredictedAdvanced??(currentForecast&&nullableNumber(row.storedHomeSuccessRate)!==null?{successRate:nullableNumber(row.storedHomeSuccessRate)}:null),
+            awayPredictedAdvanced:row.awayPredictedAdvanced??(currentForecast&&nullableNumber(row.storedAwaySuccessRate)!==null?{successRate:nullableNumber(row.storedAwaySuccessRate)}:null),
             ...recordsFor(row),
+            ...pregameRecordsFor(row),
+            ...latestRecordsFor(row),
             ...ranksFor(row),
+            ...(team&&compactSchedule?{opponentUnitRanks:scheduleUnitRanks?.get(String(row.homeTeam)===team?String(row.awayTeam):String(row.homeTeam))??null}:{}),
+            ...(team&&compactSchedule?{
+              pregameHomeScore:pregame?.home??null,
+              pregameAwayScore:pregame?.away??null,
+            }:{}),
             spreadEdge:lineQuarantined?null:row.spreadEdge,
             totalEdge:lineQuarantined?null:row.totalEdge,
             spreadResult:lineQuarantined?null:row.spreadResult,
@@ -1551,11 +1831,11 @@ export async function GET(request: Request) {
             totalDiagnosticResult:lineQuarantined?null:totalDiagnostic.result,
             lineQuality:lineQuarantined?"quarantined":marketLineSeasonStatus(Number(row.season)),
             lineQualityReason:lineQuarantined?"Legacy consensus favorite direction is not independently verified":null,
-            predictionSource:nullableNumber(row.predictedHomeScore)!==null&&row.storedModelVersion===MODEL_VERSION?"materialized":"pending",
+            predictionSource:liveForecasts.has(String(row.gameId))?"live-profile":nullableNumber(row.predictedHomeScore)!==null&&row.storedModelVersion===MODEL_VERSION&&row.storedFormulaRevision===formulaRevision(season)?"materialized":"pending",
           };
         });
-        const response=Response.json({ source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,week:requestedWeek,team:team||null,modelVersion:MODEL_VERSION,marketCalibration:marketModelCalibration,rows:compact });
-        response.headers.set("cache-control","public, max-age=300, stale-while-revalidate=900");
+        const response=Response.json({ source:"database",configured:Boolean(runtime.CFBD_API_KEY),season,week:requestedWeek,team:team||null,teamUnitRanks:team?scheduleUnitRanks?.get(team)??null:null,modelVersion:MODEL_VERSION,marketCalibration:marketModelCalibration,rows:compact });
+        response.headers.set("cache-control",season===2026?"public, max-age=30":"public, max-age=300, stale-while-revalidate=900");
         return response;
       }
 
@@ -1569,7 +1849,9 @@ export async function GET(request: Request) {
           FROM weekly_profiles wp LEFT JOIN weekly_advanced_profiles ap ON ap.season=wp.season AND ap.week=wp.week AND ap.team=wp.team
           WHERE wp.season=? ORDER BY wp.week,wp.team`).bind(season).all<Record<string, unknown>>(),
         db.prepare(`SELECT game_id AS gameId,season,week,season_type AS seasonType,start_date AS startDate,completed,neutral_site AS neutralSite,conference_game AS conferenceGame,venue,
-          home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints
+          home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.home_team) AS homePlays,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.away_team) AS awayPlays
           FROM cfb_games WHERE season=? ORDER BY CASE WHEN start_date IS NULL THEN 1 ELSE 0 END,start_date,season_type,week,game_id`).bind(season).all<Record<string, unknown>>(),
         db.prepare("SELECT team FROM cfb_teams WHERE season=?").bind(season).all<{ team: string }>(),
       ]);
@@ -1579,7 +1861,7 @@ export async function GET(request: Request) {
         advanced: parseAdvancedProfile(row.advancedProfile),
       }));
       if (!storedProfiles.length) {
-        return Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), season, week: requestedWeek, team: team || null, modelVersion: MODEL_VERSION, rows: rows.results.map((row) => ({ ...withActualGameStats(row), ...recordsFor(row), ...ranksFor(row), predictionSource: "pending" })) });
+        return Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), season, week: requestedWeek, team: team || null, modelVersion: MODEL_VERSION, rows: rows.results.map((row) => ({ ...withActualGameStats(row), ...recordsFor(row), ...pregameRecordsFor(row), ...ranksFor(row), predictionSource: "pending" })) });
       }
       const games = gameResult.results.map((row): NormalizedGame => ({
         id: String(row.gameId), season: Number(row.season), week: Number(row.week), seasonType: String(row.seasonType ?? "regular"), startDate: row.startDate ? String(row.startDate) : null,
@@ -1597,12 +1879,14 @@ export async function GET(request: Request) {
       const enriched = rows.results.map((row) => {
         const game = byGame.get(String(row.gameId));
         if (!game) return { ...withActualGameStats(row), predictionSource: "pending" };
+        const liveForecast=liveForecasts.get(String(row.gameId));
         const generatedFromWeek = nullableNumber(row.generatedFromWeek) ?? (game.seasonType === "postseason" ? maxProfileWeek : Math.max(0, game.week - 1));
-        const homeProfile = latestProfile(profiles, game.homeTeam, generatedFromWeek);
-        const awayProfile = latestProfile(profiles, game.awayTeam, generatedFromWeek);
+        const withConference=(team:string)=>{const profile=latestProfile(profiles,team,generatedFromWeek);return profile?{...profile,conferenceAdjustment:conferenceForWeek(generatedFromWeek).get(team)?.points??0}:null;};
+        const homeProfile = withConference(game.homeTeam);
+        const awayProfile = withConference(game.awayTeam);
         const ratings = pregameElo.get(game.id);
         const evidence = pregameEvidence.get(game.id);
-        const calibrated = project(
+        const calibrated = liveForecast?.rawProjection ?? project(
           homeProfile,
           awayProfile,
           game.neutralSite,
@@ -1610,13 +1894,37 @@ export async function GET(request: Request) {
           ratings?.get(game.awayTeam) ?? (eligibleTeams.has(game.awayTeam) ? 1500 : modelCalibration.fcsElo),
           evidence?.get(game.homeTeam),
           evidence?.get(game.awayTeam),
-          { homeIsFcs: !eligibleTeams.has(game.homeTeam), awayIsFcs: !eligibleTeams.has(game.awayTeam) },
+          {
+            homeIsFcs: !eligibleTeams.has(game.homeTeam),
+            awayIsFcs: !eligibleTeams.has(game.awayTeam),
+            homeIsPower4: ["ACC", "Big 12", "Big Ten", "SEC"].includes(game.homeConference ?? ""),
+            awayIsPower4: ["ACC", "Big 12", "Big Ten", "SEC"].includes(game.awayConference ?? ""),
+          },
         );
+        const matchupStats=gameId?pregameMatchupStats(homeProfile??null,awayProfile??null,
+          [...eligibleTeams].map((team)=>latestProfile(profiles,team,generatedFromWeek)).filter((profile):profile is Profile=>Boolean(profile)),
+          calibrated.homeStats,calibrated.awayStats):undefined;
+        const gameMatchupTests=gameId||includeAnalysis?matchupTests(game,games,(name,week)=>latestProfile(profiles,name,week),generatedFromWeek):undefined;
+        let storedForecast: {reconciliation?:typeof calibrated.reconciliation;roster?:typeof calibrated.roster;quarterbackScenarios?:typeof calibrated.quarterbackScenarios;homeReceipt?:typeof calibrated.homeStats.scoreReceipt;awayReceipt?:typeof calibrated.awayStats.scoreReceipt}|null=null;
+        if(row.storedModelVersion===MODEL_VERSION && row.storedFormulaRevision===formulaRevision(season) && typeof row.forecastJson==="string") {
+          try {storedForecast=JSON.parse(row.forecastJson);} catch {storedForecast=null;}
+        }
+        if(storedForecast?.homeReceipt && storedForecast?.awayReceipt) {
+          calibrated.homeScore=Number(row.predictedHomeScore);
+          calibrated.awayScore=Number(row.predictedAwayScore);
+          calibrated.margin=calibrated.homeScore-calibrated.awayScore;
+          calibrated.modelHomeSpread=-calibrated.margin;
+          calibrated.modelTotal=calibrated.homeScore+calibrated.awayScore;
+          calibrated.homeWinProbability=Number(row.homeWinProbability);
+          calibrated.homeStats.scoreReceipt=storedForecast.homeReceipt;
+          calibrated.awayStats.scoreReceipt=storedForecast.awayReceipt;
+        }
+        const scoreExplanation=storedForecast?.reconciliation ? storedForecast : {reconciliation:calibrated.reconciliation,roster:calibrated.roster,quarterbackScenarios:calibrated.quarterbackScenarios};
         const vegasSpread = nullableNumber(row.vegasSpread);
         const vegasTotal = nullableNumber(row.vegasTotal);
         const lineQuarantined = isStoredMarketLineQuarantined(game.season, row.provider ? String(row.provider) : null);
-        const actualMargin = game.homePoints === null || game.awayPoints === null ? null : game.homePoints - game.awayPoints;
-        const actualTotal = game.homePoints === null || game.awayPoints === null ? null : game.homePoints + game.awayPoints;
+        const actualMargin = liveForecast || game.homePoints === null || game.awayPoints === null ? null : game.homePoints - game.awayPoints;
+        const actualTotal = liveForecast || game.homePoints === null || game.awayPoints === null ? null : game.homePoints + game.awayPoints;
         const market = evaluateMarketProjection({
           week: game.week, postseason: game.seasonType === "postseason", homeTeam: game.homeTeam, awayTeam: game.awayTeam,
           modelHomeSpread: calibrated.modelHomeSpread, modelTotal: calibrated.modelTotal,
@@ -1642,7 +1950,7 @@ export async function GET(request: Request) {
         } : market;
         const lineQuality = lineQuarantined ? "quarantined" : marketLineSeasonStatus(game.season);
         const lineQualityReason = lineQuarantined ? "Legacy consensus favorite direction is not independently verified" : null;
-        if (!needsLiveProjection && nullableNumber(row.modelHomeSpread) !== null) {
+        if (!needsLiveProjection && nullableNumber(row.modelHomeSpread) !== null && storedForecast?.reconciliation) {
           const edgeAnalysis = includeAnalysis ? analyzeMatchupEdges(
             game.homeTeam, game.awayTeam, calibrated.calibratedHome.offense, calibrated.calibratedHome.defense,
             calibrated.calibratedAway.offense, calibrated.calibratedAway.defense, game.neutralSite, -Number(row.modelHomeSpread),
@@ -1651,9 +1959,9 @@ export async function GET(request: Request) {
             calibrated.homeStats.scoreReceipt, calibrated.awayStats.scoreReceipt,
             calibrated.homeStats.viability, calibrated.awayStats.viability,
           ) : undefined;
-          return { ...withActualGameStats(row), generatedFromWeek, ...displayMarket, lineQuality, lineQualityReason, edgeAnalysis, homePredictedStats:projectedGameStatProfile(calibrated.homeStats),awayPredictedStats:projectedGameStatProfile(calibrated.awayStats),homePredictedAdvanced:projectedGameAdvancedProfile(calibrated.homeStats.advanced),awayPredictedAdvanced:projectedGameAdvancedProfile(calibrated.awayStats.advanced),predictionSource: "materialized" };
+          return { ...withActualGameStats(row), generatedFromWeek, matchupStats, matchupTests:gameMatchupTests, ...displayMarket, lineQuality, lineQualityReason, edgeAnalysis, scoreExplanation, homePredictedStats:projectedGameStatProfile(calibrated.homeStats),awayPredictedStats:projectedGameStatProfile(calibrated.awayStats),homePredictedAdvanced:projectedGameAdvancedProfile(calibrated.homeStats.advanced),awayPredictedAdvanced:projectedGameAdvancedProfile(calibrated.awayStats.advanced),predictionSource: "materialized" };
         }
-        if (nullableNumber(row.predictedHomeScore) !== null && row.storedModelVersion === MODEL_VERSION) {
+        if (nullableNumber(row.predictedHomeScore) !== null && row.storedModelVersion === MODEL_VERSION && row.storedFormulaRevision === formulaRevision(season) && storedForecast?.reconciliation) {
           const edgeAnalysis = includeAnalysis ? analyzeMatchupEdges(
             game.homeTeam, game.awayTeam, calibrated.calibratedHome.offense, calibrated.calibratedHome.defense,
             calibrated.calibratedAway.offense, calibrated.calibratedAway.defense, game.neutralSite, -Number(row.modelHomeSpread ?? 0),
@@ -1662,7 +1970,7 @@ export async function GET(request: Request) {
             calibrated.homeStats.scoreReceipt, calibrated.awayStats.scoreReceipt,
             calibrated.homeStats.viability, calibrated.awayStats.viability,
           ) : undefined;
-          return { ...withActualGameStats(row), generatedFromWeek, ...displayMarket, lineQuality, lineQualityReason, edgeAnalysis, homePredictedStats:projectedGameStatProfile(calibrated.homeStats),awayPredictedStats:projectedGameStatProfile(calibrated.awayStats),homePredictedAdvanced:projectedGameAdvancedProfile(calibrated.homeStats.advanced),awayPredictedAdvanced:projectedGameAdvancedProfile(calibrated.awayStats.advanced),predictionSource: "materialized" };
+          return { ...withActualGameStats(row), generatedFromWeek, matchupStats, matchupTests:gameMatchupTests, ...displayMarket, lineQuality, lineQualityReason, edgeAnalysis, scoreExplanation, homePredictedStats:projectedGameStatProfile(calibrated.homeStats),awayPredictedStats:projectedGameStatProfile(calibrated.awayStats),homePredictedAdvanced:projectedGameAdvancedProfile(calibrated.homeStats.advanced),awayPredictedAdvanced:projectedGameAdvancedProfile(calibrated.awayStats.advanced),predictionSource: "materialized" };
         }
         const prediction = calibrated;
         const edgeAnalysis = includeAnalysis ? analyzeMatchupEdges(
@@ -1676,8 +1984,11 @@ export async function GET(request: Request) {
         return {
           ...withActualGameStats(row),
           generatedFromWeek,
-          predictedHomeScore: prediction.homeScore,
-          predictedAwayScore: prediction.awayScore,
+          matchupStats,
+          matchupTests:gameMatchupTests,
+          scoreExplanation,
+          predictedHomeScore: liveForecast?.firstScore ?? prediction.homeScore,
+          predictedAwayScore: liveForecast?.secondScore ?? prediction.awayScore,
           homeWinProbability: prediction.homeWinProbability,
           modelHomeSpread: prediction.modelHomeSpread,
           modelTotal: prediction.modelTotal,
@@ -1703,10 +2014,11 @@ export async function GET(request: Request) {
           homePredictedAdvanced:projectedGameAdvancedProfile(prediction.homeStats.advanced),
           awayPredictedAdvanced:projectedGameAdvancedProfile(prediction.awayStats.advanced),
           storedModelVersion: MODEL_VERSION,
+          storedFormulaRevision: formulaRevision(season),
           predictionSource: "live-profile",
         };
       });
-      const response=Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), season, week: requestedWeek, team: team || null, modelVersion: MODEL_VERSION, marketCalibration: marketModelCalibration, rows: enriched.map((row)=>({...row,...recordsFor(row),...ranksFor(row)})), viabilityCalibration:currentViabilityCalibration() });
+      const response=Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), season, week: requestedWeek, team: team || null, modelVersion: MODEL_VERSION, marketCalibration: marketModelCalibration, rows: enriched.map((row)=>({...row,...recordsFor(row),...pregameRecordsFor(row),...ranksFor(row)})), viabilityCalibration:currentViabilityCalibration() });
       response.headers.set("cache-control","public, max-age=120, stale-while-revalidate=600");
       return response;
     }
@@ -1716,10 +2028,14 @@ export async function GET(request: Request) {
     const finalContextApplied = requestedWeek === 16 && effectiveWeek > 0;
     const profilePromise = loadPointInTimeProfileRows(db,season,effectiveWeek);
     const finalGameQuery = `SELECT game_id AS gameId,week,start_date AS startDate,season_type AS seasonType,neutral_site AS neutralSite,conference_game AS conferenceGame,
-        home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints
+        home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.home_team) AS homePlays,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.away_team) AS awayPlays
         FROM cfb_games WHERE season=? AND completed=1 AND home_points IS NOT NULL AND away_points IS NOT NULL ORDER BY start_date,game_id`;
     const weeklyGameQuery = `SELECT game_id AS gameId,week,start_date AS startDate,season_type AS seasonType,neutral_site AS neutralSite,conference_game AS conferenceGame,
-        home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints
+        home_team AS homeTeam,home_conference AS homeConference,home_points AS homePoints,away_team AS awayTeam,away_conference AS awayConference,away_points AS awayPoints,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.home_team) AS homePlays,
+        (SELECT ts.pass_attempts+ts.rush_attempts FROM team_game_stats ts WHERE ts.game_id=cfb_games.game_id AND ts.team=cfb_games.away_team) AS awayPlays
         FROM cfb_games WHERE season=? AND completed=1 AND season_type<>'postseason' AND week<=?
         AND home_points IS NOT NULL AND away_points IS NOT NULL ORDER BY week,start_date,game_id`;
     const [profileRows, gameResult] = await Promise.all([
@@ -1730,7 +2046,7 @@ export async function GET(request: Request) {
     ]);
     const conferenceChampionshipIds=conferenceChampionshipGameIds(gameResult.results);
     const rankingGameRows=gameResult.results.map((game)=>({...game,conferenceChampionship:conferenceChampionshipIds.has(game.gameId)}));
-    const rankings = buildBcsRankings(rankingGameRows, rankingProfiles(profileRows));
+    const rankings = buildBcsRankings(rankingGameRows, rankingProfiles(profileRows),{usePreseasonElo:usesPreseasonPriors(season,effectiveWeek+1)});
     const evidence = new Map(rankings.map((row) => [row.team, row]));
     const titleGame = finalContextApplied ? gameResult.results.filter((game)=>game.seasonType==="postseason")
       .sort((a,b)=>String(b.startDate??"").localeCompare(String(a.startDate??""))||String(b.gameId).localeCompare(String(a.gameId)))[0] : undefined;
@@ -1750,6 +2066,9 @@ export async function GET(request: Request) {
         bestOpponentStrength: ranking?.bestOpponentStrength ?? 0.5,
         qualityWinStrength: ranking?.qualityWinStrength ?? 0.5,
         matchupReliability: ranking?.matchupReliability ?? 1,
+        ...scoringEvidenceFields(ranking),
+        resultsRank: ranking?.rank ?? null,
+        record: ranking?.record ?? (effectiveWeek===0?"0-0":"—"),
         resumeScore,
         nationalChampion,
         seasonRecord: finalContextApplied ? ranking?.record??"—" : undefined,
@@ -1758,6 +2077,8 @@ export async function GET(request: Request) {
     });
     return Response.json({ source: "database", configured: Boolean(runtime.CFBD_API_KEY), season, requestedWeek, effectiveWeek, modelVersion: MODEL_VERSION, rows: enriched, viabilityCalibration:currentViabilityCalibration() });
   } catch (error) {
-    return Response.json({ source: "embedded", configured: Boolean(runtime.CFBD_API_KEY), rows: [], message: error instanceof Error ? error.message : "Data query failed" });
+    const message = error instanceof Error ? error.message : "";
+    const overloaded = /D1 DB is overloaded|requests queued for too long/i.test(message);
+    return Response.json({ source: "embedded", configured: Boolean(runtime.CFBD_API_KEY), rows: [], message: overloaded ? "The statistics database is briefly queued. Retrying is safe." : "Football data is temporarily unavailable." }, { status: overloaded ? 503 : 500 });
   }
 }

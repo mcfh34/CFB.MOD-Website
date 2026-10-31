@@ -29,7 +29,7 @@ export type MatchupImpact = {
 };
 
 export type MatchupAnalog = {
-  opponent:string;logo?:string;week:number;startDate?:string|null;similarity:number;actual:number|null;expected:number|null;delta:number|null;
+  opponent:string;logo?:string;week:number;startDate?:string|null;similarity:number|null;actual:number|null;expected:number|null;delta:number|null;
   unit:"YPC"|"YPA";result:string;score:string;performance:string;
 };
 
@@ -280,24 +280,23 @@ function buildAnalogLanes(
     const candidates=teamGames.flatMap((game)=>{
       const opponentRow=counterpartByGameTeam.get(`${game.gameId}\u0000${game.opponent}`);
       const candidate=profiles.get(game.opponent);
-      if(!opponentRow||!candidate)return[];
-      const observation=laneObservation(performanceLane,game,opponentRow,rowsByTeam,rowsAgainstTeam);
-      const similarity=matchupProfileSimilarity(target,candidate,lane);
-      if(!similarity)return[];
+      const observation=opponentRow?laneObservation(performanceLane,game,opponentRow,rowsByTeam,rowsAgainstTeam):null;
+      const similarity=target&&candidate?matchupProfileSimilarity(target,candidate,lane):null;
       return [{
         opponent:game.opponent,logo:logos.get(game.opponent),week:game.week,startDate:game.startDate,similarity,
         actual:observation?rounded(observation.actual,2):null,expected:observation?rounded(observation.expected,2):null,
         delta:observation?rounded(observation.delta,3):null,unit:laneMeta[lane].unit,
-        result:resultFor(game,opponentRow),score:finite(game.points)&&finite(opponentRow.points)?`${Math.round(Number(game.points))}–${Math.round(Number(opponentRow.points))}`:"—",
+        result:opponentRow?resultFor(game,opponentRow):"—",score:finite(game.points)&&finite(opponentRow?.points)?`${Math.round(Number(game.points))}–${Math.round(Number(opponentRow!.points))}`:"—",
         performance:analogPerformance(performanceLane,observation?.delta??null),
       } satisfies MatchupAnalog];
-    }).sort((left,right)=>right.similarity-left.similarity||timestamp(right.startDate)-timestamp(left.startDate)||right.week-left.week).slice(0,2);
+    }).sort((left,right)=>(right.similarity??-1)-(left.similarity??-1)||timestamp(right.startDate)-timestamp(left.startDate)||right.week-left.week);
     return {id:lane,label:`${laneMeta[lane].label} LOOKALIKE`,targetTeam,candidates};
   });
 }
 
-function buildExpectation(team:string,teamGames:MatchupContextGameRow[],logos:Map<string,string>,counterpartByGameTeam:Map<string,MatchupContextGameRow>):MatchupExpectation{
+function buildExpectation(team:string,teamGames:MatchupContextGameRow[],logos:Map<string,string>,counterpartByGameTeam:Map<string,MatchupContextGameRow>,fbsTeams:ReadonlySet<string>):MatchupExpectation{
   const games=teamGames.flatMap((game)=>{
+    if(!fbsTeams.has(game.team)||!fbsTeams.has(game.opponent))return [];
     const opponent=counterpartByGameTeam.get(`${game.gameId}\u0000${game.opponent}`);
     if(!opponent||!finite(game.points)||!finite(opponent.points)||!finite(game.predictedHomeScore)||!finite(game.predictedAwayScore))return[];
     const home=game.homeTeam===team;
@@ -324,9 +323,10 @@ function buildExpectation(team:string,teamGames:MatchupContextGameRow[],logos:Ma
 
 export function buildMatchupContext(input:{
   season:number;requestedWeek:number;effectiveWeek:number;homeTeam:string;awayTeam:string;
-  profiles:MatchupContextProfile[];games:MatchupContextGameRow[];logos?:Record<string,string>;
+  profiles:MatchupContextProfile[];games:MatchupContextGameRow[];logos?:Record<string,string>;fbsTeams?:readonly string[];
 }):MatchupContextPayload{
   const profiles=new Map(input.profiles.map((row)=>[row.team,row]));
+  const fbsTeams=new Set(input.fbsTeams??input.profiles.map(row=>row.team));
   const logos=new Map(Object.entries(input.logos??{}));
   const eligibleGames=input.games.filter((row)=>input.requestedWeek>=16
     ||((row.seasonType??"regular").toLowerCase()==="regular"&&row.week<=input.requestedWeek));
@@ -344,7 +344,7 @@ export function buildMatchupContext(input:{
     return {
       team,opponent,record:recordFor(teamGames,counterpartByGameTeam),impacts,
       analogs:buildAnalogLanes(team,opponent,teamGames,profiles,logos,counterpartByGameTeam,rowsByTeam,rowsAgainstTeam),
-      expectation:buildExpectation(team,teamGames,logos,counterpartByGameTeam),
+      expectation:buildExpectation(team,teamGames,logos,counterpartByGameTeam,fbsTeams),
     };
   };
   return {

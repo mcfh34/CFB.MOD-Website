@@ -1,0 +1,12 @@
+"use client";
+import {useRef,useState} from "react";
+import {flexRender,getCoreRowModel,getSortedRowModel,useReactTable,type ColumnDef,type SortingState} from "@tanstack/react-table";
+import {useVirtualizer} from "@tanstack/react-virtual";
+export function EfficientTable<T>({data,columns,rowKey,label}:{data:T[];columns:ColumnDef<T,unknown>[];rowKey:(row:T)=>string;label:string}){
+ const [sorting,setSorting]=useState<SortingState>([]);const parent=useRef<HTMLDivElement>(null);
+ const table=useReactTable({data,columns,state:{sorting},onSortingChange:setSorting,getCoreRowModel:getCoreRowModel(),getSortedRowModel:getSortedRowModel(),getRowId:rowKey});
+ const rows=table.getRowModel().rows;const virtual=useVirtualizer({count:rows.length,getScrollElement:()=>parent.current,estimateSize:()=>56,overscan:8});
+ const items=virtual.getVirtualItems();const active=rows.length>100&&items.length>0;
+ const visible=active?items.map(item=>({row:rows[item.index],item})):rows.slice(0,rows.length>100?40:undefined).map(row=>({row,item:null}));
+ return <div className="efficient-table-scroll" ref={parent} tabIndex={0} role="region" aria-label={label}><table className="efficient-table" aria-rowcount={rows.length+1}><thead>{table.getHeaderGroups().map(group=><tr key={group.id}>{group.headers.map(header=><th key={header.id} aria-sort={header.column.getIsSorted()==="asc"?"ascending":header.column.getIsSorted()==="desc"?"descending":"none"}><button type="button" onClick={header.column.getToggleSortingHandler()} disabled={!header.column.getCanSort()}>{flexRender(header.column.columnDef.header,header.getContext())}<span aria-hidden="true">{header.column.getIsSorted()==="asc"?" ↑":header.column.getIsSorted()==="desc"?" ↓":""}</span></button></th>)}</tr>)}</thead><tbody>{active&&items[0].start>0?<tr aria-hidden="true"><td colSpan={columns.length} style={{height:items[0].start,padding:0}}/></tr>:null}{visible.map(({row,item})=><tr key={row.id} data-index={item?.index} ref={item?virtual.measureElement:undefined} aria-rowindex={row.index+2}>{row.getVisibleCells().map(cell=><td key={cell.id}>{flexRender(cell.column.columnDef.cell,cell.getContext())}</td>)}</tr>)}{active&&virtual.getTotalSize()-(items.at(-1)?.end??0)>0?<tr aria-hidden="true"><td colSpan={columns.length} style={{height:virtual.getTotalSize()-(items.at(-1)?.end??0),padding:0}}/></tr>:null}</tbody></table>{!rows.length?<p className="data-empty">No matching teams.</p>:null}</div>;
+}

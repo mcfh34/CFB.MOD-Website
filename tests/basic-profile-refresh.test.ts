@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {buildProfiles,normalizeStats,type NormalizedGame} from '../lib/dataPipeline';
+import {reviewedResultsSnapshot} from '../lib/reviewedResults';
+import {applyPlayFeedSackAdjustments} from '../lib/playByPlay';
+test('new stored box scores update raw production and adjusted percentages without changing earlier weeks',()=>{
+ const games:NormalizedGame[]=reviewedResultsSnapshot.games.map(g=>({...g,completed:true,neutralSite:false,conferenceGame:true,seasonType:'regular',venue:null,homeConference:'Test',awayConference:'Test'}));
+ const stats=applyPlayFeedSackAdjustments(normalizeStats(reviewedResultsSnapshot.games,games,2026),reviewedResultsSnapshot.games.flatMap(g=>g.sackPlays),true);
+ const earlier=games.map(g=>({...g,id:`old-${g.id}`,week:6}));
+ const earlierStats=stats.map(s=>({...s,gameId:`old-${s.gameId}`,week:6,passYards:s.team==='Alabama'?500:s.passYards,yardsPerPass:s.team==='Alabama'?500/(s.passAttempts+s.sacksAllowed):s.yardsPerPass}));
+ const eligible=new Set(games.flatMap(g=>[g.homeTeam,g.awayTeam]));
+ const old=buildProfiles(earlier,earlierStats,2026,eligible);
+ const next=buildProfiles([...earlier,...games],[...earlierStats,...stats],2026,eligible);
+ const a=next.find(p=>p.team==='Alabama'&&p.week===7)!;
+ const before=old.find(p=>p.team==='Alabama'&&p.week===6)!;
+ assert.equal(a.gamesPlayed,before.gamesPlayed+1);
+ assert.notEqual(a.off[1],before.off[1]);assert.notEqual(a.oi[1],before.oi[1]);
+ assert.deepEqual(next.filter(p=>p.week<=6),old);
+ assert.ok(next.every(p=>[...p.off,...p.def,...p.oi,...p.di].every(Number.isFinite)));
+});

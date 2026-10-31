@@ -1,3 +1,4 @@
+import {readArchivedPayload,storeArchivedPayload,type ArchiveBucket} from "./payloadArchive";
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 export const WEEKLY_API_LIMIT = 40;
@@ -6,13 +7,10 @@ export function sundayNoonSlot(now = new Date()): string | null {
   const p = Object.fromEntries(parts.map(part => [part.type,part.value]));
   return p.weekday === 'Sun' && p.hour === '12' ? `${p.year}-${p.month}-${p.day}` : null;
 }
-type Context = {db:D1Database; write:boolean; remaining:number; pending:Map<string,Promise<unknown>>; blocked:boolean};
+type Context = {db:D1Database; write:boolean; remaining:number; pending:Map<string,Promise<unknown>>; blocked:boolean;bucket?:ArchiveBucket;fetched:Set<string>};
 const context = new AsyncLocalStorage<Context>();
-export function withApiPolicy<T>(db:D1Database, write:boolean, action:()=>Promise<T>) {
-  return context.run({db,write,remaining:WEEKLY_API_LIMIT,pending:new Map(),blocked:false},action);
-}
-async function cacheTable(db:D1Database) {
-  await db.prepare('CREATE TABLE IF NOT EXISTS weekly_api_cache (cache_key TEXT NOT NULL, part INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(cache_key,part))').run();
+export function withApiPolicy<T>(db:D1Database, write:boolean, action:()=>Promise<T>,bucket?:ArchiveBucket) {
+  return context.run({db,write,remaining:WEEKLY_API_LIMIT,pending:new Map(),blocked:false,bucket,fetched:new Set()},action);
 }
 export async function cachedApiRequest(url:URL, fetcher:()=>Promise<unknown>) {
   const state=context.getStore();
@@ -37,19 +35,23 @@ export async function cachedApiRequest(url:URL, fetcher:()=>Promise<unknown>) {
   };
   const pending=state.pending.get(cacheKey);if(pending)return select(await pending);
   const task=(async()=>{
-    await cacheTable(state.db);
-    const rows=await state.db.prepare('SELECT payload FROM weekly_api_cache WHERE cache_key=? ORDER BY part').bind(cacheKey).all<{payload:string}>();
-    if(!state.write) return rows.results.length ? JSON.parse(rows.results.map(r=>r.payload).join('')) : [];
+    if(!state.write||state.fetched.has(cacheKey)){
+      if(state.bucket){const archived=await readArchivedPayload(state.bucket,cacheKey);if(archived!==undefined)return archived;}
+      const rows=await state.db.prepare('SELECT payload FROM weekly_api_cache WHERE cache_key=? ORDER BY part').bind(cacheKey).all<{payload:string}>();
+      return rows.results.length?JSON.parse(rows.results.map(r=>r.payload).join('')):[];
+    }
     if(state.blocked||state.remaining<=0)throw new Error('Weekly API budget exhausted; existing published data preserved');
     state.remaining--;
     let result:unknown;
     try {result=await fetcher();} catch(error) {if([401,403,429].includes(Number((error as {status?:number}).status)))state.blocked=true;throw error;}
     const payload=JSON.stringify(result);
+    if(state.bucket){await storeArchivedPayload(state.db,state.bucket,cacheKey,payload);state.fetched.add(cacheKey);return result;}
     const statements=[state.db.prepare('DELETE FROM weekly_api_cache WHERE cache_key=?').bind(cacheKey)];
     for(let offset=0;offset<payload.length;offset+=100000)statements.push(state.db.prepare('INSERT INTO weekly_api_cache(cache_key,part,payload) VALUES(?,?,?)').bind(cacheKey,offset/100000,payload.slice(offset,offset+100000)));
     for(let i=0;i<statements.length;i+=20)await state.db.batch(statements.slice(i,i+20));
+    state.fetched.add(cacheKey);
     return result;
-  })();
+  })().finally(()=>state.pending.delete(cacheKey));
   state.pending.set(cacheKey,task);
   return select(await task);
 }

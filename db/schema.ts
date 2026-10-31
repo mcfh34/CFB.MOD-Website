@@ -12,6 +12,19 @@ export const refreshRuns = sqliteTable("refresh_runs", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+// Down by Down game rooms are deliberately separate from Harper's authoritative
+// model tables. Season Mode never writes here; only the existing live game room
+// protocol uses this short-lived state.
+export const games = sqliteTable("games", {
+  roomCode: text("room_code").primaryKey(),
+  homeToken: text("home_token").notNull(),
+  awayToken: text("away_token").notNull(),
+  stateJson: text("state_json").notNull(),
+  version: integer("version").notNull().default(1),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const cfbTeams = sqliteTable("cfb_teams", {
   season: integer("season").notNull(),
   team: text("team").notNull(),
@@ -79,6 +92,9 @@ export const teamGameStats = sqliteTable("team_game_stats", {
   rushAttempts: real("rush_attempts").notNull().default(0),
   yardsPerRush: real("yards_per_rush").notNull().default(0),
   turnovers: real("turnovers").notNull().default(0),
+  sacksAllowed: real("sacks_allowed").notNull().default(0),
+  sackYardsLost: real("sack_yards_lost").notNull().default(0),
+  sackAdjustmentVersion: integer("sack_adjustment_version").notNull().default(0),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [primaryKey({ columns: [table.gameId, table.team] }), index("team_game_stats_season_week_idx").on(table.season, table.week), index("team_game_stats_team_idx").on(table.team)]);
 
@@ -160,6 +176,7 @@ export const syncLeases = sqliteTable("sync_leases", {
 });
 
 export const modelPredictions = sqliteTable("model_predictions", {
+  forecastJson: text("forecast_json").notNull().default("{}"),
   gameId: text("game_id").primaryKey(),
   season: integer("season").notNull(),
   week: integer("week").notNull(),
@@ -369,3 +386,9 @@ export const playerProductionScores = sqliteTable("player_production_scores", {
   index("player_production_scores_position_score_idx").on(table.position, table.score),
   index("player_production_scores_season_idx").on(table.season),
 ]);
+
+// Raw payloads live in R2. Existing chunk rows remain a fallback until verified migration.
+export const weeklyApiCache=sqliteTable("weekly_api_cache",{cacheKey:text("cache_key").notNull(),part:integer("part").notNull(),payload:text("payload").notNull()},t=>[primaryKey({columns:[t.cacheKey,t.part]})]);
+export const weeklyStatsRuns=sqliteTable("weekly_stats_runs",{slot:text("slot").primaryKey(),status:text("status").notNull(),detail:text("detail"),updatedAt:text("updated_at").default(sql`CURRENT_TIMESTAMP`)});
+export const apiPayloadIndex=sqliteTable("api_payload_index",{cacheKey:text("cache_key").primaryKey(),objectKey:text("object_key").notNull(),checksum:text("checksum").notNull(),sizeBytes:integer("size_bytes").notNull(),updatedAt:text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`)});
+export const backgroundOutputs=sqliteTable("background_outputs",{id:text("id").primaryKey(),season:integer("season").notNull(),week:integer("week").notNull(),inputHash:text("input_hash").notNull(),objectKey:text("object_key").notNull(),createdAt:text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`)});

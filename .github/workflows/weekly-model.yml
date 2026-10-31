@@ -1,0 +1,30 @@
+name: Weekly model calculations
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/weekly-model.yml"]
+  schedule:
+    - cron: '30 17 * * 0'
+    - cron: '30 18 * * 0'
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: harper-weekly-model
+  cancel-in-progress: false
+jobs:
+  calculate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Compute and publish stored-data results
+        run: node --import tsx scripts/weekly-model-job.ts
+        env:
+          HARPER_SITE_URL: https://harpercfbmodel.com

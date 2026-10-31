@@ -1,6 +1,9 @@
 export type PublishedDepthSide = "offense" | "defense" | "specialists";
 
 export type PublishedDepthEntry = {
+  expectedSnapShare?: number;
+  availabilityProbability?: number;
+  starterProbability?: number;
   side: PublishedDepthSide;
   role: string;
   position: string;
@@ -10,12 +13,14 @@ export type PublishedDepthEntry = {
 };
 
 export type PublishedDepthChart = {
+  coachingContinuity?: { offense: boolean; defense: boolean };
   season: number;
   team: string;
   label: string;
   publishedAt: string;
   sourceUrl: string;
   sourceKind:
+    | "model_projection"
     | "official_game_notes"
     | "official_media_guide"
     | "official_gamebook"

@@ -14,7 +14,7 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
-  // UTC candidates cover CST/CDT; the Worker checks America/Chicago first.
+  // UTC candidates cover CST/CDT; the Worker checks America/Chicago before claiming a slot.
   triggers: { crons: ["0 17 * * 0", "0 18 * * 0"] },
   d1_databases: d1
     ? [

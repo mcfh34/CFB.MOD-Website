@@ -1,3 +1,6 @@
+import {scoringEvidenceFields} from "./matchupEvidenceFields";
+import { usesPreseasonPriors } from "./seasonPolicy";
+import { modelCalibration } from "../app/modelData";
 import { buildBcsRankings, type BcsRankingRow, type RankingGame, type RankingProfile } from "./rankings";
 import { matchupScoreCard, projectMatchupCore, projectMatchupEngine } from "./matchupEngine";
 import type { MatchupEdgeAnalysis } from "./matchupAnalysis";
@@ -64,7 +67,7 @@ export type SimulatedScheduleRow = SimulationProjectionReceipt & {
 
 type SimulatedBasicProfile={
   totalYards:number;yardsPerPlay:number;passYards:number;passAttempts:number;passCompletions:null;yardsPerPass:number;
-  rushYards:number;rushAttempts:number;yardsPerRush:number;turnovers:null;
+  rushYards:number;rushAttempts:number;yardsPerRush:number;turnovers:number|null;
 };
 
 type SimulatedAdvancedProfile={
@@ -80,6 +83,7 @@ export type SimulatedRankingRow = BcsRankingRow & {
   projectedWins: number;
   projectedLosses: number;
   projectedRecord: string;
+  regularSeasonRecord: string;
   projectedWinsOver: string[];
   projectedLossesTo: string[];
   conferenceChampion: boolean;
@@ -116,6 +120,8 @@ export type BracketProjection = SimulationProjectionReceipt & {
 };
 
 export type SeasonSimulation = {
+  profileWeek?: number;
+  pendingResults?:number;
   season: number;
   requestedWeek: number;
   effectiveWeek: number;
@@ -240,11 +246,17 @@ export type ConferenceStandingCandidate = {
   results:Record<string,boolean>;
 };
 
-export function projectedFinalRankingScore(row:BcsRankingRow,record:{expectedWins:number;wins:number;losses:number;games:unknown[]}){
+export function projectedFinalRankingScore(row:BcsRankingRow,record:{expectedWins:number;wins:number;losses:number;games:unknown[]},fbsFieldSize=138){
   const games=Math.max(1,record.games.length||row.wins+row.losses+row.ties);
   const expectedPct=record.expectedWins/games;
   const projectedPct=(record.wins+0.5*Math.max(0,games-record.wins-record.losses))/games;
   const scheduleProof=.45*(row.scheduleStrength??.5)+.3*(row.bestOpponentStrength??.5)+.25*(row.qualityWinStrength??.5);
+  // scheduleScore blends win quality with difficulty. Keep a separate pure
+  // SOS percentile so an unbeaten record cannot stand in for a strong schedule.
+  const fieldSize=Math.max(2,fbsFieldSize);
+  const scheduleDifficulty=Number.isFinite(row.sosRank)
+    ?Math.max(0,Math.min(1,(fieldSize-row.sosRank)/(fieldSize-1)))
+    :Math.max(0,Math.min(1,row.scheduleStrength??.5));
   // Record remains the anchor, but an unbeaten path with no comparable test
   // cannot automatically clear a one-loss contender that has already proved
   // it can perform against an elite schedule. This is a schedule-transfer
@@ -252,7 +264,22 @@ export function projectedFinalRankingScore(row:BcsRankingRow,record:{expectedWin
   const weakSchedulePenalty=record.losses===0
     ?Math.max(0,.58-scheduleProof)*.22
     :0;
-  return 0.34*expectedPct+0.18*projectedPct+0.24*row.resultsScore+0.14*row.computerScore+0.10*row.scheduleScore-weakSchedulePenalty;
+  const results=record.games.filter((game):game is {opponent:string;won:boolean;seasonType:string}=>
+    typeof game==="object"&&game!==null&&typeof (game as {opponent?:unknown}).opponent==="string"
+    &&typeof (game as {won?:unknown}).won==="boolean"&&typeof (game as {seasonType?:unknown}).seasonType==="string");
+  const titleWinIndex=results.findIndex(game=>game.seasonType==="conference-championship"&&game.won);
+  const titleWin=results[titleWinIndex];
+  // Rank the résumé of the displayed path, not the probability of reaching it.
+  // Winning an extra title game must not primarily penalize expected win %.
+  // Titles receive bounded, schedule-supported credit across every conference.
+  const proof=Math.max(0,Math.min(1,scheduleProof));
+  const championshipCredit=titleWin?0.015+0.015*proof:0;
+  // A championship rematch resolves an earlier head-to-head loss without
+  // deleting that loss from the record or awarding ordinary rematches a bonus.
+  const avengedLossCredit=titleWin&&results.slice(0,titleWinIndex).some(game=>!game.won&&game.opponent===titleWin.opponent)
+    ?0.006*proof:0;
+  return 0.12*expectedPct+0.26*projectedPct+0.24*row.resultsScore+0.08*row.computerScore+0.14*row.scheduleScore+0.16*scheduleDifficulty
+    +championshipCredit+avengedLossCredit-weakSchedulePenalty;
 }
 
 function recordPct(wins:number,losses:number) {
@@ -313,9 +340,9 @@ function emptyProjectedRecord():ProjectedRecord {
   return { wins:0,losses:0,expectedWins:0,conferenceWins:0,conferenceLosses:0,conferenceExpectedWins:0,conferenceGames:0,winsOver:[],lossesTo:[],games:[] };
 }
 
-function simulatedBasicProfile(stats:{ypp:number;ypa:number;ypc:number;patt:number;ratt:number}):SimulatedBasicProfile{
+function simulatedBasicProfile(stats:{ypp:number;ypa:number;ypc:number;patt:number;ratt:number;expectedTurnovers?:number|null}):SimulatedBasicProfile{
   const plays=Math.max(0,stats.patt)+Math.max(0,stats.ratt);
-  return {totalYards:stats.ypp*plays,yardsPerPlay:stats.ypp,passYards:stats.ypa*stats.patt,passAttempts:stats.patt,passCompletions:null,yardsPerPass:stats.ypa,rushYards:stats.ypc*stats.ratt,rushAttempts:stats.ratt,yardsPerRush:stats.ypc,turnovers:null};
+  return {totalYards:stats.ypp*plays,yardsPerPlay:stats.ypp,passYards:stats.ypa*stats.patt,passAttempts:stats.patt,passCompletions:null,yardsPerPass:stats.ypa,rushYards:stats.ypc*stats.ratt,rushAttempts:stats.ratt,yardsPerRush:stats.ypc,turnovers:stats.expectedTurnovers??null};
 }
 
 function simulatedAdvancedProfile(advanced:ReturnType<typeof projectMatchupEngine>["homeStats"]["advanced"]):SimulatedAdvancedProfile|null{
@@ -338,8 +365,15 @@ export function projectSeasonMatchup(first: RankingProfile | undefined, second: 
     offYppIndex: 1, offYpaIndex: 1, offYpcIndex: 1, offPattIndex: 1, offRattIndex: 1,
     defYppIndex: 1, defYpaIndex: 1, defYpcIndex: 1, defPattIndex: 1, defRattIndex: 1,
   };
-  const a = first ?? fallback;
-  const b = second ?? fallback;
+  const fcsFallback = { ...fallback,
+    offYppIndex:modelCalibration.fcsOffenseIndex,offYpaIndex:modelCalibration.fcsOffenseIndex,offYpcIndex:modelCalibration.fcsOffenseIndex,
+    defYppIndex:modelCalibration.fcsDefenseIndex,defYpaIndex:modelCalibration.fcsDefenseIndex,defYpcIndex:modelCalibration.fcsDefenseIndex,
+  };
+  // The snapshot contains all eligible FBS teams, including preseason fallbacks.
+  const firstIsFcs = !first && !firstRank;
+  const secondIsFcs = !second && !secondRank;
+  const a = first ?? (firstIsFcs ? fcsFallback : fallback);
+  const b = second ?? (secondIsFcs ? fcsFallback : fallback);
   const evidence = (ranking: BcsRankingRow | undefined): MatchupEvidence => {
     return {
       gamesPlayed: (ranking?.wins ?? 0) + (ranking?.losses ?? 0) + (ranking?.ties ?? 0),
@@ -347,25 +381,32 @@ export function projectSeasonMatchup(first: RankingProfile | undefined, second: 
       bestOpponentStrength: ranking?.bestOpponentStrength ?? 0.5,
       qualityWinStrength: ranking?.qualityWinStrength ?? 0.5,
       reliability: ranking?.matchupReliability ?? 1,
+      ...scoringEvidenceFields(ranking),
     };
   };
   const firstTeam = first?.team ?? firstRank?.team ?? "First team";
   const secondTeam = second?.team ?? secondRank?.team ?? "Second team";
   const homeInput={
       team:firstTeam,
+      conferenceAdjustment:first?.conferenceAdjustment,
       offense:[Number(a.offYppIndex),Number(a.offYpaIndex),Number(a.offYpcIndex),Number(a.offPattIndex ?? 1),Number(a.offRattIndex ?? 1)],
       defense:[Number(a.defYppIndex),Number(a.defYpaIndex),Number(a.defYpcIndex),Number(a.defPattIndex ?? 1),Number(a.defRattIndex ?? 1)],
       evidence:evidence(firstRank),
       advanced:first?.advanced,
-      outcomeRating:firstRank?.eloRating,
+      roster:first?.roster,
+      outcomeRating:firstIsFcs ? modelCalibration.fcsProjectionElo : firstRank?.eloRating,
+      isFcs:firstIsFcs,isPower4:["ACC","Big 12","Big Ten","SEC"].includes(first?.conference ?? ""),
     };
   const awayInput={
       team:secondTeam,
+      conferenceAdjustment:second?.conferenceAdjustment,
       offense:[Number(b.offYppIndex),Number(b.offYpaIndex),Number(b.offYpcIndex),Number(b.offPattIndex ?? 1),Number(b.offRattIndex ?? 1)],
       defense:[Number(b.defYppIndex),Number(b.defYpaIndex),Number(b.defYpcIndex),Number(b.defPattIndex ?? 1),Number(b.defRattIndex ?? 1)],
       evidence:evidence(secondRank),
       advanced:second?.advanced,
-      outcomeRating:secondRank?.eloRating,
+      roster:second?.roster,
+      outcomeRating:secondIsFcs ? modelCalibration.fcsProjectionElo : secondRank?.eloRating,
+      isFcs:secondIsFcs,isPower4:["ACC","Big 12","Big Ten","SEC"].includes(second?.conference ?? ""),
     };
   const projection = includeAnalysis
     ?projectMatchupEngine(homeInput,awayInput,neutral)
@@ -380,6 +421,7 @@ export function projectSeasonMatchup(first: RankingProfile | undefined, second: 
     ? `${analysis.intelligence.controlTeam} · ${analysis.intelligence.controlUnit}`
     : topPosition?.edgeTeam ? `${topPosition.edgeTeam} · ${topPosition.label}` : "Position groups balanced";
   return {
+    rawProjection:projection,
     firstScore,secondScore,margin:projection.margin,firstWinProbability:projection.homeWinProbability,schematicEdge,
     modelHomeSpread:projection.modelHomeSpread,modelTotal:projection.modelTotal,
     homePredictedStats:simulatedBasicProfile(projection.homeStats),awayPredictedStats:simulatedBasicProfile(projection.awayStats),
@@ -465,6 +507,13 @@ function simulateBracket(field: Array<{ seed: number; team: string }>, profiles:
   return { games, champion };
 }
 
+export function seasonSnapshotRankings(schedule:SimulationScheduleGame[], profiles:RankingProfile[], effectiveWeek:number, season?:number) {
+  const championships=conferenceChampionshipGameIds(schedule);
+  const completed=schedule.filter(game=>game.seasonType!=="postseason" && game.week<=effectiveWeek && Boolean(game.completed) && game.homePoints!==null && game.awayPoints!==null)
+    .map(game=>rankingGame(game,Number(game.homePoints),Number(game.awayPoints),championships.has(game.gameId)));
+  return buildBcsRankings(completed,profiles,{usePreseasonElo:usesPreseasonPriors(season??0,effectiveWeek+1)});
+}
+
 export function buildSeasonSimulation(season: number, requestedWeek: number, effectiveWeek: number, schedule: SimulationScheduleGame[], profiles: RankingProfile[], options:SeasonSimulationOptions={}): SeasonSimulation {
   const profileMap = new Map(profiles.map((profile) => [profile.team, profile]));
   const conferenceChampionshipIds=conferenceChampionshipGameIds(schedule);
@@ -486,7 +535,9 @@ export function buildSeasonSimulation(season: number, requestedWeek: number, eff
       const projection=resolvedCompletedProjection(game);
       return rankingGame(game,projection.firstScore,projection.secondScore,conferenceChampionshipIds.has(game.gameId));
     });
-  const currentRankings = buildBcsRankings(completedThroughWeek, profiles, { usePreseasonElo: true });
+  const currentRankings = options.gameOverrides?.length
+    ? buildBcsRankings(completedThroughWeek, profiles, { usePreseasonElo: usesPreseasonPriors(season,effectiveWeek+1) })
+    : seasonSnapshotRankings(schedule,profiles,effectiveWeek,season);
   const currentRankingMap = new Map(currentRankings.map((row) => [row.team, row]));
   const projectedGames: RankingGame[] = [];
   const teamRecords = new Map(profiles.map((profile) => [profile.team, emptyProjectedRecord()]));
@@ -585,7 +636,7 @@ export function buildSeasonSimulation(season: number, requestedWeek: number, eff
     }
   }
 
-  const preliminaryRankings = buildBcsRankings(projectedGames, profiles, { usePreseasonElo: true });
+  const preliminaryRankings = buildBcsRankings(projectedGames, profiles, { usePreseasonElo: usesPreseasonPriors(season,effectiveWeek+1) });
   const preliminaryMap = new Map(preliminaryRankings.map((row) => [row.team, row]));
   const conferences = new Map<string, RankingProfile[]>();
   for (const profile of profiles) {
@@ -703,16 +754,15 @@ export function buildSeasonSimulation(season: number, requestedWeek: number, eff
       :{ gameId, week: titleWeek, startDate: null, neutralSite: true, conferenceGame:true, homeConference:conference, awayConference:conference, homeTeam: first.team, homePoints: projection.firstScore, awayTeam: second.team, awayPoints: projection.secondScore, seasonType:"conference-championship", conferenceChampionship:true });
   }
 
-  const rawFinalRankings = buildBcsRankings([...projectedGames, ...championshipGames], profiles, { usePreseasonElo: true });
-  // A point estimate can make a team go 12–0 simply because it is favored by
-  // one point twelve times. Expected wins and the representative projected
-  // record therefore lead the order. Results and team strength preserve a
+  const rawFinalRankings = buildBcsRankings([...projectedGames, ...championshipGames], profiles, { usePreseasonElo: usesPreseasonPriors(season,effectiveWeek+1) });
+  // The displayed path's record and résumé lead the final order. Expected
+  // wins remain a smaller uncertainty signal. Results and team strength preserve a
   // strong two-loss team that is projected to win out; SOS cannot elevate a
   // team merely because the model expects it to keep losing to good teams.
   const finalRankings = [...rawFinalRankings].sort((a,b) => {
     const aRecord=teamRecords.get(a.team)??emptyProjectedRecord();
     const bRecord=teamRecords.get(b.team)??emptyProjectedRecord();
-    return projectedFinalRankingScore(b,bRecord)-projectedFinalRankingScore(a,aRecord)||b.bcsScore-a.bcsScore||a.rank-b.rank||a.team.localeCompare(b.team);
+    return projectedFinalRankingScore(b,bRecord,rawFinalRankings.length)-projectedFinalRankingScore(a,aRecord,rawFinalRankings.length)||b.bcsScore-a.bcsScore||a.rank-b.rank||a.team.localeCompare(b.team);
   }).map((row,index)=>({...row,rank:index+1}));
   const finalRankingMap = new Map(finalRankings.map((row) => [row.team, row]));
   const championSet = new Set(conferenceChampionships.map((row) => row.winner));
@@ -765,7 +815,7 @@ export function buildSeasonSimulation(season: number, requestedWeek: number, eff
       awayPredictedAdvanced:game.awayPredictedAdvanced,
       edgeAnalysis:game.edgeAnalysis,
     }));
-    return { ...row, expectedWins: record.expectedWins, projectedWins, projectedLosses, projectedRecord: `${projectedWins}–${projectedLosses}`, projectedWinsOver: biggestWins, projectedLossesTo: worstLosses, conferenceChampion: championSet.has(row.team), playoffSeed: seedMap.get(row.team) ?? null, schedule:teamSchedule };
+    return { ...row, expectedWins: record.expectedWins, projectedWins, projectedLosses, projectedRecord: `${projectedWins}–${projectedLosses}`, regularSeasonRecord:`${representativeWins.filter(game=>game.seasonType==="regular").length}–${representativeLosses.filter(game=>game.seasonType==="regular").length}`, projectedWinsOver: biggestWins, projectedLossesTo: worstLosses, conferenceChampion: championSet.has(row.team), playoffSeed: seedMap.get(row.team) ?? null, schedule:teamSchedule };
   });
   const championshipGame = bracket.games.at(-1);
   return {
@@ -774,7 +824,7 @@ export function buildSeasonSimulation(season: number, requestedWeek: number, eff
     effectiveWeek,
     fieldMode,
     format,
-    methodology: `Every future game is run through the exact Matchup Lab engine using the selected weekly snapshot: all five production and volume indices, advanced position-group metrics, opponent proof, offensive viability, shared possessions, points per possession and the same snapshot Elo. The displayed record, best wins and losses are the game-by-game Matchup Lab path; expected wins remains the uncertainty-weighted season average. The final order also tests how much schedule proof supports that record, so an unbeaten weak-schedule path does not automatically clear a one-loss team proven against elite opponents. The engine inputs remain fixed as the season advances, so a schedule, conference-title or playoff matchup reproduces the Matchup Lab result when the teams and site match. Regular-season games, conference championships and postseason games are separate phases: once a stored title result is available it replaces, rather than duplicates, the generated conference championship. Conference participants are selected by conference record, head-to-head mini-league and common-opponent procedures before model rating is used. The playoff field and seeds follow the final Season Sim ranking exactly: rank 1 is seed 1 through the ${format}-team cutoff, with no real-life bracket placement or automatic qualifier replacing a higher-ranked team.${options.gameOverrides?.length?" Manual scenario results are fixed before conference standings, final rankings and the projected playoff field are rebuilt.":""}`,
+    methodology: `Every future game is run through the exact Matchup Lab engine using the selected weekly snapshot: all five production and volume indices, advanced position-group metrics, opponent proof, offensive viability, shared possessions, points per possession and the same snapshot Elo. The displayed record, best wins and losses are the game-by-game Matchup Lab path; expected wins remains the uncertainty-weighted season average. The final order emphasizes the displayed record and schedule-supported résumé: 26% projected record, 24% results résumé, 16% pure strength-of-schedule percentile, 14% schedule and win quality, 12% expected win percentage, and 8% computer signals. Schedule difficulty therefore matters independently of an unbeaten record. Conference championship wins receive bounded credit supported by schedule strength, and a championship rematch win earns additional credit for avenging an earlier loss without deleting that loss. An unbeaten weak-schedule path does not automatically clear a one-loss team proven against elite opponents. The engine inputs remain fixed as the season advances, so a schedule, conference-title or playoff matchup reproduces the Matchup Lab result when the teams and site match. Regular-season games, conference championships and postseason games are separate phases: once a stored title result is available it replaces, rather than duplicates, the generated conference championship. Conference participants are selected by conference record, head-to-head mini-league and common-opponent procedures before model rating is used. The playoff field and seeds follow the final Season Sim ranking exactly: rank 1 is seed 1 through the ${format}-team cutoff, with no real-life bracket placement or automatic qualifier replacing a higher-ranked team.${options.gameOverrides?.length?" Manual scenario results are fixed before conference standings, final rankings and the projected playoff field are rebuilt.":""}`,
     champion: bracket.champion?.team ?? null,
     championshipProbability: championshipGame?.winnerProbability ?? null,
     rankings,

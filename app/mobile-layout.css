@@ -1,0 +1,77 @@
+/* Content-sized phone layouts: names wrap at spaces, numbers stay together. */
+@media (max-width:900px) {
+  .app-page-slot :is(.data-toolbar,.section-title-row,.stats-toolbar-controls,.depth-chart-controls,.weekly-ranking-toolbar) { min-width:0; flex-wrap:wrap; height:auto; gap:12px; }
+  .app-page-slot :is(.data-toolbar,.stats-toolbar-controls,.depth-chart-controls) > * { min-width:0; max-width:100%; }
+  .app-page-slot :is(.data-toolbar,.stats-toolbar-controls,.depth-chart-controls) label { flex:1 1 160px; }
+  .app-page-slot :is(.scores-rankings-tabs,.team-page-tabs,.mlab-workspace-tabs,.depth-roster-unit-tabs,.depth-roster-position-tabs) { display:flex; flex-wrap:wrap; width:100%; min-width:0; height:auto; gap:6px; }
+  .app-page-slot :is(.scores-rankings-tabs,.team-page-tabs,.mlab-workspace-tabs,.depth-roster-unit-tabs,.depth-roster-position-tabs) > button { flex:1 1 130px; min-width:0; min-height:44px; height:auto; padding:10px; white-space:normal; font-size:14px; line-height:1.4; }
+  .app-page-slot :is(.mlab-workspace-tabs,.team-page-tabs) button :is(span,small) { white-space:normal; overflow:visible; font-size:inherit; line-height:1.4; }
+  .app-page-slot :is(.vintage-control,.schedule-filter-control,.stats-toolbar-controls,.depth-chart-controls,.scatter-controls,.player-ratings-controls) select { min-width:0; max-width:100%; width:100%; height:auto; min-height:44px; font-size:16px; line-height:1.4; }
+  .app-page-slot :is(.vintage-control,.schedule-filter-control,.stats-toolbar-controls,.depth-chart-controls,.scatter-controls,.player-ratings-controls) label > span { font-size:12px; line-height:1.4; }
+  .app-page-slot :is(.scatter-controls,.player-ratings-controls) { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .app-page-slot :is(.scatter-axis-control,.player-stats-stat-control) { grid-column:1/-1; }
+  .app-page-slot .scatter-controls :is(.scatter-axis-control.x,.scatter-axis-control.y) { grid-column:auto; }
+  .app-page-slot .unified-rankings-shell { min-width:0; width:100%; }
+  .app-page-slot .unified-rankings-shell .unified-ranking-entry { min-width:0; }
+  .app-page-slot .unified-rankings-shell .unified-ranking-row { min-width:0; width:100%; display:grid; grid-template-columns:28px minmax(0,1fr); grid-template-rows:auto auto auto; gap:12px 8px; padding:12px!important; }
+  .app-page-slot .unified-rankings-shell .ranking-number { grid-column:1; grid-row:1; align-self:center; font-size:16px; }
+  .app-page-slot .unified-rankings-shell .ranking-team { grid-column:2; grid-row:1; min-width:0; width:100%; gap:10px; }
+  .app-page-slot .unified-rankings-shell .ranking-team > span { min-width:0; flex:1; }
+  .app-page-slot .unified-rankings-shell .ranking-team strong { font-size:16px; line-height:1.3; white-space:normal; overflow:visible; text-overflow:clip; word-break:normal; overflow-wrap:normal; }
+  .app-page-slot .unified-rankings-shell .ranking-team small { display:block; height:auto; max-height:none; font-size:12px; line-height:1.5; white-space:normal; overflow:visible; }
+  .app-page-slot .unified-rankings-shell .ranking-team small b { display:block; font-size:12px; line-height:1.4; }
+  .app-page-slot .unified-rankings-shell .ranking-metrics { grid-column:1/-1; grid-row:2; width:100%; min-width:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .app-page-slot .unified-rankings-shell .ranking-metrics > * { display:flex!important; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:5px; width:auto; min-width:0; padding:8px 4px; height:auto; overflow:visible; white-space:normal; font-size:14px; line-height:1.4; text-align:left; }
+  .app-page-slot .unified-rankings-shell .ranking-metrics > [data-label]::before { display:block; content:attr(data-label); min-height:2.8em; font-size:12px; line-height:1.4; color:var(--app-muted); white-space:normal; }
+  .app-page-slot .unified-rankings-shell .ranking-record-pair :is(b,small) { font-size:14px; line-height:1.4; white-space:nowrap; overflow:visible; }
+  .app-page-slot .unified-rankings-shell .ranking-record-pair > small { font-size:12px; }
+  .app-page-slot .unified-rankings-shell .ranking-schedule-toggle { grid-column:1/-1; grid-row:3; min-height:44px; font-size:12px; padding:8px; }
+  .app-page-slot .unified-rankings-shell .ranking-schedule-game { grid-template-columns:38px 36px minmax(0,1fr); height:auto; gap:8px; padding:10px; }
+  .app-page-slot .ranking-schedule-opponent :is(strong,em) { white-space:normal; overflow:visible; font-size:13px; line-height:1.4; }
+  .app-page-slot .ranking-schedule-game > b { grid-column:3; font-size:14px; white-space:nowrap; }
+  .app-page-slot .ranking-schedule-record { grid-column:3; font-size:12px; white-space:nowrap; }
+  .app-page-slot .mlab-controls { position:static; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding:12px; }
+  .app-page-slot .mlab-controls > :nth-child(1) { grid-area:1/1; }
+  .app-page-slot .mlab-controls > :nth-child(2) { grid-area:1/2; }
+  .app-page-slot .mlab-controls > .mlab-first-team { grid-area:2/1/3/-1; }
+  .app-page-slot .mlab-controls > :nth-child(5) { grid-area:3/1; }
+  .app-page-slot .mlab-controls > :nth-child(6) { grid-area:3/2; }
+  .app-page-slot .mlab-controls > .mlab-second-team { grid-area:4/1/5/-1; }
+  .app-page-slot .mlab-controls > button { grid-area:5/1; width:100%; height:44px; }
+  .app-page-slot .mlab-controls > button::after { content:' Swap teams'; font-size:14px; }
+  .app-page-slot .mlab-controls > .mlab-site-select { grid-area:5/2; height:auto; min-width:0; padding:0; }
+  .app-page-slot .mlab-controls label { min-width:0; }
+  .app-page-slot .mlab-controls label > span { display:block!important; font-size:12px; line-height:1.4; letter-spacing:.04em; }
+  .app-page-slot .mlab-controls select { min-height:44px; height:auto; padding:10px 28px 10px 10px; font-size:16px; line-height:1.4; }
+  .app-page-slot .mlab-controls .mlab-team-name-full { display:block; }
+  .app-page-slot .mlab-controls .mlab-team-name-short { display:none; }
+  .app-page-slot .mlab-scoreboard { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-page-slot .mlab-scoreboard > article { grid-row:1; padding:16px 10px; min-height:0; justify-content:flex-start; }
+  .app-page-slot .mlab-scoreboard > article:first-child { grid-column:1; }
+  .app-page-slot .mlab-scoreboard > article:nth-child(3) { grid-column:2; }
+  .app-page-slot .mlab-team-lockup { width:100%; min-width:0; }
+  .app-page-slot .mlab-team-lockup > strong { width:100%; max-width:none; font-size:18px; line-height:1.35; white-space:normal; overflow:visible; text-overflow:clip; word-break:normal; overflow-wrap:normal; }
+  .app-page-slot .mlab-team-lockup > small { font-size:12px; line-height:1.5; letter-spacing:0; white-space:normal; }
+  .app-page-slot .mlab-score { margin-top:auto; }
+  .app-page-slot .mlab-score > b { font-size:40px; white-space:nowrap; }
+  .app-page-slot .mlab-score > em { font-size:14px; }
+  .app-page-slot .mlab-scoreboard > div { grid-column:1/-1; grid-row:2; padding:14px; border-inline:0; border-top:1px solid var(--lab-line); }
+  .app-page-slot .mlab-scoreboard > div > strong { font-size:18px; line-height:1.4; }
+  .app-page-slot .mlab-scoreboard > div :is(span,small,i), .app-page-slot .mlab-scoreboard > footer small { font-size:12px; line-height:1.4; }
+  .app-page-slot .mlab-scoreboard > footer { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-page-slot .mlab-scoreboard > footer b { font-size:14px; line-height:1.4; white-space:normal; }
+  .app-page-slot :is(.mlab-title,.mlab-section > header,.mlab-scoreboard) > p { font-size:14px; line-height:1.6; }
+  .app-page-slot .mlab-section > header p { font-size:14px; line-height:1.6; }
+  .app-page-slot .mlab-scoreboard > p > strong { font-size:12px; line-height:1.4; }
+  .app-page-slot .mlab-edge-lanes > article { grid-template-columns:48px minmax(0,1fr) 48px; }
+  .app-page-slot .mlab-edge-lanes > article > span { min-width:0; grid-template-columns:minmax(0,1fr); }
+  .app-page-slot .mlab-edge-lanes > article > span :is(small,em,p) { font-size:12px; line-height:1.5; white-space:normal; word-break:normal; }
+  .app-page-slot .mlab-edge-lanes > article > div { flex-direction:column; }
+  .app-page-slot :is(.mlab-impact-team,.mlab-analogs-team) > div { grid-template-columns:minmax(0,1fr); }
+  .app-page-slot :is(.mlab-impact-team,.mlab-analogs-team,.mlab-expectation-team,.mlab-viability) :is(p,small) { font-size:12px; line-height:1.5; white-space:normal; }
+  .app-page-slot :is(.mlab-analog-primary,.mlab-analog-comparison) strong { font-size:14px; line-height:1.4; white-space:normal; overflow:visible; word-break:normal; }
+}
+@media(max-width:380px) {
+  .app-page-slot .unified-rankings-shell .ranking-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-page-slot :is(.scatter-controls,.player-ratings-controls) { grid-template-columns:minmax(0,1fr); }
+}

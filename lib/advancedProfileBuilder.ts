@@ -1,3 +1,5 @@
+import { usesPreseasonPriors } from "./seasonPolicy";
+import { rosterPriorWeight } from "./rosterModel";
 import {
   advancedMetricIndex,
   advancedMetricKeys,
@@ -17,6 +19,8 @@ export type AdvancedBaseStatRow = {
   passAttempts: number;
   passCompletions: number | null;
   rushAttempts: number;
+  sacksAllowed?: number;
+  sackYardsLost?: number;
   totalYards?: number;
   yardsPerPlay?: number;
   turnovers?: number;
@@ -84,6 +88,7 @@ export type AdvancedGameComponentRow = {
 };
 
 export type WeeklyAdvancedProfile = {
+  rosterUncertainty?: {offense:number;defense:number};
   season: number;
   week: number;
   team: string;
@@ -116,13 +121,13 @@ function aggregateSide(
   const baseById = new Map(baseRows.map((row) => [row.gameId, row]));
   const weighted = (accessor: (row: AdvancedGameComponentRow) => number | null, weight: "rush" | "pass") => weightedAverage(advancedRows.map((row) => ({
     value: accessor(row),
-    weight: weight === "rush" ? (baseById.get(row.gameId)?.rushAttempts ?? 0) : (baseById.get(row.gameId)?.passAttempts ?? 0),
+    weight: weight === "rush" ? (baseById.get(row.gameId)?.rushAttempts ?? 0) : ((baseById.get(row.gameId)?.passAttempts ?? 0) + (baseById.get(row.gameId)?.sacksAllowed ?? 0)),
   })));
-  const passAttempts = baseRows.reduce((sum, row) => sum + row.passAttempts, 0);
+  const passAttempts = baseRows.reduce((sum, row) => sum + row.passAttempts + (row.sacksAllowed ?? 0), 0);
   const completionRows = baseRows.filter((row) => finite(row.passCompletions));
   const passCompletions = completionRows.reduce((sum, row) => sum + Number(row.passCompletions), 0);
   const completionAttempts = completionRows.reduce((sum, row) => sum + row.passAttempts, 0);
-  const completionPassYards = completionRows.reduce((sum, row) => sum + row.passYards, 0);
+  const completionPassYards = completionRows.reduce((sum, row) => sum + row.passYards + (row.sackYardsLost ?? 0), 0);
   const passing = derivePassingEfficiency({
     passAttempts: completionAttempts,
     passCompletions: completionRows.length ? passCompletions : null,
@@ -130,7 +135,7 @@ function aggregateSide(
   });
   const values = emptyAdvancedMetricValues();
   values.pointsPerGame = weightedAverage(baseRows.map((row) => ({ value: row.points ?? null, weight: 1 })));
-  values.yardsPerPlay = weightedAverage(baseRows.map((row) => ({ value: row.yardsPerPlay ?? null, weight: Math.max(1, row.passAttempts + row.rushAttempts) })));
+  values.yardsPerPlay = weightedAverage(baseRows.map((row) => ({ value: row.yardsPerPlay ?? null, weight: Math.max(1, row.passAttempts + (row.sacksAllowed ?? 0) + row.rushAttempts) })));
   values.successRate = weightedAverage(advancedRows.map((row) => ({ value: (offense ? row.offSuccessRate : row.defSuccessRate) ?? null, weight: (offense ? row.offPlays : row.defPlays) ?? 1 })));
   values.explosiveness = weightedAverage(advancedRows.map((row) => ({ value: (offense ? row.offExplosiveness : row.defExplosiveness) ?? null, weight: (offense ? row.offPlays : row.defPlays) ?? 1 })));
   values.ppa = weightedAverage(advancedRows.map((row) => ({ value: (offense ? row.offPpa : row.defPpa) ?? null, weight: (offense ? row.offPlays : row.defPlays) ?? 1 })));
@@ -236,6 +241,7 @@ export function buildWeeklyAdvancedProfiles(
   const advanced = advancedRows.filter((row) => completedRegularGameIds.has(row.gameId));
   const baseByGameTeam = new Map(base.map((row) => [`${row.gameId}|${row.team}`, row]));
   const prior = new Map(preseasonProfiles.map((row) => [row.team, row.advanced]));
+  const uncertainty = new Map(preseasonProfiles.map(row=>[row.team,row.rosterUncertainty]));
   const maxWeek = Math.max(0, ...advanced.map((row) => row.week));
   const output: WeeklyAdvancedProfile[] = [];
 
@@ -273,9 +279,9 @@ export function buildWeeklyAdvancedProfiles(
         blendedIndex(
           row.offense[key],
           adjusted.offense.get(team)?.[key] ?? null,
-          key === "pointsPerGame" ? priorProfile?.offense.index[key] ?? 1 : priorProfile?.offense.index[key] ?? null,
+          !usesPreseasonPriors(season,week+1)?null:key === "pointsPerGame" ? priorProfile?.offense.index[key] ?? 1 : priorProfile?.offense.index[key] ?? null,
           row.games,
-          key === "pointsPerGame" ? 1.5 : 1.25,
+          usesPreseasonPriors(season,week+1)?rosterPriorWeight(key === "pointsPerGame" ? 1.5 : 1.25, uncertainty.get(team)?.offense):0,
         ),
       ])) as AdvancedMetricValues;
       const defenseIndex = Object.fromEntries(advancedMetricKeys.map((key) => [
@@ -283,9 +289,9 @@ export function buildWeeklyAdvancedProfiles(
         blendedIndex(
           row.defense[key],
           adjusted.defense.get(team)?.[key] ?? null,
-          key === "pointsPerGame" ? priorProfile?.defense.index[key] ?? 1 : priorProfile?.defense.index[key] ?? null,
+          !usesPreseasonPriors(season,week+1)?null:key === "pointsPerGame" ? priorProfile?.defense.index[key] ?? 1 : priorProfile?.defense.index[key] ?? null,
           row.games,
-          key === "pointsPerGame" ? 1.5 : 1.25,
+          usesPreseasonPriors(season,week+1)?rosterPriorWeight(key === "pointsPerGame" ? 1.5 : 1.25, uncertainty.get(team)?.defense):0,
         ),
       ])) as AdvancedMetricValues;
       output.push({

@@ -1,7 +1,24 @@
+import {DataProviders} from "./components/DataProviders";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./interface.css";
+import "./mobile-layout.css";
+import "./score-rushing.css";
+import "./shell-refresh.css";
+import "./weekly-newspaper.css";
+import "./compact-surfaces.css";
+import "./net-success-rate.css";
+import "./site-typography.css";
+import "./food-chain.css";
+import "./team-density.css";
+import "./stats-density.css";
+import "./leaderboard-density.css";
+import "./what-if-density.css";
+import "./matchup-controls.css";
+import "./matchup-hub.css";
+import "./defensive-keys.css";
+import "./efficiency.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,9 +33,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Harper+ College Football Model",
   description: "Model-based college football rankings, matchup projections, weekly team profiles and historical analysis.",
-  other: {
-    "codex-preview": "development",
-  },
   icons: {
     icon: [
       { url: "/harper-football.svg", type: "image/svg+xml" },
@@ -65,7 +79,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <DataProviders>{children}</DataProviders>
       </body>
     </html>
   );

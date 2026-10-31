@@ -106,7 +106,7 @@ export async function GET(request: Request) {
       profiles,
     }, 200, ready ? "public, max-age=300, stale-while-revalidate=1800" : "no-store");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Player data is temporarily unavailable";
+    const message = error instanceof Error ? error.message : "";
     const overloaded = /D1 DB is overloaded|requests queued for too long/i.test(message);
     const retryAfterSeconds = overloaded ? 30 : undefined;
     const sync = await getPlayerSyncStatus(runtime, season).catch(() => null);
@@ -118,7 +118,7 @@ export async function GET(request: Request) {
       teams: [],
       profiles: [],
       retryAfterSeconds,
-      message: overloaded ? "Player data is briefly queued. Retrying automatically." : message,
+      message: overloaded ? "Player data is briefly queued. Retrying automatically." : "Player data is temporarily unavailable.",
     }, overloaded ? 503 : 500);
     if (retryAfterSeconds) result.headers.set("retry-after", String(retryAfterSeconds));
     return result;

@@ -241,3 +241,24 @@ export function sortTeamStatsRows<T extends TeamStatsSortableRow>(
     return first.team.localeCompare(second.team, undefined, { sensitivity:"base" });
   });
 }
+
+/** Competition ranks from the complete selected snapshot, with ties at displayed precision. */
+export function teamStatsColumnRanks<T extends TeamStatsSortableRow>(rows:readonly T[], columns:readonly TeamStatsColumn[]):Map<TeamStatsSortKey,Map<string,number>> {
+  const result = new Map<TeamStatsSortKey,Map<string,number>>();
+  for (const column of columns) {
+    if (column.key === "team") continue;
+    const ordered = sortTeamStatsRows(rows, column.key, column.defaultDirection);
+    const ranks = new Map<string,number>();
+    let previousValue:string|null = null;
+    let previousRank = 0;
+    ordered.forEach((row, index) => {
+      if (teamStatsNumericValue(row, column.key) === null) return;
+      const displayedValue = formatTeamStatsValue(row, column);
+      if (displayedValue !== previousValue) previousRank = index + 1;
+      ranks.set(row.team, previousRank);
+      previousValue = displayedValue;
+    });
+    result.set(column.key, ranks);
+  }
+  return result;
+}

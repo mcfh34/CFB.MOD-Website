@@ -1,3 +1,4 @@
+import {frozenViabilityCalibration} from "./frozenViabilityCalibration";
 import type { AdvancedSideProjection } from "./advancedMetrics";
 
 export type ViabilityMetricId = "overall-success" | "rush-success" | "pass-success" | "standard-down" | "passing-down" | "havoc";
@@ -62,7 +63,7 @@ export const historicalViabilityCalibration:ViabilityCalibrationMap={
   ]},
 };
 
-let activeCalibration:ViabilityCalibrationMap=historicalViabilityCalibration;
+let activeCalibration:ViabilityCalibrationMap=frozenViabilityCalibration;
 
 export function configureViabilityCalibration(calibration:ViabilityCalibrationMap|null|undefined) {
   if(!calibration) return;
@@ -97,41 +98,10 @@ export function deriveViabilityCalibration(observations:ViabilityCalibrationObse
   return output;
 }
 
-let databaseCalibrationLoadedAt=0;
-let databaseCalibrationPromise:Promise<ViabilityCalibrationMap>|null=null;
-
-/** Load learned 2021–2025 curves once per worker window. */
-export async function refreshViabilityCalibrationFromDatabase(db:D1Database) {
-  if(Date.now()-databaseCalibrationLoadedAt<6*60*60*1000) return activeCalibration;
-  if(databaseCalibrationPromise) return databaseCalibrationPromise;
-  databaseCalibrationPromise=(async()=>{
-    try {
-      const result=await db.prepare(`SELECT s.points,
-        json_extract(a.component_json,'$.offDrives') AS offDrives,
-        json_extract(a.component_json,'$.offSuccessRate') AS offSuccessRate,
-        json_extract(a.component_json,'$.offRushingSuccessRate') AS offRushingSuccessRate,
-        json_extract(a.component_json,'$.offPassingSuccessRate') AS offPassingSuccessRate,
-        json_extract(a.component_json,'$.offStandardDownSuccessRate') AS offStandardDownSuccessRate,
-        json_extract(a.component_json,'$.offPassingDownSuccessRate') AS offPassingDownSuccessRate,
-        json_extract(a.component_json,'$.offHavocRate') AS offHavocRate
-        FROM team_game_advanced_stats a JOIN team_game_stats s ON s.game_id=a.game_id AND s.team=a.team
-        WHERE a.season BETWEEN 2021 AND 2025 AND s.points IS NOT NULL AND a.component_json IS NOT NULL`).all<Record<string,number|null>>();
-      const observations:ViabilityCalibrationObservation[]=[];
-      for(const row of result.results) {
-        const value=(key:string)=>row[key]===null||row[key]===undefined||!Number.isFinite(Number(row[key]))?undefined:Number(row[key]);
-        const drives=value("offDrives");
-        if(!drives||drives<4) continue;
-        observations.push({pointsPerDrive:Number(row.points)/drives,values:{
-          "overall-success":value("offSuccessRate"),"rush-success":value("offRushingSuccessRate"),"pass-success":value("offPassingSuccessRate"),
-          "standard-down":value("offStandardDownSuccessRate"),"passing-down":value("offPassingDownSuccessRate"),havoc:value("offHavocRate"),
-        }});
-      }
-      if(observations.length>=240) configureViabilityCalibration(deriveViabilityCalibration(observations));
-    } catch { /* Versioned fallback remains active until the archive is ready. */ }
-    databaseCalibrationLoadedAt=Date.now();
-    return activeCalibration;
-  })().finally(()=>{databaseCalibrationPromise=null;});
-  return databaseCalibrationPromise;
+/** Fixed training-only curves keep the 2025 holdout out of production calibration. */
+export async function refreshViabilityCalibrationFromDatabase(_db:D1Database) {
+  configureViabilityCalibration(frozenViabilityCalibration);
+  return activeCalibration;
 }
 
 const clamp=(value:number,minimum:number,maximum:number)=>Math.max(minimum,Math.min(maximum,value));

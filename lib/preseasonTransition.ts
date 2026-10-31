@@ -1,3 +1,4 @@
+import type { RosterProjection } from "./rosterModel";
 import { advancedMetricKeys, type AdvancedMetricKey, type AdvancedMetricValues, type AdvancedProfile } from "./advancedMetrics";
 import { blendAdvancedProfiles } from "./advancedProfileBuilder";
 
@@ -14,6 +15,8 @@ export type PreseasonTransitionProfile = {
   di: MetricTuple;
   advanced?: AdvancedProfile | null;
   preseasonElo?: number;
+  roster?: RosterProjection;
+  rosterTimeline?: RosterProjection[];
   transitionDiagnostic?: PreseasonTransitionDiagnostic;
 };
 
@@ -240,7 +243,7 @@ function transitionAdvanced(
   prior: AdvancedProfile | null | undefined,
   older: PreseasonHistoryRow[],
   stability: number,
-  adjustments: { overall: number; passing: number; rushing: number },
+  adjustments: { overall: number; passing: number; rushing: number; defenseOverall: number; defensePassing: number; defenseRushing: number },
   coefficients: PreseasonTransitionCoefficients,
 ) {
   if (!prior) return null;
@@ -253,7 +256,7 @@ function transitionAdvanced(
         ? Math.exp(olderValues.reduce((sum, value) => sum + Math.log(Math.max(0.05, value)), 0) / olderValues.length)
         : 1;
       const signal = PASSING_KEYS.has(key) ? adjustments.passing : RUSHING_KEYS.has(key) ? adjustments.rushing : adjustments.overall;
-      const signedSignal = sideName === "offense" ? signal : -signal * 0.8;
+      const signedSignal = sideName === "offense" ? signal : -(PASSING_KEYS.has(key) ? adjustments.defensePassing : RUSHING_KEYS.has(key) ? adjustments.defenseRushing : adjustments.defenseOverall);
       return [key, clamp(transitionLogMetric(priorValue, programCenter, stability, signedSignal, coefficients), 0.55, 1.65)];
     })) as AdvancedMetricValues;
     const raw = Object.fromEntries(advancedMetricKeys.map((key) => [key, rawFromIndex(key, prior.baseline[key], index[key])])) as AdvancedMetricValues;
@@ -273,6 +276,8 @@ export function buildPreseasonStateTransition(args: {
   inputs: PreseasonTransitionInput[];
   baselines: MetricTuple;
   coefficients?: PreseasonTransitionCoefficients;
+  rosters?: Map<string, RosterProjection>;
+  legacyDefenseMirroring?: boolean;
 }) {
   const coefficients = args.coefficients ?? PRESEASON_TRANSITION_V2;
   const inputs = args.inputs.filter((input) => input.season === args.season);
@@ -311,6 +316,7 @@ export function buildPreseasonStateTransition(args: {
       continue;
     }
 
+    const roster = args.rosters?.get(team);
     const state = programState(history, coefficients);
     const overallReturning = input ? finiteAverage([input.returningPpa, input.returningUsage]) : null;
     const passingReturning = input ? finiteAverage([
@@ -321,9 +327,12 @@ export function buildPreseasonStateTransition(args: {
     const passingSignal = passingPercentile.get(team) ?? overallSignal;
     const rushingSignal = rushingPercentile.get(team) ?? overallSignal;
     const replacementSignal = replacementPercentile.get(team) ?? 0;
-    const overallAdjustment = rosterAdjustment(overallSignal, replacementSignal, coefficients, overallReturning !== null);
-    const passingAdjustment = rosterAdjustment(passingSignal, replacementSignal, coefficients, passingReturning !== null);
-    const rushingAdjustment = rosterAdjustment(rushingSignal, replacementSignal, coefficients, rushingReturning !== null);
+    const overallAdjustment = roster?.offense.overall ?? rosterAdjustment(overallSignal, replacementSignal, coefficients, overallReturning !== null);
+    const passingAdjustment = roster?.offense.passing ?? rosterAdjustment(passingSignal, replacementSignal, coefficients, passingReturning !== null);
+    const rushingAdjustment = roster?.offense.rushing ?? rosterAdjustment(rushingSignal, replacementSignal, coefficients, rushingReturning !== null);
+    const defenseOverall = roster?.defense.overall ?? (args.legacyDefenseMirroring ? overallAdjustment*0.8 : 0);
+    const defensePassing = roster?.defense.passing ?? (args.legacyDefenseMirroring ? passingAdjustment*0.8 : 0);
+    const defenseRushing = roster?.defense.rushing ?? (args.legacyDefenseMirroring ? rushingAdjustment*0.8 : 0);
     const programCenter = (tuple: "oi" | "di", index: number) => {
       const logCenter = programMetricCenter(history, (profile) => Math.log(Math.max(0.05, profile[tuple][index])));
       return Math.exp(logCenter);
@@ -340,7 +349,7 @@ export function buildPreseasonStateTransition(args: {
       value,
       programCenter("di", index),
       state.stability,
-      -overallAdjustment * 0.8,
+      -(args.legacyDefenseMirroring ? overallAdjustment*0.8 : index === 1 ? defensePassing : index === 2 ? defenseRushing : defenseOverall),
       coefficients,
       index >= 3,
     )) as MetricTuple;
@@ -355,10 +364,14 @@ export function buildPreseasonStateTransition(args: {
       def,
       oi,
       di,
+      roster,
       advanced: transitionAdvanced(prior.advanced, history, state.stability, {
         overall: overallAdjustment,
         passing: passingAdjustment,
         rushing: rushingAdjustment,
+        defenseOverall,
+        defensePassing,
+        defenseRushing,
       }, coefficients),
     };
     const priorProfileElo = legacyPreseasonElo(prior);
@@ -378,7 +391,7 @@ export function buildPreseasonStateTransition(args: {
     next.preseasonElo = preseasonElo;
     const priorPower = preseasonProfilePower(prior);
     const nextPower = preseasonProfilePower(next);
-    const rosterPower = 0.4 * overallAdjustment + 0.3 * passingAdjustment + 0.3 * rushingAdjustment + 0.8 * overallAdjustment;
+    const rosterPower = 0.4 * overallAdjustment + 0.3 * passingAdjustment + 0.3 * rushingAdjustment + (roster?.defense.overall ?? 0);
     next.transitionDiagnostic = {
       team,
       season: args.season,

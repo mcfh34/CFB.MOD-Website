@@ -1,16 +1,19 @@
+import type {MatchupPolicy} from "./matchupPolicy";
 import type { AdvancedProfile } from "./advancedMetrics";
-import { baselines, modelCalibration } from "../app/modelData";
-import { projectCalibratedMatchup, validateMatchupProfile, type MatchupEvidence } from "./matchupModel";
-import { buildPossessionScoreReceipt, calibrateGameMargin, estimatePoints, expectedPossessions } from "./scoringModel";
-import { assessOffensiveViability } from "./offensiveViability";
+import { projectMatchupCore } from "./matchupEngine";
+import type { MatchupEvidence } from "./matchupModel";
+import type { RosterProjection } from "./rosterModel";
 
 export type RoundRobinProfile = {
+  conferenceAdjustment?:number;
   id: string;
   team: string;
   season: number;
   week: number;
   conference?: string | null;
   logo?: string | null;
+  color?:string|null;
+  abbreviation?:string|null;
   offense: readonly number[];
   defense: readonly number[];
   rating?: number;
@@ -19,6 +22,7 @@ export type RoundRobinProfile = {
   nationalChampion?: boolean;
   evidence?: MatchupEvidence | null;
   advanced?: AdvancedProfile | null;
+  roster?: RosterProjection;
 };
 
 export type RoundRobinStanding = {
@@ -37,48 +41,6 @@ export type RoundRobinStanding = {
 type MutableStanding = Omit<RoundRobinStanding, "rank" | "winPct" | "bestUnit" | "unitWins"> & { unitEdges: Map<string, number> };
 
 const average = (values: readonly number[]) => values.reduce((sum, value) => sum + Number(value), 0) / Math.max(1, values.length);
-const crossEraResumeMarginWeight = 8;
-
-const calibratedWinProbability = (margin:number) => 1/(1+Math.exp(-margin/11.8));
-
-function proofScore(evidence: MatchupEvidence) {
-  return 0.4 * evidence.scheduleStrength
-    + 0.2 * evidence.bestOpponentStrength
-    + 0.25 * evidence.qualityWinStrength
-    + 0.15 * evidence.reliability;
-}
-
-function simpleSide(offense: readonly number[], defense: readonly number[]) {
-  const ypa = baselines.ypa * Number(offense[1] ?? 1) * Number(defense[1] ?? 1);
-  const ypc = baselines.ypc * Number(offense[2] ?? 1) * Number(defense[2] ?? 1);
-  const patt = baselines.patt * Number(offense[3] ?? 1) * Number(defense[3] ?? 1);
-  const ratt = baselines.ratt * Number(offense[4] ?? 1) * Number(defense[4] ?? 1);
-  const ypp = (ypa * patt + ypc * ratt) / Math.max(1, patt + ratt);
-  return { ypa, ypc, patt, ratt, score: estimatePoints({ ypp, ypa, ypc, passAttempts:patt, rushAttempts:ratt }) };
-}
-
-function geometric(values:Array<number|null|undefined>) {
-  const valid=values.filter((value):value is number=>value!==null&&value!==undefined&&Number.isFinite(value)&&value>0);
-  return valid.length?Math.exp(valid.reduce((sum,value)=>sum+Math.log(value),0)/valid.length):1;
-}
-
-function compactAdvancedTuple(profile:RoundRobinProfile,side:"offense"|"defense") {
-  const tuple=[...profile[side]] as number[];
-  const advanced=profile.advanced?.[side].index;
-  if(!advanced) return tuple;
-  const control=geometric([advanced.successRate,advanced.ppa,advanced.standardDownSuccessRate,advanced.passingDownSuccessRate]);
-  const disruption=advanced.havocRate??1;
-  const run=geometric([advanced.lineYards,advanced.stuffRate,advanced.rushingSuccessRate,advanced.rushingPpa]);
-  const pass=geometric([advanced.completionRate,advanced.yardsPerCompletion,advanced.passingSuccessRate,advanced.passingPpa,advanced.passingExplosiveness]);
-  const field=advanced.fieldPosition??1;
-  // This batched kernel carries every major v2 family into million-matchup
-  // cross-era fields without allocating the full analyst receipt per pairing.
-  tuple[0]*=Math.exp(.16*Math.log(control)+.08*Math.log(disruption)+.035*Math.log(field));
-  tuple[1]*=Math.exp(.2*Math.log(pass)+.08*Math.log(control)+.07*Math.log(disruption));
-  tuple[2]*=Math.exp(.2*Math.log(run)+.08*Math.log(control)+.07*Math.log(disruption));
-  return tuple;
-}
-
 function creditUnit(first: MutableStanding, second: MutableStanding, label: string, difference: number, minimumEdge: number) {
   if (Math.abs(difference) < minimumEdge) return;
   const winner = difference > 0 ? first : second;
@@ -90,60 +52,18 @@ function creditUnit(first: MutableStanding, second: MutableStanding, label: stri
  * result. Team profiles are already normalized to their own season, allowing
  * a 2014 team and a 2025 team to share the same comparison scale.
  */
-export function buildRoundRobinStandings(profiles: readonly RoundRobinProfile[]): RoundRobinStanding[] {
+function* roundRobinBatches(profiles:readonly RoundRobinProfile[],policy?:MatchupPolicy):Generator<number,RoundRobinStanding[]> {
+  let completed=0;
   const standings = profiles.map<MutableStanding>((profile) => ({
     profile, wins: 0, losses: 0, games: 0, expectedWins: 0, averageMargin: 0, unitEdges: new Map(),
   }));
-  const useBaseProfilePath = profiles.length>220 || profiles.every((profile) => !profile.advanced);
-  // Cross-era fields can contain well over 1,000 team-seasons. Validate every
-  // base profile once instead of rebuilding both profiles for every one of the
-  // millions of pairings. Advanced callers retain the complete path below.
-  const calibrated = useBaseProfilePath ? profiles.map((profile) => validateMatchupProfile({
-    offense:compactAdvancedTuple(profile,"offense"),
-    defense:compactAdvancedTuple(profile,"defense"),
-    evidence:profile.evidence,
-  })) : [];
-  const fallbackViability=assessOffensiveViability(null);
-
+  const inputs=profiles.map(profile=>({team:profile.team,offense:profile.offense,defense:profile.defense,
+    evidence:profile.evidence,advanced:profile.advanced,roster:profile.roster,outcomeRating:profile.rating,conferenceAdjustment:profile.conferenceAdjustment}));
   for (let firstIndex = 0; firstIndex < standings.length; firstIndex += 1) {
     for (let secondIndex = firstIndex + 1; secondIndex < standings.length; secondIndex += 1) {
       const first = standings[firstIndex];
       const second = standings[secondIndex];
-      const projection = useBaseProfilePath ? (() => {
-        const firstProfile = calibrated[firstIndex];
-        const secondProfile = calibrated[secondIndex];
-        const firstStats = simpleSide(firstProfile.offense, secondProfile.defense);
-        const secondStats = simpleSide(secondProfile.offense, firstProfile.defense);
-        const possessions=expectedPossessions(
-          {passAttempts:firstStats.patt,rushAttempts:firstStats.ratt,advanced:null},
-          {passAttempts:secondStats.patt,rushAttempts:secondStats.ratt,advanced:null},
-        );
-        const firstReceipt=buildPossessionScoreReceipt(null,null,possessions,fallbackViability,firstStats.score);
-        const secondReceipt=buildPossessionScoreReceipt(null,null,possessions,fallbackViability,secondStats.score);
-        const statisticalMargin = firstReceipt.rawExpectedPoints - secondReceipt.rawExpectedPoints;
-        const hasRatings = Number.isFinite(first.profile.rating) && Number.isFinite(second.profile.rating);
-        const outcomeMargin = hasRatings ? (Number(first.profile.rating) - Number(second.profile.rating)) / modelCalibration.eloPointsPerPoint : statisticalMargin;
-        const margin = calibrateGameMargin(statisticalMargin,outcomeMargin,proofScore(firstProfile.evidence)-proofScore(secondProfile.evidence),true)
-          + crossEraResumeMarginWeight * ((first.profile.resumeScore ?? 0.5) - (second.profile.resumeScore ?? 0.5));
-        return {
-          margin,
-          homeWinProbability:calibratedWinProbability(margin),
-          homeStats:firstStats,
-          awayStats:secondStats,
-          calibratedHome:firstProfile,
-          calibratedAway:secondProfile,
-        };
-      })() : (() => {
-        const base = projectCalibratedMatchup(
-          { offense:first.profile.offense, defense:first.profile.defense, evidence:first.profile.evidence, advanced:first.profile.advanced },
-          { offense:second.profile.offense, defense:second.profile.defense, evidence:second.profile.evidence, advanced:second.profile.advanced },
-          true,
-          first.profile.rating,
-          second.profile.rating,
-        );
-        const margin = base.margin + crossEraResumeMarginWeight * ((first.profile.resumeScore ?? 0.5) - (second.profile.resumeScore ?? 0.5));
-        return { ...base, margin, homeWinProbability:calibratedWinProbability(margin) };
-      })();
+      const projection = projectMatchupCore(inputs[firstIndex],inputs[secondIndex],true,policy);
 
       first.games += 1;
       second.games += 1;
@@ -164,6 +84,7 @@ export function buildRoundRobinStandings(profiles: readonly RoundRobinProfile[])
       const firstDefense = average(projection.calibratedHome.defense.slice(0, 3));
       const secondDefense = average(projection.calibratedAway.defense.slice(0, 3));
       creditUnit(first, second, "Defense", secondDefense - firstDefense, 0.008);
+      if(++completed%512===0)yield completed;
     }
   }
 
@@ -180,6 +101,24 @@ export function buildRoundRobinStandings(profiles: readonly RoundRobinProfile[])
       bestUnit: bestUnit?.[0] ?? "Balanced",
       unitWins: bestUnit?.[1] ?? 0,
     };
-  }).sort((a, b) => b.wins - a.wins || b.expectedWins - a.expectedWins || b.averageMargin - a.averageMargin || a.profile.id.localeCompare(b.profile.id))
+  }).sort((a, b) => b.expectedWins - a.expectedWins || b.averageMargin - a.averageMargin || b.wins - a.wins || a.profile.id.localeCompare(b.profile.id))
     .map((standing, index) => ({ ...standing, rank: index + 1 }));
+}
+
+
+export function buildRoundRobinStandings(profiles:readonly RoundRobinProfile[],policy?:MatchupPolicy):RoundRobinStanding[]{
+  const batches=roundRobinBatches(profiles,policy);
+  let next=batches.next();while(!next.done)next=batches.next();return next.value;
+}
+
+/** Exact same pairings, with browser breathing room for large cross-era fields. */
+export async function buildRoundRobinStandingsAsync(profiles:readonly RoundRobinProfile[],signal?:AbortSignal,onProgress?:(completed:number)=>void){
+  const batches=roundRobinBatches(profiles);
+  let lastProgress=0;
+  while(true){
+    if(signal?.aborted)throw new DOMException("Cancelled","AbortError");
+    const next=batches.next();if(next.done)return next.value;
+    const now=Date.now();if(now-lastProgress>150){onProgress?.(next.value);lastProgress=now;}
+    await new Promise<void>(resolve=>setTimeout(resolve,0));
+  }
 }

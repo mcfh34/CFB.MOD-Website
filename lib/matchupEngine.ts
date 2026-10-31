@@ -1,3 +1,5 @@
+import type {MatchupPolicy} from "./matchupPolicy";
+import type { RosterProjection } from "./rosterModel";
 import type { AdvancedProfile } from "./advancedMetrics";
 import { analyzeMatchupEdges } from "./matchupAnalysis";
 import {
@@ -7,6 +9,10 @@ import {
 } from "./matchupModel";
 
 export type MatchupEngineTeam = {
+  conferenceAdjustment?:number;
+  isFcs?: boolean;
+  isPower4?: boolean;
+  roster?: RosterProjection;
   team: string;
   offense: readonly number[];
   defense: readonly number[];
@@ -17,10 +23,12 @@ export type MatchupEngineTeam = {
 
 function matchupInput(team:MatchupEngineTeam):MatchupTeamInput {
   return {
+    conferenceAdjustment:team.isFcs?0:team.conferenceAdjustment,
     offense:team.offense,
     defense:team.defense,
     evidence:team.evidence,
     advanced:team.advanced,
+    roster:team.roster,
   };
 }
 
@@ -38,6 +46,7 @@ export function projectMatchupCore(
   home: MatchupEngineTeam,
   away: MatchupEngineTeam,
   neutral: boolean,
+  policy?:MatchupPolicy,
 ) {
   return projectCalibratedMatchup(
     matchupInput(home),
@@ -45,6 +54,9 @@ export function projectMatchupCore(
     neutral,
     finiteRating(home.outcomeRating),
     finiteRating(away.outcomeRating),
+    true,
+    {homeIsFcs:home.isFcs,awayIsFcs:away.isFcs,homeIsPower4:home.isPower4,awayIsPower4:away.isPower4},
+    policy,
   );
 }
 
@@ -53,7 +65,34 @@ export function projectMatchupEngine(
   away: MatchupEngineTeam,
   neutral: boolean,
 ) {
-  const projection = projectMatchupCore(home,away,neutral);
+  return analyzeProjection(home,away,neutral,projectMatchupCore(home,away,neutral));
+}
+
+export type MatchupSite = "home" | "neutral" | "away";
+
+/** Keep results in selected-team order while evaluating the actual home side. */
+export function projectMatchupAtSite(first:MatchupEngineTeam,second:MatchupEngineTeam,site:MatchupSite) {
+  if(site!=="away")return projectMatchupEngine(first,second,site==="neutral");
+  const p=projectMatchupCore(second,first,false);
+  const reconciliation={...p.reconciliation,rawHome:p.reconciliation.rawAway,rawAway:p.reconciliation.rawHome,margin:-p.margin,
+    components:p.reconciliation.components.map(c=>({...c,points:-c.points}))};
+  const projection={...p,homeScore:p.awayScore,awayScore:p.homeScore,margin:-p.margin,modelHomeSpread:p.margin,
+    homeWinProbability:1-p.homeWinProbability,statisticalMargin:-p.statisticalMargin,outcomeMargin:-p.outcomeMargin,
+    earlyFormMargin:-p.earlyFormMargin,conferenceMargin:-p.conferenceMargin,subdivisionFloor:-p.subdivisionFloor,proofAdjustment:-p.proofAdjustment,proofGap:-p.proofGap,
+    calibratedHome:p.calibratedAway,calibratedAway:p.calibratedHome,reconciliation,
+    homeStats:{...p.awayStats,scoreReceipt:{...p.awayStats.scoreReceipt,reconciliation}},
+    awayStats:{...p.homeStats,scoreReceipt:{...p.homeStats.scoreReceipt,reconciliation}},
+    roster:{home:p.roster.away,away:p.roster.home},
+    quarterbackScenarios:p.quarterbackScenarios.map(s=>({...s,homeQuarterback:s.awayQuarterback,awayQuarterback:s.homeQuarterback,
+      homeScore:s.awayScore,awayScore:s.homeScore,homeWinProbability:1-s.homeWinProbability})),
+    turnoverScenario:{...p.turnoverScenario,homeExpected:p.turnoverScenario.awayExpected,awayExpected:p.turnoverScenario.homeExpected,
+      homeCleanMargin:-p.turnoverScenario.awayCleanMargin,awayCleanMargin:-p.turnoverScenario.homeCleanMargin}};
+  const result=analyzeProjection(first,second,true,projection);
+  result.edgeAnalysis.factors.push(`Home field applies to ${second.team}.`);
+  return result;
+}
+
+function analyzeProjection(home:MatchupEngineTeam,away:MatchupEngineTeam,neutral:boolean,projection:ReturnType<typeof projectMatchupCore>) {
   const edgeAnalysis = analyzeMatchupEdges(
     home.team,
     away.team,

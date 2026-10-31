@@ -1,3 +1,4 @@
+import { explainScoreMargin } from "./scoringModel";
 import type { AdvancedProfile, AdvancedSideProjection } from "./advancedMetrics";
 import type { OffensiveViability } from "./offensiveViability";
 import type { PossessionScoreReceipt } from "./scoringModel";
@@ -503,7 +504,7 @@ export function buildMatchupIntelligence(
   const opposed=margin>=0?away:home;
   const controlUnit=favored.largestAdvantage.area.includes("run")?"run game":favored.largestAdvantage.area.includes("pass")||favored.largestAdvantage.area==="Quick game"?"passing game":"down-and-distance battle";
   const controlEvidence=favored.largestAdvantage.statistics[0];
-  const controlReason=controlTeam
+  const controlReason=homeReceipt.reconciliation?explainScoreMargin(homeReceipt.reconciliation,homeTeam,awayTeam):controlTeam
     ? `${favored.scoreReceipt.expectedPointsPerPossession.toFixed(2)} vs ${opposed.scoreReceipt.expectedPointsPerPossession.toFixed(2)} points per possession${controlEvidence?` · ${controlEvidence}`:""}.`
     : `${home.scoreReceipt.expectedPointsPerPossession.toFixed(2)} vs ${away.scoreReceipt.expectedPointsPerPossession.toFixed(2)} points per possession; no stable unit edge separates the teams.`;
   const conclusionScore=Math.abs(margin)/10+Math.abs(favored.largestAdvantage.score)*.45;

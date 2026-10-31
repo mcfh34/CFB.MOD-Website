@@ -50,12 +50,12 @@ export async function GET(request: Request) {
       },
     }, 200, "public, max-age=300, stale-while-revalidate=1800");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Depth-chart archive is temporarily unavailable.";
+    const message = error instanceof Error ? error.message : "";
     const overloaded = /D1 DB is overloaded|requests queued for too long/i.test(message);
     const response = json({
       configured: true,
       status: overloaded ? "waiting" : "error",
-      message: overloaded ? "The archive database is briefly queued. Retrying is safe." : message,
+      message: overloaded ? "The archive database is briefly queued. Retrying is safe." : "Depth-chart archive is temporarily unavailable.",
       retryAfterSeconds: overloaded ? 30 : undefined,
     }, overloaded ? 503 : 500);
     if (overloaded) response.headers.set("retry-after", "30");

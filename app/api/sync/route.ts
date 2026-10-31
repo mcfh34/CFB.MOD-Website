@@ -9,7 +9,7 @@ async function runtimeEnv() {
 
 export async function GET() {
   const env = await runtimeEnv();
-  const latestRun = await env.DB.prepare("SELECT season,week,source,status,game_count AS gameCount,detail,created_at AS createdAt FROM refresh_runs ORDER BY id DESC LIMIT 1").first().catch(() => null);
+  const latestRun = await env.DB.prepare("SELECT season,week,source,status,game_count AS gameCount,created_at AS createdAt FROM refresh_runs ORDER BY id DESC LIMIT 1").first().catch(() => null);
   return Response.json({ configured: Boolean(env.CFBD_API_KEY), latestRun, automaticSchedule: "Team, advanced and player stats Sundays at 12:00 PM America/Chicago; maximum 40 external requests; no automatic archive backfill" });
 }
 
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const rateLimited = error instanceof CollegeFootballDataError && error.status === 429;
     const retryAfterSeconds = rateLimited ? error.retryAfterSeconds || 12 : undefined;
-    const response = Response.json({ status: rateLimited ? "waiting" : "error", message: error instanceof Error ? error.message : "Sync failed", retryAfterSeconds }, { status: rateLimited ? 429 : 502 });
+    const response = Response.json({ status: rateLimited ? "waiting" : "error", message: rateLimited ? "The source data service is briefly rate limited. Retrying is safe." : "The archive sync could not finish. Existing published data was preserved.", retryAfterSeconds }, { status: rateLimited ? 429 : 502 });
     if (retryAfterSeconds) response.headers.set("retry-after", String(retryAfterSeconds));
     return response;
   }

@@ -1,9 +1,11 @@
+import type { RosterProjection } from "../lib/rosterModel";
 import type { MatchupEvidence } from "../lib/matchupModel";
 import type { AdvancedProfile } from "../lib/advancedMetrics";
 
 export type MetricTuple=[number,number,number,number,number];
-export type WeekProfile={o:MetricTuple;d:MetricTuple;rank:number|null;evidence?:MatchupEvidence;advanced?:AdvancedProfile|null};
+export type WeekProfile={roster?:RosterProjection;o:MetricTuple;d:MetricTuple;rank:number|null;evidence?:MatchupEvidence;advanced?:AdvancedProfile|null};
 export type TeamModel={
+  conferenceAdjustment?:number;
   id:string;name:string;mascot:string;abbr:string;conference:string;color:string;altColor:string;logo?:string;
   rating?:number;baseRating?:number;resumeScore?:number;seasonRecord?:string;nationalChampion?:boolean;finalContext?:boolean;
   weeks:Record<string,WeekProfile>;

@@ -1,0 +1,4434 @@
+{
+  "season": 2026,
+  "requestedWeek": 7,
+  "effectiveWeek": 5,
+  "method": "Same Week 5 production snapshot; full FBS neutral round robin; old public missing-evidence path vs corrected evidence, selected policy, and frozen training calibration.",
+  "reports": [
+    {
+      "conferenceAdjustment": false,
+      "teams": [
+        {
+          "team": "Georgia",
+          "oldRank": 2,
+          "newRank": 1,
+          "oldRating": 18.28503391342757,
+          "newRating": 15.599646242188204,
+          "delta": -2.685387671239365,
+          "evidence": {
+            "fbsScoringMargin": 26.04878048780488,
+            "fcsResultAdjustment": 1.98,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 237,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Miami",
+          "oldRank": 4,
+          "newRank": 2,
+          "oldRating": 16.852118474907247,
+          "newRating": 14.774515295522896,
+          "delta": -2.077603179384351,
+          "evidence": {
+            "fbsScoringMargin": 27.292682926829272,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 259,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Alabama",
+          "oldRank": 6,
+          "newRank": 3,
+          "oldRating": 15.819260730212504,
+          "newRating": 14.375511126789492,
+          "delta": -1.4437496034230115,
+          "evidence": {
+            "fbsScoringMargin": 28.658536585365855,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 316,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Notre Dame",
+          "oldRank": 5,
+          "newRank": 4,
+          "oldRating": 15.514070359459115,
+          "newRating": 14.19552940124883,
+          "delta": -1.318540958210285,
+          "evidence": {
+            "fbsScoringMargin": 19.78048780487805,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 323,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Pittsburgh",
+          "oldRank": 7,
+          "newRank": 5,
+          "oldRating": 14.342868811514373,
+          "newRating": 13.033896029041804,
+          "delta": -1.3089727824725692,
+          "evidence": {
+            "fbsScoringMargin": 6.390243902439025,
+            "fcsResultAdjustment": 1.92,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 263,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Utah",
+          "oldRank": 1,
+          "newRank": 6,
+          "oldRating": 19.070485728995436,
+          "newRating": 12.837008388371242,
+          "delta": -6.233477340624194,
+          "evidence": {
+            "fbsScoringMargin": 23.731707317073173,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 193,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Ohio State",
+          "oldRank": 9,
+          "newRank": 7,
+          "oldRating": 14.158726089797318,
+          "newRating": 12.767059393002116,
+          "delta": -1.3916666967952018,
+          "evidence": {
+            "fbsScoringMargin": 22.414634146341466,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 334,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "BYU",
+          "oldRank": 3,
+          "newRank": 8,
+          "oldRating": 17.652440473719,
+          "newRating": 12.536054309139114,
+          "delta": -5.116386164579886,
+          "evidence": {
+            "fbsScoringMargin": 11.26829268292683,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 174,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "LSU",
+          "oldRank": 10,
+          "newRank": 9,
+          "oldRating": 13.61374015019521,
+          "newRating": 12.018724071290512,
+          "delta": -1.595016078904699,
+          "evidence": {
+            "fbsScoringMargin": 17.658536585365855,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 308,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Indiana",
+          "oldRank": 11,
+          "newRank": 10,
+          "oldRating": 13.136609900580135,
+          "newRating": 11.637224187286138,
+          "delta": -1.4993857132939965,
+          "evidence": {
+            "fbsScoringMargin": 24.34146341463415,
+            "fcsResultAdjustment": 1.68,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 244,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Missouri",
+          "oldRank": 13,
+          "newRank": 11,
+          "oldRating": 11.224665434075082,
+          "newRating": 10.154540252741276,
+          "delta": -1.0701251813338057,
+          "evidence": {
+            "fbsScoringMargin": 13.390243902439025,
+            "fcsResultAdjustment": 0.78,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 255,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Texas",
+          "oldRank": 8,
+          "newRank": 12,
+          "oldRating": 14.24044652859783,
+          "newRating": 10.05517146985344,
+          "delta": -4.185275058744391,
+          "evidence": {
+            "fbsScoringMargin": 9.26829268292683,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 276,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Nebraska",
+          "oldRank": 18,
+          "newRank": 13,
+          "oldRating": 10.46409057934061,
+          "newRating": 9.711413035334665,
+          "delta": -0.7526775440059446,
+          "evidence": {
+            "fbsScoringMargin": 24.731707317073173,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 278,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Houston",
+          "oldRank": 17,
+          "newRank": 14,
+          "oldRating": 10.671540156881706,
+          "newRating": 9.554381995130791,
+          "delta": -1.1171581617509148,
+          "evidence": {
+            "fbsScoringMargin": 8.926829268292682,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 282,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UCLA",
+          "oldRank": 12,
+          "newRank": 15,
+          "oldRating": 12.293429910429404,
+          "newRating": 9.325811234130054,
+          "delta": -2.9676186762993506,
+          "evidence": {
+            "fbsScoringMargin": 25.024390243902438,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 257,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Virginia Tech",
+          "oldRank": 19,
+          "newRank": 16,
+          "oldRating": 9.927510705322133,
+          "newRating": 9.028902111511037,
+          "delta": -0.8986085938110957,
+          "evidence": {
+            "fbsScoringMargin": 3.0000000000000004,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 302,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Texas Tech",
+          "oldRank": 23,
+          "newRank": 17,
+          "oldRating": 9.154030765096667,
+          "newRating": 8.655420993024011,
+          "delta": -0.49860977207265655,
+          "evidence": {
+            "fbsScoringMargin": 22.21951219512195,
+            "fcsResultAdjustment": -2.2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 255,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "James Madison",
+          "oldRank": 24,
+          "newRank": 18,
+          "oldRating": 8.358531107455141,
+          "newRating": 7.805830081754346,
+          "delta": -0.5527010257007952,
+          "evidence": {
+            "fbsScoringMargin": 24.439024390243905,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 265,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Baylor",
+          "oldRank": 25,
+          "newRank": 19,
+          "oldRating": 8.196056920544073,
+          "newRating": 7.785811704495346,
+          "delta": -0.4102452160487271,
+          "evidence": {
+            "fbsScoringMargin": 23.5609756097561,
+            "fcsResultAdjustment": 0.84,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 313,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UCF",
+          "oldRank": 27,
+          "newRank": 20,
+          "oldRating": 7.9021160281974145,
+          "newRating": 7.243652362579603,
+          "delta": -0.6584636656178118,
+          "evidence": {
+            "fbsScoringMargin": 0.3902439024390248,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 215,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Tennessee",
+          "oldRank": 26,
+          "newRank": 21,
+          "oldRating": 7.972920298092786,
+          "newRating": 7.260245322822982,
+          "delta": -0.7126749752698043,
+          "evidence": {
+            "fbsScoringMargin": 10.365853658536587,
+            "fcsResultAdjustment": 1.2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 261,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Mississippi State",
+          "oldRank": 30,
+          "newRank": 22,
+          "oldRating": 7.42613478302441,
+          "newRating": 7.172830719982303,
+          "delta": -0.2533040630421066,
+          "evidence": {
+            "fbsScoringMargin": -12.512195121951219,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 343,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Northwestern",
+          "oldRank": 21,
+          "newRank": 23,
+          "oldRating": 9.677340188646555,
+          "newRating": 7.023333771332182,
+          "delta": -2.654006417314373,
+          "evidence": {
+            "fbsScoringMargin": 14.975609756097564,
+            "fcsResultAdjustment": -6.050000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 193,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Florida",
+          "oldRank": 28,
+          "newRank": 24,
+          "oldRating": 7.828685597024168,
+          "newRating": 7.02398859633726,
+          "delta": -0.8046970006869083,
+          "evidence": {
+            "fbsScoringMargin": -5.073170731707317,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 277,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Duke",
+          "oldRank": 14,
+          "newRank": 25,
+          "oldRating": 10.97286366393775,
+          "newRating": 6.880507964740592,
+          "delta": -4.0923556991971575,
+          "evidence": {
+            "fbsScoringMargin": 17.658536585365855,
+            "fcsResultAdjustment": 1.68,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 204,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Arizona",
+          "oldRank": 29,
+          "newRank": 26,
+          "oldRating": 7.418717049203461,
+          "newRating": 6.763783054134779,
+          "delta": -0.6549339950686814,
+          "evidence": {
+            "fbsScoringMargin": 21.219512195121954,
+            "fcsResultAdjustment": 0.06,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 265,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Oklahoma State",
+          "oldRank": 15,
+          "newRank": 27,
+          "oldRating": 10.870889507740479,
+          "newRating": 6.65939221250896,
+          "delta": -4.211497295231519,
+          "evidence": {
+            "fbsScoringMargin": 8.097560975609758,
+            "fcsResultAdjustment": 1.92,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 235,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Oregon",
+          "oldRank": 16,
+          "newRank": 28,
+          "oldRating": 10.959836871847711,
+          "newRating": 6.641907118835449,
+          "delta": -4.317929753012263,
+          "evidence": {
+            "fbsScoringMargin": 5.658536585365854,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 185,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "New Mexico",
+          "oldRank": 32,
+          "newRank": 29,
+          "oldRating": 6.790428384401945,
+          "newRating": 6.342102188604458,
+          "delta": -0.44832619579748734,
+          "evidence": {
+            "fbsScoringMargin": 23.1219512195122,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 243,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Wisconsin",
+          "oldRank": 31,
+          "newRank": 30,
+          "oldRating": 6.8344569222422225,
+          "newRating": 6.209732604701143,
+          "delta": -0.6247243175410793,
+          "evidence": {
+            "fbsScoringMargin": 21.75609756097561,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 249,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Iowa",
+          "oldRank": 34,
+          "newRank": 31,
+          "oldRating": 6.547494087138969,
+          "newRating": 6.167364614664547,
+          "delta": -0.3801294724744224,
+          "evidence": {
+            "fbsScoringMargin": -7.390243902439026,
+            "fcsResultAdjustment": 1.68,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 245,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "North Dakota State",
+          "oldRank": 35,
+          "newRank": 32,
+          "oldRating": 6.351145355874913,
+          "newRating": 6.166969492575028,
+          "delta": -0.18417586329988556,
+          "evidence": {
+            "fbsScoringMargin": 21.48780487804878,
+            "fcsResultAdjustment": 0.6599999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 252,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Georgia State",
+          "oldRank": 33,
+          "newRank": 33,
+          "oldRating": 6.626774472659236,
+          "newRating": 5.819456605422964,
+          "delta": -0.8073178672362724,
+          "evidence": {
+            "fbsScoringMargin": 19.536585365853657,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 277,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "SMU",
+          "oldRank": 36,
+          "newRank": 34,
+          "oldRating": 6.050379285466868,
+          "newRating": 5.3593134440588965,
+          "delta": -0.6910658414079718,
+          "evidence": {
+            "fbsScoringMargin": 5.609756097560976,
+            "fcsResultAdjustment": 1.14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 283,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kansas State",
+          "oldRank": 20,
+          "newRank": 35,
+          "oldRating": 9.780709707723574,
+          "newRating": 4.855647117829506,
+          "delta": -4.925062589894067,
+          "evidence": {
+            "fbsScoringMargin": 6.317073170731709,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 219,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kansas",
+          "oldRank": 22,
+          "newRank": 36,
+          "oldRating": 9.295753759855879,
+          "newRating": 4.727923962218164,
+          "delta": -4.567829797637715,
+          "evidence": {
+            "fbsScoringMargin": 11.536585365853659,
+            "fcsResultAdjustment": 1.08,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 219,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Oregon State",
+          "oldRank": 37,
+          "newRank": 37,
+          "oldRating": 4.611711579965265,
+          "newRating": 4.4332761337798745,
+          "delta": -0.1784354461853903,
+          "evidence": {
+            "fbsScoringMargin": 20.731707317073173,
+            "fcsResultAdjustment": 0.48,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 253,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Boise State",
+          "oldRank": 40,
+          "newRank": 38,
+          "oldRating": 4.152979242833038,
+          "newRating": 4.081272846076935,
+          "delta": -0.07170639675610335,
+          "evidence": {
+            "fbsScoringMargin": 20.707317073170735,
+            "fcsResultAdjustment": -7.15,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 263,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kentucky",
+          "oldRank": 41,
+          "newRank": 39,
+          "oldRating": 4.0489287049354195,
+          "newRating": 4.082683907853927,
+          "delta": 0.033755202918507976,
+          "evidence": {
+            "fbsScoringMargin": 10.04878048780488,
+            "fcsResultAdjustment": 0.3,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 253,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Cincinnati",
+          "oldRank": 39,
+          "newRank": 40,
+          "oldRating": 4.199014078025776,
+          "newRating": 3.9502833090088494,
+          "delta": -0.2487307690169267,
+          "evidence": {
+            "fbsScoringMargin": -10.804878048780488,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 237,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Wake Forest",
+          "oldRank": 42,
+          "newRank": 41,
+          "oldRating": 3.960253146608971,
+          "newRating": 3.9312679298311783,
+          "delta": -0.028985216777792644,
+          "evidence": {
+            "fbsScoringMargin": 15.487804878048783,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 317,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Penn State",
+          "oldRank": 47,
+          "newRank": 42,
+          "oldRating": 3.2997594990175325,
+          "newRating": 3.320824949524983,
+          "delta": 0.021065450507450567,
+          "evidence": {
+            "fbsScoringMargin": -4.682926829268293,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 322,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Minnesota",
+          "oldRank": 49,
+          "newRank": 43,
+          "oldRating": 3.0806801085203466,
+          "newRating": 3.158863533386105,
+          "delta": 0.07818342486575824,
+          "evidence": {
+            "fbsScoringMargin": 10.51219512195122,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 250,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Florida State",
+          "oldRank": 46,
+          "newRank": 44,
+          "oldRating": 3.353964919665327,
+          "newRating": 3.0980931326262895,
+          "delta": -0.25587178703903746,
+          "evidence": {
+            "fbsScoringMargin": 10.097560975609756,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 252,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "USC",
+          "oldRank": 50,
+          "newRank": 45,
+          "oldRating": 2.9165840520830075,
+          "newRating": 3.084341700160457,
+          "delta": 0.16775764807744942,
+          "evidence": {
+            "fbsScoringMargin": -1.1219512195121948,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 6,
+            "fbsPlays": 416,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "TCU",
+          "oldRank": 44,
+          "newRank": 46,
+          "oldRating": 3.532102691980834,
+          "newRating": 2.9864067198212383,
+          "delta": -0.5456959721595958,
+          "evidence": {
+            "fbsScoringMargin": -1.2682926829268288,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 249,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Virginia",
+          "oldRank": 48,
+          "newRank": 47,
+          "oldRating": 3.1271944105252723,
+          "newRating": 2.9977605041445754,
+          "delta": -0.12943390638069685,
+          "evidence": {
+            "fbsScoringMargin": -6.170731707317073,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 276,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Louisville",
+          "oldRank": 52,
+          "newRank": 48,
+          "oldRating": 2.5823343959571554,
+          "newRating": 2.588309212644245,
+          "delta": 0.005974816687089657,
+          "evidence": {
+            "fbsScoringMargin": -0.4634146341463416,
+            "fcsResultAdjustment": 1.14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 247,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Liberty",
+          "oldRank": 54,
+          "newRank": 49,
+          "oldRating": 2.270302792152696,
+          "newRating": 2.4540398324436747,
+          "delta": 0.18373704029097881,
+          "evidence": {
+            "fbsScoringMargin": 20.024390243902438,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 256,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Michigan",
+          "oldRank": 53,
+          "newRank": 50,
+          "oldRating": 2.3207627756095968,
+          "newRating": 2.3748950980982775,
+          "delta": 0.05413232248868072,
+          "evidence": {
+            "fbsScoringMargin": 3.5853658536585367,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 285,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "South Florida",
+          "oldRank": 56,
+          "newRank": 51,
+          "oldRating": 2.0755418798573917,
+          "newRating": 2.3516764471359366,
+          "delta": 0.2761345672785449,
+          "evidence": {
+            "fbsScoringMargin": 1.365853658536586,
+            "fcsResultAdjustment": 0.8999999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 222,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Toledo",
+          "oldRank": 60,
+          "newRank": 52,
+          "oldRating": 1.658708558372335,
+          "newRating": 2.0714180701127796,
+          "delta": 0.41270951174044446,
+          "evidence": {
+            "fbsScoringMargin": 15.439024390243903,
+            "fcsResultAdjustment": 1.56,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 271,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Iowa State",
+          "oldRank": 57,
+          "newRank": 53,
+          "oldRating": 1.8517678389561445,
+          "newRating": 1.940115100454683,
+          "delta": 0.08834726149853855,
+          "evidence": {
+            "fbsScoringMargin": 3.853658536585366,
+            "fcsResultAdjustment": 0.06,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 262,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Ole Miss",
+          "oldRank": 45,
+          "newRank": 54,
+          "oldRating": 3.52131343394943,
+          "newRating": 1.930851134697991,
+          "delta": -1.5904622992514388,
+          "evidence": {
+            "fbsScoringMargin": -2.9268292682926833,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 266,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UTSA",
+          "oldRank": 61,
+          "newRank": 55,
+          "oldRating": 1.4471916199647898,
+          "newRating": 1.8577474852485198,
+          "delta": 0.41055586528373,
+          "evidence": {
+            "fbsScoringMargin": 0.7317073170731699,
+            "fcsResultAdjustment": 0.12,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 261,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "North Texas",
+          "oldRank": 58,
+          "newRank": 56,
+          "oldRating": 1.8372822128264295,
+          "newRating": 1.6965023709936955,
+          "delta": -0.14077984183273395,
+          "evidence": {
+            "fbsScoringMargin": 2.878048780487805,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 302,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Massachusetts",
+          "oldRank": 63,
+          "newRank": 57,
+          "oldRating": 1.3048642497676628,
+          "newRating": 1.453892231378875,
+          "delta": 0.1490279816112121,
+          "evidence": {
+            "fbsScoringMargin": 0.6097560975609757,
+            "fcsResultAdjustment": -1.6666666666666667,
+            "fcsGamesPlayed": 2,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 166,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Syracuse",
+          "oldRank": 38,
+          "newRank": 58,
+          "oldRating": 4.313128110502468,
+          "newRating": 1.4619878877206942,
+          "delta": -2.8511402227817744,
+          "evidence": {
+            "fbsScoringMargin": -4.536585365853659,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 234,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Auburn",
+          "oldRank": 66,
+          "newRank": 59,
+          "oldRating": 1.037240023128601,
+          "newRating": 1.4300681877903165,
+          "delta": 0.39282816466171555,
+          "evidence": {
+            "fbsScoringMargin": -3.951219512195122,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 331,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "North Carolina",
+          "oldRank": 51,
+          "newRank": 60,
+          "oldRating": 2.524381992636997,
+          "newRating": 1.2380430033172147,
+          "delta": -1.2863389893197823,
+          "evidence": {
+            "fbsScoringMargin": -6.926829268292683,
+            "fcsResultAdjustment": 0.3,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 170,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Washington",
+          "oldRank": 65,
+          "newRank": 61,
+          "oldRating": 1.1002246328801657,
+          "newRating": 1.1977254285077878,
+          "delta": 0.09750079562762215,
+          "evidence": {
+            "fbsScoringMargin": -2.51219512195122,
+            "fcsResultAdjustment": 0.3,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 239,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Oklahoma",
+          "oldRank": 43,
+          "newRank": 62,
+          "oldRating": 3.857795767984249,
+          "newRating": 0.9875016075329524,
+          "delta": -2.8702941604512966,
+          "evidence": {
+            "fbsScoringMargin": -12.487804878048783,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 239,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Louisiana Tech",
+          "oldRank": 55,
+          "newRank": 63,
+          "oldRating": 2.1491597634413293,
+          "newRating": 0.8852975306305957,
+          "delta": -1.2638622328107336,
+          "evidence": {
+            "fbsScoringMargin": -10.463414634146345,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 182,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Memphis",
+          "oldRank": 68,
+          "newRank": 64,
+          "oldRating": 0.46410947028579963,
+          "newRating": 0.6846917650114042,
+          "delta": 0.22058229472560453,
+          "evidence": {
+            "fbsScoringMargin": 14.878048780487806,
+            "fcsResultAdjustment": -1.6500000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 258,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Louisiana",
+          "oldRank": 70,
+          "newRank": 65,
+          "oldRating": 0.015310823295308097,
+          "newRating": 0.3502450596380746,
+          "delta": 0.33493423634276653,
+          "evidence": {
+            "fbsScoringMargin": 11.390243902439027,
+            "fcsResultAdjustment": 0.24,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 260,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "NC State",
+          "oldRank": 69,
+          "newRank": 66,
+          "oldRating": 0.1077710772269525,
+          "newRating": 0.3042669881731685,
+          "delta": 0.196495910946216,
+          "evidence": {
+            "fbsScoringMargin": 3.853658536585366,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 287,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Tulsa",
+          "oldRank": 72,
+          "newRank": 67,
+          "oldRating": -0.30308518928506717,
+          "newRating": 0.22820999002869044,
+          "delta": 0.5312951793137576,
+          "evidence": {
+            "fbsScoringMargin": -8.195121951219512,
+            "fcsResultAdjustment": 0.8999999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 258,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Texas A&M",
+          "oldRank": 75,
+          "newRank": 68,
+          "oldRating": -0.5334499907984469,
+          "newRating": 0.14190635849229846,
+          "delta": 0.6753563492907454,
+          "evidence": {
+            "fbsScoringMargin": 2.0243902439024386,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 349,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Fresno State",
+          "oldRank": 73,
+          "newRank": 69,
+          "oldRating": -0.499717948417743,
+          "newRating": 0.1355821263580797,
+          "delta": 0.6353000747758226,
+          "evidence": {
+            "fbsScoringMargin": 17.31707317073171,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 304,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "South Carolina",
+          "oldRank": 71,
+          "newRank": 70,
+          "oldRating": -0.13771473305709162,
+          "newRating": -0.05903261648837027,
+          "delta": 0.07868211656872134,
+          "evidence": {
+            "fbsScoringMargin": -11.682926829268295,
+            "fcsResultAdjustment": 0.54,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 292,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Florida Atlantic",
+          "oldRank": 78,
+          "newRank": 71,
+          "oldRating": -1.1889260858030029,
+          "newRating": -0.17096720705695845,
+          "delta": 1.0179588787460445,
+          "evidence": {
+            "fbsScoringMargin": 17.121951219512198,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 315,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Texas State",
+          "oldRank": 74,
+          "newRank": 72,
+          "oldRating": -0.5305434215444498,
+          "newRating": -0.1963426341085262,
+          "delta": 0.3342007874359236,
+          "evidence": {
+            "fbsScoringMargin": 2.4878048780487805,
+            "fcsResultAdjustment": 1.56,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 318,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "App State",
+          "oldRank": 64,
+          "newRank": 73,
+          "oldRating": 1.1952813274005862,
+          "newRating": -0.199185097751767,
+          "delta": -1.3944664251523533,
+          "evidence": {
+            "fbsScoringMargin": -2.707317073170732,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 206,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Arizona State",
+          "oldRank": 62,
+          "newRank": 74,
+          "oldRating": 1.4276798017217114,
+          "newRating": -0.29252333574034745,
+          "delta": -1.7202031374620588,
+          "evidence": {
+            "fbsScoringMargin": -20.317073170731707,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 197,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Vanderbilt",
+          "oldRank": 76,
+          "newRank": 75,
+          "oldRating": -0.8773559064392479,
+          "newRating": -0.382956631774646,
+          "delta": 0.4943992746646019,
+          "evidence": {
+            "fbsScoringMargin": -12.829268292682928,
+            "fcsResultAdjustment": -4.4,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 244,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Air Force",
+          "oldRank": 67,
+          "newRank": 76,
+          "oldRating": 0.9142855973075089,
+          "newRating": -0.5715720269397762,
+          "delta": -1.4858576242472852,
+          "evidence": {
+            "fbsScoringMargin": 2.2195121951219514,
+            "fcsResultAdjustment": 0.42,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 218,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "West Virginia",
+          "oldRank": 80,
+          "newRank": 77,
+          "oldRating": -1.303329447541287,
+          "newRating": -0.7368293164981254,
+          "delta": 0.5665001310431617,
+          "evidence": {
+            "fbsScoringMargin": -4.707317073170732,
+            "fcsResultAdjustment": 1.08,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 286,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Jacksonville State",
+          "oldRank": 79,
+          "newRank": 78,
+          "oldRating": -1.2567925080165792,
+          "newRating": -0.7577359332788395,
+          "delta": 0.4990565747377397,
+          "evidence": {
+            "fbsScoringMargin": 5.75609756097561,
+            "fcsResultAdjustment": 0.8999999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 237,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Army",
+          "oldRank": 59,
+          "newRank": 79,
+          "oldRating": 1.6983829132022148,
+          "newRating": -0.7893211961058061,
+          "delta": -2.4877041093080208,
+          "evidence": {
+            "fbsScoringMargin": -0.48780487804878053,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 192,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Maryland",
+          "oldRank": 81,
+          "newRank": 80,
+          "oldRating": -1.4474605353218588,
+          "newRating": -0.9257791278435985,
+          "delta": 0.5216814074782603,
+          "evidence": {
+            "fbsScoringMargin": -25.04878048780488,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 274,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "East Carolina",
+          "oldRank": 77,
+          "newRank": 81,
+          "oldRating": -0.935499237313897,
+          "newRating": -1.0609583114454462,
+          "delta": -0.12545907413154922,
+          "evidence": {
+            "fbsScoringMargin": -6.317073170731708,
+            "fcsResultAdjustment": 0.36,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 174,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Illinois",
+          "oldRank": 82,
+          "newRank": 82,
+          "oldRating": -1.4999775469281247,
+          "newRating": -1.132430720444412,
+          "delta": 0.36754682648371273,
+          "evidence": {
+            "fbsScoringMargin": -11.487804878048783,
+            "fcsResultAdjustment": 0.6599999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 242,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UConn",
+          "oldRank": 84,
+          "newRank": 83,
+          "oldRating": -2.2466259112583633,
+          "newRating": -1.8828461218157488,
+          "delta": 0.36377978944261447,
+          "evidence": {
+            "fbsScoringMargin": 4.024390243902439,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 246,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Colorado",
+          "oldRank": 85,
+          "newRank": 84,
+          "oldRating": -2.5375448411278074,
+          "newRating": -2.173352741090991,
+          "delta": 0.36419210003681624,
+          "evidence": {
+            "fbsScoringMargin": -20.53658536585366,
+            "fcsResultAdjustment": 0.24,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 290,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Western Michigan",
+          "oldRank": 88,
+          "newRank": 85,
+          "oldRating": -3.3171562312706806,
+          "newRating": -2.367174019893543,
+          "delta": 0.9499822113771375,
+          "evidence": {
+            "fbsScoringMargin": -5.097560975609756,
+            "fcsResultAdjustment": 0.48,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 235,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Clemson",
+          "oldRank": 89,
+          "newRank": 86,
+          "oldRating": -3.45922460993904,
+          "newRating": -2.413339516025778,
+          "delta": 1.0458850939132622,
+          "evidence": {
+            "fbsScoringMargin": -7.658536585365854,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 316,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Georgia Southern",
+          "oldRank": 87,
+          "newRank": 87,
+          "oldRating": -3.2362894036665306,
+          "newRating": -2.485903725559251,
+          "delta": 0.7503856781072797,
+          "evidence": {
+            "fbsScoringMargin": -1.8048780487804876,
+            "fcsResultAdjustment": 0.24,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 254,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Sam Houston",
+          "oldRank": 83,
+          "newRank": 88,
+          "oldRating": -2.1777071945028976,
+          "newRating": -2.783429467916823,
+          "delta": -0.6057222734139254,
+          "evidence": {
+            "fbsScoringMargin": -19.5609756097561,
+            "fcsResultAdjustment": 1.92,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 190,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Purdue",
+          "oldRank": 91,
+          "newRank": 89,
+          "oldRating": -3.753195662799982,
+          "newRating": -2.858276986829195,
+          "delta": 0.894918675970787,
+          "evidence": {
+            "fbsScoringMargin": -10.414634146341465,
+            "fcsResultAdjustment": -1.1,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 258,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Florida International",
+          "oldRank": 86,
+          "newRank": 90,
+          "oldRating": -2.5122525968848213,
+          "newRating": -3.3188352487102217,
+          "delta": -0.8065826518254005,
+          "evidence": {
+            "fbsScoringMargin": -0.7560975609756093,
+            "fcsResultAdjustment": -5.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 227,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Boston College",
+          "oldRank": 93,
+          "newRank": 91,
+          "oldRating": -4.156523546227739,
+          "newRating": -3.3764992602183814,
+          "delta": 0.7800242860093571,
+          "evidence": {
+            "fbsScoringMargin": -5.2439024390243905,
+            "fcsResultAdjustment": -11.55,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 247,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Temple",
+          "oldRank": 92,
+          "newRank": 92,
+          "oldRating": -4.1412402351217095,
+          "newRating": -3.4606685343146446,
+          "delta": 0.6805717008070649,
+          "evidence": {
+            "fbsScoringMargin": 0.48780487804878053,
+            "fcsResultAdjustment": -1.6500000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 223,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Miami (OH)",
+          "oldRank": 94,
+          "newRank": 93,
+          "oldRating": -4.428882294929828,
+          "newRating": -3.4708921691287795,
+          "delta": 0.9579901258010484,
+          "evidence": {
+            "fbsScoringMargin": -1.7804878048780488,
+            "fcsResultAdjustment": 0.6599999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 222,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Troy",
+          "oldRank": 90,
+          "newRank": 94,
+          "oldRating": -3.510127084270447,
+          "newRating": -3.760356407209567,
+          "delta": -0.25022932293912037,
+          "evidence": {
+            "fbsScoringMargin": -7.951219512195123,
+            "fcsResultAdjustment": -5.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 211,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "California",
+          "oldRank": 95,
+          "newRank": 95,
+          "oldRating": -4.894844604848026,
+          "newRating": -3.8158193847295334,
+          "delta": 1.0790252201184924,
+          "evidence": {
+            "fbsScoringMargin": -7.7560975609756095,
+            "fcsResultAdjustment": 0.8999999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 278,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Arkansas",
+          "oldRank": 99,
+          "newRank": 96,
+          "oldRating": -5.369596121741981,
+          "newRating": -4.163128818244697,
+          "delta": 1.2064673034972841,
+          "evidence": {
+            "fbsScoringMargin": -9.756097560975611,
+            "fcsResultAdjustment": -5.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 253,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Ohio",
+          "oldRank": 98,
+          "newRank": 97,
+          "oldRating": -5.298185888675166,
+          "newRating": -4.217248183574452,
+          "delta": 1.0809377051007134,
+          "evidence": {
+            "fbsScoringMargin": 0.26829268292682923,
+            "fcsResultAdjustment": 0.06,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 235,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UNLV",
+          "oldRank": 97,
+          "newRank": 98,
+          "oldRating": -5.240431933832043,
+          "newRating": -4.272042603455021,
+          "delta": 0.9683893303770219,
+          "evidence": {
+            "fbsScoringMargin": 5.951219512195122,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 322,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Colorado State",
+          "oldRank": 96,
+          "newRank": 99,
+          "oldRating": -5.017430495447572,
+          "newRating": -4.540579144658898,
+          "delta": 0.4768513507886736,
+          "evidence": {
+            "fbsScoringMargin": -22.585365853658537,
+            "fcsResultAdjustment": 0.42,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 260,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UAB",
+          "oldRank": 101,
+          "newRank": 100,
+          "oldRating": -5.67253370608937,
+          "newRating": -4.504154441953975,
+          "delta": 1.1683792641353943,
+          "evidence": {
+            "fbsScoringMargin": 0.9024390243902443,
+            "fcsResultAdjustment": -4.4,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 248,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Michigan State",
+          "oldRank": 103,
+          "newRank": 101,
+          "oldRating": -6.069909055629103,
+          "newRating": -4.882847141801881,
+          "delta": 1.1870619138272218,
+          "evidence": {
+            "fbsScoringMargin": -22.682926829268293,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 321,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Arkansas State",
+          "oldRank": 104,
+          "newRank": 102,
+          "oldRating": -6.2483180836881935,
+          "newRating": -4.917358336564272,
+          "delta": 1.3309597471239218,
+          "evidence": {
+            "fbsScoringMargin": -5.195121951219513,
+            "fcsResultAdjustment": 1.08,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 223,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "South Alabama",
+          "oldRank": 110,
+          "newRank": 103,
+          "oldRating": -7.39510257900859,
+          "newRating": -5.6611223863424005,
+          "delta": 1.7339801926661895,
+          "evidence": {
+            "fbsScoringMargin": 1.6585365853658531,
+            "fcsResultAdjustment": -1.1,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 276,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Eastern Michigan",
+          "oldRank": 109,
+          "newRank": 104,
+          "oldRating": -7.07346323566869,
+          "newRating": -5.626208476996762,
+          "delta": 1.447254758671928,
+          "evidence": {
+            "fbsScoringMargin": -4.8536585365853675,
+            "fcsResultAdjustment": -0.55,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 309,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Georgia Tech",
+          "oldRank": 100,
+          "newRank": 105,
+          "oldRating": -5.402493373480329,
+          "newRating": -5.628972443288265,
+          "delta": -0.22647906980793575,
+          "evidence": {
+            "fbsScoringMargin": -10.26829268292683,
+            "fcsResultAdjustment": 0.36,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 187,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kennesaw State",
+          "oldRank": 105,
+          "newRank": 106,
+          "oldRating": -6.662434208040275,
+          "newRating": -5.694719003726957,
+          "delta": 0.9677152043133184,
+          "evidence": {
+            "fbsScoringMargin": -14.658536585365855,
+            "fcsResultAdjustment": 1.2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 179,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Delaware",
+          "oldRank": 108,
+          "newRank": 107,
+          "oldRating": -7.036728071185462,
+          "newRating": -5.798628840889065,
+          "delta": 1.2380992302963971,
+          "evidence": {
+            "fbsScoringMargin": -17.341463414634145,
+            "fcsResultAdjustment": 0.48,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 236,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "New Mexico State",
+          "oldRank": 106,
+          "newRank": 108,
+          "oldRating": -6.967692831705199,
+          "newRating": -5.903963122687167,
+          "delta": 1.0637297090180322,
+          "evidence": {
+            "fbsScoringMargin": 0.6829268292682921,
+            "fcsResultAdjustment": 0.6,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 253,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Navy",
+          "oldRank": 102,
+          "newRank": 109,
+          "oldRating": -6.087471408024762,
+          "newRating": -6.090740658617999,
+          "delta": -0.0032692505932363503,
+          "evidence": {
+            "fbsScoringMargin": -5.26829268292683,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 169,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Tulane",
+          "oldRank": 114,
+          "newRank": 110,
+          "oldRating": -8.31899576866278,
+          "newRating": -6.153422044355385,
+          "delta": 2.1655737243073956,
+          "evidence": {
+            "fbsScoringMargin": -1.2439024390243907,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 230,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "San José State",
+          "oldRank": 112,
+          "newRank": 111,
+          "oldRating": -7.789806652155087,
+          "newRating": -6.3868534401683545,
+          "delta": 1.4029532119867323,
+          "evidence": {
+            "fbsScoringMargin": -1.9512195121951221,
+            "fcsResultAdjustment": -9.350000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 256,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Rutgers",
+          "oldRank": 111,
+          "newRank": 112,
+          "oldRating": -7.687141530393568,
+          "newRating": -6.421045622818243,
+          "delta": 1.266095907575325,
+          "evidence": {
+            "fbsScoringMargin": -19.195121951219516,
+            "fcsResultAdjustment": 1.44,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 242,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Middle Tennessee",
+          "oldRank": 116,
+          "newRank": 113,
+          "oldRating": -8.65755069581205,
+          "newRating": -6.657463708523901,
+          "delta": 2.0000869872881495,
+          "evidence": {
+            "fbsScoringMargin": -18.87804878048781,
+            "fcsResultAdjustment": -1.6500000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 230,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Central Michigan",
+          "oldRank": 115,
+          "newRank": 114,
+          "oldRating": -8.526917496675667,
+          "newRating": -6.930948156026727,
+          "delta": 1.5959693406489395,
+          "evidence": {
+            "fbsScoringMargin": 3.3414634146341475,
+            "fcsResultAdjustment": -13.200000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 220,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Utah State",
+          "oldRank": 113,
+          "newRank": 115,
+          "oldRating": -8.312138778443371,
+          "newRating": -6.946854929184837,
+          "delta": 1.3652838492585344,
+          "evidence": {
+            "fbsScoringMargin": -12.219512195121952,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 215,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Coastal Carolina",
+          "oldRank": 117,
+          "newRank": 116,
+          "oldRating": -8.898634981531385,
+          "newRating": -7.423340963992856,
+          "delta": 1.4752940175385296,
+          "evidence": {
+            "fbsScoringMargin": -10.365853658536587,
+            "fcsResultAdjustment": 0.6599999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 244,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Southern Miss",
+          "oldRank": 119,
+          "newRank": 117,
+          "oldRating": -9.176887340217647,
+          "newRating": -7.500383175163058,
+          "delta": 1.676504165054589,
+          "evidence": {
+            "fbsScoringMargin": -17.170731707317078,
+            "fcsResultAdjustment": 1.14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 191,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Nevada",
+          "oldRank": 107,
+          "newRank": 118,
+          "oldRating": -6.987341751433502,
+          "newRating": -7.500258869344573,
+          "delta": -0.512917117911071,
+          "evidence": {
+            "fbsScoringMargin": 3.1463414634146343,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 178,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Wyoming",
+          "oldRank": 118,
+          "newRank": 119,
+          "oldRating": -8.862660464161578,
+          "newRating": -7.549569528448413,
+          "delta": 1.3130909357131655,
+          "evidence": {
+            "fbsScoringMargin": -11.000000000000002,
+            "fcsResultAdjustment": -10.450000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 214,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "San Diego State",
+          "oldRank": 120,
+          "newRank": 120,
+          "oldRating": -9.809243914727112,
+          "newRating": -7.896471330163693,
+          "delta": 1.9127725845634194,
+          "evidence": {
+            "fbsScoringMargin": -9.487804878048781,
+            "fcsResultAdjustment": 0.36,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 246,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Marshall",
+          "oldRank": 121,
+          "newRank": 121,
+          "oldRating": -10.178399275401581,
+          "newRating": -7.997569428670332,
+          "delta": 2.1808298467312497,
+          "evidence": {
+            "fbsScoringMargin": -11.365853658536587,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 263,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Old Dominion",
+          "oldRank": 123,
+          "newRank": 122,
+          "oldRating": -10.56448700753757,
+          "newRating": -8.891522442839905,
+          "delta": 1.672964564697665,
+          "evidence": {
+            "fbsScoringMargin": -24.439024390243905,
+            "fcsResultAdjustment": -3.3000000000000003,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 222,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Rice",
+          "oldRank": 122,
+          "newRank": 123,
+          "oldRating": -10.255582495756451,
+          "newRating": -8.912004599383915,
+          "delta": 1.3435778963725369,
+          "evidence": {
+            "fbsScoringMargin": -6.7804878048780495,
+            "fcsResultAdjustment": 0.06,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 224,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Washington State",
+          "oldRank": 124,
+          "newRank": 124,
+          "oldRating": -10.637294753217391,
+          "newRating": -9.133127731941759,
+          "delta": 1.5041670212756326,
+          "evidence": {
+            "fbsScoringMargin": -18.195121951219512,
+            "fcsResultAdjustment": 0.84,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 220,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Missouri State",
+          "oldRank": 127,
+          "newRank": 125,
+          "oldRating": -12.02784972905813,
+          "newRating": -9.198739531553793,
+          "delta": 2.8291101975043365,
+          "evidence": {
+            "fbsScoringMargin": -13.609756097560975,
+            "fcsResultAdjustment": 0.42,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 159,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kent State",
+          "oldRank": 125,
+          "newRank": 126,
+          "oldRating": -11.235767456368599,
+          "newRating": -9.24442760772097,
+          "delta": 1.9913398486476286,
+          "evidence": {
+            "fbsScoringMargin": -4.170731707317073,
+            "fcsResultAdjustment": -3.3000000000000003,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 232,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Buffalo",
+          "oldRank": 126,
+          "newRank": 127,
+          "oldRating": -11.86006102087839,
+          "newRating": -9.866532701616597,
+          "delta": 1.9935283192617934,
+          "evidence": {
+            "fbsScoringMargin": -15.097560975609756,
+            "fcsResultAdjustment": -12.983333333333334,
+            "fcsGamesPlayed": 2,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 184,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Stanford",
+          "oldRank": 129,
+          "newRank": 128,
+          "oldRating": -12.890272951304667,
+          "newRating": -10.39068763812061,
+          "delta": 2.499585313184056,
+          "evidence": {
+            "fbsScoringMargin": -20.317073170731707,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 324,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Sacramento State",
+          "oldRank": 128,
+          "newRank": 129,
+          "oldRating": -12.389588900565176,
+          "newRating": -10.488894640461371,
+          "delta": 1.9006942601038048,
+          "evidence": {
+            "fbsScoringMargin": -27.634146341463417,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 265,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Bowling Green",
+          "oldRank": 132,
+          "newRank": 130,
+          "oldRating": -13.286732053058603,
+          "newRating": -10.995724119415947,
+          "delta": 2.291007933642657,
+          "evidence": {
+            "fbsScoringMargin": -7.414634146341464,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 215,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Western Kentucky",
+          "oldRank": 131,
+          "newRank": 131,
+          "oldRating": -13.390067904376053,
+          "newRating": -11.12670046602737,
+          "delta": 2.263367438348684,
+          "evidence": {
+            "fbsScoringMargin": -28.170731707317074,
+            "fcsResultAdjustment": 1.08,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 279,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Hawai'i",
+          "oldRank": 130,
+          "newRank": 132,
+          "oldRating": -12.964258141929347,
+          "newRating": -11.093957003027255,
+          "delta": 1.870301138902093,
+          "evidence": {
+            "fbsScoringMargin": -5.390243902439026,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 338,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Ball State",
+          "oldRank": 133,
+          "newRank": 133,
+          "oldRating": -13.970679722091315,
+          "newRating": -11.481380859323389,
+          "delta": 2.4892988627679262,
+          "evidence": {
+            "fbsScoringMargin": -18.268292682926834,
+            "fcsResultAdjustment": -1.6500000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 225,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Akron",
+          "oldRank": 134,
+          "newRank": 134,
+          "oldRating": -14.99255240080847,
+          "newRating": -12.611734595037433,
+          "delta": 2.380817805771038,
+          "evidence": {
+            "fbsScoringMargin": -27.21951219512195,
+            "fcsResultAdjustment": 0.48,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 244,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Northern Illinois",
+          "oldRank": 137,
+          "newRank": 135,
+          "oldRating": -17.82651923892499,
+          "newRating": -13.2356764980648,
+          "delta": 4.590842740860191,
+          "evidence": {
+            "fbsScoringMargin": -25.000000000000004,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 181,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Charlotte",
+          "oldRank": 135,
+          "newRank": 136,
+          "oldRating": -16.966092162967268,
+          "newRating": -14.497281642292563,
+          "delta": 2.4688105206747046,
+          "evidence": {
+            "fbsScoringMargin": -26.609756097560975,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 201,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UTEP",
+          "oldRank": 138,
+          "newRank": 137,
+          "oldRating": -17.925291871699514,
+          "newRating": -14.536397962684832,
+          "delta": 3.3888939090146817,
+          "evidence": {
+            "fbsScoringMargin": -32.14634146341464,
+            "fcsResultAdjustment": 0.84,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 203,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UL Monroe",
+          "oldRank": 136,
+          "newRank": 138,
+          "oldRating": -17.424221976528486,
+          "newRating": -14.646937479734724,
+          "delta": 2.7772844967937615,
+          "evidence": {
+            "fbsScoringMargin": -18.34146341463415,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 248,
+            "scheduleConnectivity": 1
+          }
+        }
+      ]
+    },
+    {
+      "conferenceAdjustment": true,
+      "teams": [
+        {
+          "team": "Georgia",
+          "oldRank": 1,
+          "newRank": 1,
+          "oldRating": 23.174192393899602,
+          "newRating": 20.488804722660227,
+          "delta": -2.6853876712393756,
+          "evidence": {
+            "fbsScoringMargin": 26.04878048780488,
+            "fcsResultAdjustment": 1.98,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 237,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Alabama",
+          "oldRank": 3,
+          "newRank": 2,
+          "oldRating": 20.708419210684543,
+          "newRating": 19.264669607261517,
+          "delta": -1.4437496034230257,
+          "evidence": {
+            "fbsScoringMargin": 28.658536585365855,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 316,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Notre Dame",
+          "oldRank": 5,
+          "newRank": 3,
+          "oldRating": 20.094342936477982,
+          "newRating": 18.775801978267676,
+          "delta": -1.3185409582103063,
+          "evidence": {
+            "fbsScoringMargin": 19.78048780487805,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 323,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "LSU",
+          "oldRank": 7,
+          "newRank": 4,
+          "oldRating": 18.50289863066724,
+          "newRating": 16.907882551762533,
+          "delta": -1.595016078904706,
+          "evidence": {
+            "fbsScoringMargin": 17.658536585365855,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 308,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Miami",
+          "oldRank": 8,
+          "newRank": 5,
+          "oldRating": 17.897299809552816,
+          "newRating": 15.819696630168476,
+          "delta": -2.07760317938434,
+          "evidence": {
+            "fbsScoringMargin": 27.292682926829272,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 259,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Ohio State",
+          "oldRank": 9,
+          "newRank": 6,
+          "oldRating": 16.90853280452144,
+          "newRating": 15.516866107726235,
+          "delta": -1.3916666967952036,
+          "evidence": {
+            "fbsScoringMargin": 22.414634146341466,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 334,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Utah",
+          "oldRank": 2,
+          "newRank": 7,
+          "oldRating": 21.66184659166044,
+          "newRating": 15.42836925103624,
+          "delta": -6.233477340624198,
+          "evidence": {
+            "fbsScoringMargin": 23.731707317073173,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 193,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "BYU",
+          "oldRank": 4,
+          "newRank": 8,
+          "oldRating": 20.24380133638401,
+          "newRating": 15.127415171804124,
+          "delta": -5.116386164579886,
+          "evidence": {
+            "fbsScoringMargin": 11.26829268292683,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 174,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Missouri",
+          "oldRank": 11,
+          "newRank": 9,
+          "oldRating": 16.11382391454711,
+          "newRating": 15.043698733213297,
+          "delta": -1.070125181333811,
+          "evidence": {
+            "fbsScoringMargin": 13.390243902439025,
+            "fcsResultAdjustment": 0.78,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 255,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Texas",
+          "oldRank": 6,
+          "newRank": 10,
+          "oldRating": 19.12960500906985,
+          "newRating": 14.944329950325463,
+          "delta": -4.185275058744386,
+          "evidence": {
+            "fbsScoringMargin": 9.26829268292683,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 276,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Indiana",
+          "oldRank": 10,
+          "newRank": 11,
+          "oldRating": 15.886416615304254,
+          "newRating": 14.387030902010263,
+          "delta": -1.4993857132939912,
+          "evidence": {
+            "fbsScoringMargin": 24.34146341463415,
+            "fcsResultAdjustment": 1.68,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 244,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Pittsburgh",
+          "oldRank": 12,
+          "newRank": 12,
+          "oldRating": 15.388050146159946,
+          "newRating": 14.079077363687384,
+          "delta": -1.308972782472562,
+          "evidence": {
+            "fbsScoringMargin": 6.390243902439025,
+            "fcsResultAdjustment": 1.92,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 263,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Nebraska",
+          "oldRank": 17,
+          "newRank": 13,
+          "oldRating": 13.213897294064733,
+          "newRating": 12.46121975005878,
+          "delta": -0.7526775440059534,
+          "evidence": {
+            "fbsScoringMargin": 24.731707317073173,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 278,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Houston",
+          "oldRank": 16,
+          "newRank": 14,
+          "oldRating": 13.262901019546709,
+          "newRating": 12.14574285779581,
+          "delta": -1.1171581617508988,
+          "evidence": {
+            "fbsScoringMargin": 8.926829268292682,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 282,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Tennessee",
+          "oldRank": 18,
+          "newRank": 15,
+          "oldRating": 12.862078778564806,
+          "newRating": 12.14940380329501,
+          "delta": -0.7126749752697954,
+          "evidence": {
+            "fbsScoringMargin": 10.365853658536587,
+            "fcsResultAdjustment": 1.2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 261,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Mississippi State",
+          "oldRank": 22,
+          "newRank": 16,
+          "oldRating": 12.31529326349643,
+          "newRating": 12.061989200454331,
+          "delta": -0.2533040630420995,
+          "evidence": {
+            "fbsScoringMargin": -12.512195121951219,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 343,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UCLA",
+          "oldRank": 13,
+          "newRank": 17,
+          "oldRating": 15.04323662515352,
+          "newRating": 12.075617948854168,
+          "delta": -2.9676186762993524,
+          "evidence": {
+            "fbsScoringMargin": 25.024390243902438,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 257,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Florida",
+          "oldRank": 19,
+          "newRank": 18,
+          "oldRating": 12.717844077496187,
+          "newRating": 11.913147076809276,
+          "delta": -0.804697000686911,
+          "evidence": {
+            "fbsScoringMargin": -5.073170731707317,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 277,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Texas Tech",
+          "oldRank": 25,
+          "newRank": 19,
+          "oldRating": 11.745391627761679,
+          "newRating": 11.246781855689028,
+          "delta": -0.4986097720726512,
+          "evidence": {
+            "fbsScoringMargin": 22.21951219512195,
+            "fcsResultAdjustment": -2.2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 255,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Baylor",
+          "oldRank": 27,
+          "newRank": 20,
+          "oldRating": 10.787417783209087,
+          "newRating": 10.377172567160358,
+          "delta": -0.4102452160487289,
+          "evidence": {
+            "fbsScoringMargin": 23.5609756097561,
+            "fcsResultAdjustment": 0.84,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 313,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Virginia Tech",
+          "oldRank": 26,
+          "newRank": 21,
+          "oldRating": 10.972692039967722,
+          "newRating": 10.074083446156617,
+          "delta": -0.8986085938111046,
+          "evidence": {
+            "fbsScoringMargin": 3.0000000000000004,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 302,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UCF",
+          "oldRank": 28,
+          "newRank": 22,
+          "oldRating": 10.493476890862427,
+          "newRating": 9.83501322524462,
+          "delta": -0.6584636656178073,
+          "evidence": {
+            "fbsScoringMargin": 0.3902439024390248,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 215,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Northwestern",
+          "oldRank": 21,
+          "newRank": 23,
+          "oldRating": 12.427146903370671,
+          "newRating": 9.7731404860563,
+          "delta": -2.6540064173143705,
+          "evidence": {
+            "fbsScoringMargin": 14.975609756097564,
+            "fcsResultAdjustment": -6.050000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 193,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Arizona",
+          "oldRank": 29,
+          "newRank": 24,
+          "oldRating": 10.010077911868473,
+          "newRating": 9.355143916799788,
+          "delta": -0.654933995068685,
+          "evidence": {
+            "fbsScoringMargin": 21.219512195121954,
+            "fcsResultAdjustment": 0.06,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 265,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Oregon",
+          "oldRank": 14,
+          "newRank": 25,
+          "oldRating": 13.709643586571826,
+          "newRating": 9.391713833559562,
+          "delta": -4.317929753012264,
+          "evidence": {
+            "fbsScoringMargin": 5.658536585365854,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 185,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Oklahoma State",
+          "oldRank": 15,
+          "newRank": 26,
+          "oldRating": 13.462250370405492,
+          "newRating": 9.250753075173968,
+          "delta": -4.211497295231524,
+          "evidence": {
+            "fbsScoringMargin": 8.097560975609758,
+            "fcsResultAdjustment": 1.92,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 235,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Wisconsin",
+          "oldRank": 30,
+          "newRank": 27,
+          "oldRating": 9.584263636966336,
+          "newRating": 8.95953931942526,
+          "delta": -0.6247243175410748,
+          "evidence": {
+            "fbsScoringMargin": 21.75609756097561,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 249,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Iowa",
+          "oldRank": 31,
+          "newRank": 28,
+          "oldRating": 9.297300801863091,
+          "newRating": 8.917171329388657,
+          "delta": -0.38012947247443485,
+          "evidence": {
+            "fbsScoringMargin": -7.390243902439026,
+            "fcsResultAdjustment": 1.68,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 245,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kentucky",
+          "oldRank": 32,
+          "newRank": 29,
+          "oldRating": 8.938087185407438,
+          "newRating": 8.971842388325948,
+          "delta": 0.03375520291850975,
+          "evidence": {
+            "fbsScoringMargin": 10.04878048780488,
+            "fcsResultAdjustment": 0.3,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 253,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Duke",
+          "oldRank": 23,
+          "newRank": 30,
+          "oldRating": 12.018044998583328,
+          "newRating": 7.9256892993861765,
+          "delta": -4.092355699197151,
+          "evidence": {
+            "fbsScoringMargin": 17.658536585365855,
+            "fcsResultAdjustment": 1.68,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 204,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Oregon State",
+          "oldRank": 35,
+          "newRank": 31,
+          "oldRating": 8.005177169367316,
+          "newRating": 7.82674172318193,
+          "delta": -0.17843544618538676,
+          "evidence": {
+            "fbsScoringMargin": 20.731707317073173,
+            "fcsResultAdjustment": 0.48,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 253,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Boise State",
+          "oldRank": 36,
+          "newRank": 32,
+          "oldRating": 7.546444832235093,
+          "newRating": 7.474738435478988,
+          "delta": -0.07170639675610513,
+          "evidence": {
+            "fbsScoringMargin": 20.707317073170735,
+            "fcsResultAdjustment": -7.15,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 263,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kansas State",
+          "oldRank": 20,
+          "newRank": 33,
+          "oldRating": 12.372070570388587,
+          "newRating": 7.4470079804945195,
+          "delta": -4.925062589894067,
+          "evidence": {
+            "fbsScoringMargin": 6.317073170731709,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 219,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kansas",
+          "oldRank": 24,
+          "newRank": 34,
+          "oldRating": 11.887114622520885,
+          "newRating": 7.319284824883175,
+          "delta": -4.56782979763771,
+          "evidence": {
+            "fbsScoringMargin": 11.536585365853659,
+            "fcsResultAdjustment": 1.08,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 219,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Ole Miss",
+          "oldRank": 34,
+          "newRank": 35,
+          "oldRating": 8.41047191442145,
+          "newRating": 6.82000961517001,
+          "delta": -1.5904622992514401,
+          "evidence": {
+            "fbsScoringMargin": -2.9268292682926833,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 266,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Cincinnati",
+          "oldRank": 38,
+          "newRank": 36,
+          "oldRating": 6.790374940690786,
+          "newRating": 6.541644171673862,
+          "delta": -0.24873076901692404,
+          "evidence": {
+            "fbsScoringMargin": -10.804878048780488,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 237,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "SMU",
+          "oldRank": 37,
+          "newRank": 37,
+          "oldRating": 7.095560620112451,
+          "newRating": 6.40449477870448,
+          "delta": -0.6910658414079709,
+          "evidence": {
+            "fbsScoringMargin": 5.609756097560976,
+            "fcsResultAdjustment": 1.14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 283,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Auburn",
+          "oldRank": 41,
+          "newRank": 38,
+          "oldRating": 5.9263985036006215,
+          "newRating": 6.3192266682623375,
+          "delta": 0.392828164661716,
+          "evidence": {
+            "fbsScoringMargin": -3.951219512195122,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 331,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Penn State",
+          "oldRank": 40,
+          "newRank": 39,
+          "oldRating": 6.049566213741648,
+          "newRating": 6.070631664249099,
+          "delta": 0.02106545050745101,
+          "evidence": {
+            "fbsScoringMargin": -4.682926829268293,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 322,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Oklahoma",
+          "oldRank": 33,
+          "newRank": 40,
+          "oldRating": 8.746954248456266,
+          "newRating": 5.876660088004976,
+          "delta": -2.87029416045129,
+          "evidence": {
+            "fbsScoringMargin": -12.487804878048783,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 239,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Minnesota",
+          "oldRank": 42,
+          "newRank": 41,
+          "oldRating": 5.830486823244466,
+          "newRating": 5.908670248110226,
+          "delta": 0.07818342486575958,
+          "evidence": {
+            "fbsScoringMargin": 10.51219512195122,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 250,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "USC",
+          "oldRank": 43,
+          "newRank": 42,
+          "oldRating": 5.6663907668071225,
+          "newRating": 5.834148414884574,
+          "delta": 0.1677576480774512,
+          "evidence": {
+            "fbsScoringMargin": -1.1219512195121948,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 6,
+            "fbsPlays": 416,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "TCU",
+          "oldRank": 39,
+          "newRank": 43,
+          "oldRating": 6.123463554645848,
+          "newRating": 5.577767582486249,
+          "delta": -0.5456959721595984,
+          "evidence": {
+            "fbsScoringMargin": -1.2682926829268288,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 249,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Michigan",
+          "oldRank": 47,
+          "newRank": 44,
+          "oldRating": 5.070569490333714,
+          "newRating": 5.124701812822394,
+          "delta": 0.05413232248868027,
+          "evidence": {
+            "fbsScoringMargin": 3.5853658536585367,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 285,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "New Mexico",
+          "oldRank": 44,
+          "newRank": 45,
+          "oldRating": 5.558304969464617,
+          "newRating": 5.109978773667131,
+          "delta": -0.44832619579748556,
+          "evidence": {
+            "fbsScoringMargin": 23.1219512195122,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 243,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Texas A&M",
+          "oldRank": 52,
+          "newRank": 46,
+          "oldRating": 4.355708489673573,
+          "newRating": 5.031064838964323,
+          "delta": 0.67535634929075,
+          "evidence": {
+            "fbsScoringMargin": 2.0243902439024386,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 349,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Wake Forest",
+          "oldRank": 48,
+          "newRank": 47,
+          "oldRating": 5.005434481254551,
+          "newRating": 4.976449264476758,
+          "delta": -0.028985216777792644,
+          "evidence": {
+            "fbsScoringMargin": 15.487804878048783,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 317,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "North Dakota State",
+          "oldRank": 46,
+          "newRank": 48,
+          "oldRating": 5.119021940937586,
+          "newRating": 4.934846077637699,
+          "delta": -0.18417586329988644,
+          "evidence": {
+            "fbsScoringMargin": 21.48780487804878,
+            "fcsResultAdjustment": 0.6599999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 252,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "South Carolina",
+          "oldRank": 49,
+          "newRank": 49,
+          "oldRating": 4.75144374741493,
+          "newRating": 4.830125863983653,
+          "delta": 0.07868211656872326,
+          "evidence": {
+            "fbsScoringMargin": -11.682926829268295,
+            "fcsResultAdjustment": 0.54,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 292,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Vanderbilt",
+          "oldRank": 54,
+          "newRank": 50,
+          "oldRating": 4.011802574032775,
+          "newRating": 4.506201848697371,
+          "delta": 0.49439927466459554,
+          "evidence": {
+            "fbsScoringMargin": -12.829268292682928,
+            "fcsResultAdjustment": -4.4,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 244,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Iowa State",
+          "oldRank": 51,
+          "newRank": 51,
+          "oldRating": 4.443128701621155,
+          "newRating": 4.531475963119695,
+          "delta": 0.08834726149853989,
+          "evidence": {
+            "fbsScoringMargin": 3.853658536585366,
+            "fcsResultAdjustment": 0.06,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 262,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Florida State",
+          "oldRank": 50,
+          "newRank": 52,
+          "oldRating": 4.399146254310907,
+          "newRating": 4.143274467271867,
+          "delta": -0.25587178703903923,
+          "evidence": {
+            "fbsScoringMargin": 10.097560975609756,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 252,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Virginia",
+          "oldRank": 53,
+          "newRank": 53,
+          "oldRating": 4.172375745170854,
+          "newRating": 4.042941838790155,
+          "delta": -0.12943390638069907,
+          "evidence": {
+            "fbsScoringMargin": -6.170731707317073,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 276,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Washington",
+          "oldRank": 56,
+          "newRank": 54,
+          "oldRating": 3.8500313476042836,
+          "newRating": 3.947532143231905,
+          "delta": 0.09750079562762126,
+          "evidence": {
+            "fbsScoringMargin": -2.51219512195122,
+            "fcsResultAdjustment": 0.3,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 239,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Louisville",
+          "oldRank": 59,
+          "newRank": 55,
+          "oldRating": 3.6275157306027355,
+          "newRating": 3.6334905472898273,
+          "delta": 0.005974816687091877,
+          "evidence": {
+            "fbsScoringMargin": -0.4634146341463416,
+            "fcsResultAdjustment": 1.14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 247,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Fresno State",
+          "oldRank": 60,
+          "newRank": 56,
+          "oldRating": 2.8937476409843095,
+          "newRating": 3.5290477157601314,
+          "delta": 0.635300074775822,
+          "evidence": {
+            "fbsScoringMargin": 17.31707317073171,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 304,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Texas State",
+          "oldRank": 61,
+          "newRank": 57,
+          "oldRating": 2.8629221678576022,
+          "newRating": 3.197122955293526,
+          "delta": 0.33420078743592363,
+          "evidence": {
+            "fbsScoringMargin": 2.4878048780487805,
+            "fcsResultAdjustment": 1.56,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 318,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "James Madison",
+          "oldRank": 57,
+          "newRank": 58,
+          "oldRating": 3.7333455445855717,
+          "newRating": 3.1806445188847783,
+          "delta": -0.5527010257007934,
+          "evidence": {
+            "fbsScoringMargin": 24.439024390243905,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 265,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Syracuse",
+          "oldRank": 45,
+          "newRank": 59,
+          "oldRating": 5.358309445148048,
+          "newRating": 2.507169222366274,
+          "delta": -2.8511402227817744,
+          "evidence": {
+            "fbsScoringMargin": -4.536585365853659,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 234,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "North Carolina",
+          "oldRank": 58,
+          "newRank": 60,
+          "oldRating": 3.5695633272825757,
+          "newRating": 2.283224337962796,
+          "delta": -1.2863389893197796,
+          "evidence": {
+            "fbsScoringMargin": -6.926829268292683,
+            "fcsResultAdjustment": 0.3,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 170,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Arizona State",
+          "oldRank": 55,
+          "newRank": 61,
+          "oldRating": 4.019040664386723,
+          "newRating": 2.298837526924664,
+          "delta": -1.7202031374620588,
+          "evidence": {
+            "fbsScoringMargin": -20.317073170731707,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 197,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "West Virginia",
+          "oldRank": 64,
+          "newRank": 62,
+          "oldRating": 1.2880314151237238,
+          "newRating": 1.854531546166885,
+          "delta": 0.5665001310431612,
+          "evidence": {
+            "fbsScoringMargin": -4.707317073170732,
+            "fcsResultAdjustment": 1.08,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 286,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Maryland",
+          "oldRank": 63,
+          "newRank": 63,
+          "oldRating": 1.3023461794022595,
+          "newRating": 1.8240275868805185,
+          "delta": 0.521681407478259,
+          "evidence": {
+            "fbsScoringMargin": -25.04878048780488,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 274,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Illinois",
+          "oldRank": 65,
+          "newRank": 64,
+          "oldRating": 1.249829167795992,
+          "newRating": 1.617375994279704,
+          "delta": 0.36754682648371184,
+          "evidence": {
+            "fbsScoringMargin": -11.487804878048783,
+            "fcsResultAdjustment": 0.6599999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 242,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "NC State",
+          "oldRank": 66,
+          "newRank": 65,
+          "oldRating": 1.1529524118725332,
+          "newRating": 1.3494483228187497,
+          "delta": 0.19649591094621655,
+          "evidence": {
+            "fbsScoringMargin": 3.853658536585366,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 287,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Georgia State",
+          "oldRank": 62,
+          "newRank": 66,
+          "oldRating": 2.001588909789664,
+          "newRating": 1.1942710425533927,
+          "delta": -0.8073178672362713,
+          "evidence": {
+            "fbsScoringMargin": 19.536585365853657,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 277,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "South Florida",
+          "oldRank": 67,
+          "newRank": 67,
+          "oldRating": 0.8823174063253506,
+          "newRating": 1.1584519736038965,
+          "delta": 0.2761345672785459,
+          "evidence": {
+            "fbsScoringMargin": 1.365853658536586,
+            "fcsResultAdjustment": 0.8999999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 222,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Arkansas",
+          "oldRank": 73,
+          "newRank": 68,
+          "oldRating": -0.4804376412699649,
+          "newRating": 0.7260296622273215,
+          "delta": 1.2064673034972864,
+          "evidence": {
+            "fbsScoringMargin": -9.756097560975611,
+            "fcsResultAdjustment": -5.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 253,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UTSA",
+          "oldRank": 70,
+          "newRank": 69,
+          "oldRating": 0.2539671464327494,
+          "newRating": 0.6645230117164791,
+          "delta": 0.41055586528372967,
+          "evidence": {
+            "fbsScoringMargin": 0.7317073170731699,
+            "fcsResultAdjustment": 0.12,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 261,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "North Texas",
+          "oldRank": 68,
+          "newRank": 70,
+          "oldRating": 0.6440577392943887,
+          "newRating": 0.5032778974616555,
+          "delta": -0.14077984183273318,
+          "evidence": {
+            "fbsScoringMargin": 2.878048780487805,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 302,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Colorado",
+          "oldRank": 71,
+          "newRank": 71,
+          "oldRating": 0.05381602153720378,
+          "newRating": 0.4180081215740201,
+          "delta": 0.36419210003681635,
+          "evidence": {
+            "fbsScoringMargin": -20.53658536585366,
+            "fcsResultAdjustment": 0.24,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 290,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Purdue",
+          "oldRank": 75,
+          "newRank": 72,
+          "oldRating": -1.0033889480758686,
+          "newRating": -0.10847027210507806,
+          "delta": 0.8949186759707906,
+          "evidence": {
+            "fbsScoringMargin": -10.414634146341465,
+            "fcsResultAdjustment": -1.1,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 258,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Memphis",
+          "oldRank": 74,
+          "newRank": 73,
+          "oldRating": -0.7291150032462411,
+          "newRating": -0.5085327085206375,
+          "delta": 0.22058229472560364,
+          "evidence": {
+            "fbsScoringMargin": 14.878048780487806,
+            "fcsResultAdjustment": -1.6500000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 258,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Tulsa",
+          "oldRank": 76,
+          "newRank": 74,
+          "oldRating": -1.4963096628171078,
+          "newRating": -0.9650144835033501,
+          "delta": 0.5312951793137577,
+          "evidence": {
+            "fbsScoringMargin": -8.195121951219512,
+            "fcsResultAdjustment": 0.8999999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 258,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Colorado State",
+          "oldRank": 77,
+          "newRank": 75,
+          "oldRating": -1.6239649060455208,
+          "newRating": -1.1471135552568485,
+          "delta": 0.47685135078867225,
+          "evidence": {
+            "fbsScoringMargin": -22.585365853658537,
+            "fcsResultAdjustment": 0.42,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 260,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Florida Atlantic",
+          "oldRank": 79,
+          "newRank": 76,
+          "oldRating": -2.382150559335043,
+          "newRating": -1.3641916805889993,
+          "delta": 1.0179588787460436,
+          "evidence": {
+            "fbsScoringMargin": 17.121951219512198,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 315,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Clemson",
+          "oldRank": 80,
+          "newRank": 77,
+          "oldRating": -2.4140432752934586,
+          "newRating": -1.3681581813801984,
+          "delta": 1.0458850939132602,
+          "evidence": {
+            "fbsScoringMargin": -7.658536585365854,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 316,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Air Force",
+          "oldRank": 72,
+          "newRank": 78,
+          "oldRating": -0.31783781762981833,
+          "newRating": -1.8036954418771025,
+          "delta": -1.4858576242472843,
+          "evidence": {
+            "fbsScoringMargin": 2.2195121951219514,
+            "fcsResultAdjustment": 0.42,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 218,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Army",
+          "oldRank": 69,
+          "newRank": 79,
+          "oldRating": 0.5051584396701744,
+          "newRating": -1.9825456696378467,
+          "delta": -2.487704109308021,
+          "evidence": {
+            "fbsScoringMargin": -0.48780487804878053,
+            "fcsResultAdjustment": 1.74,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 192,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Michigan State",
+          "oldRank": 85,
+          "newRank": 80,
+          "oldRating": -3.320102340904985,
+          "newRating": -2.1330404270777623,
+          "delta": 1.1870619138272227,
+          "evidence": {
+            "fbsScoringMargin": -22.682926829268293,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 321,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "East Carolina",
+          "oldRank": 78,
+          "newRank": 81,
+          "oldRating": -2.1287237108459354,
+          "newRating": -2.2541827849774867,
+          "delta": -0.12545907413155133,
+          "evidence": {
+            "fbsScoringMargin": -6.317073170731708,
+            "fcsResultAdjustment": 0.36,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 174,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Boston College",
+          "oldRank": 82,
+          "newRank": 82,
+          "oldRating": -3.1113422115821576,
+          "newRating": -2.3313179255728014,
+          "delta": 0.7800242860093562,
+          "evidence": {
+            "fbsScoringMargin": -5.2439024390243905,
+            "fcsResultAdjustment": -11.55,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 247,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "California",
+          "oldRank": 88,
+          "newRank": 83,
+          "oldRating": -3.8496632702024436,
+          "newRating": -2.770638050083951,
+          "delta": 1.0790252201184924,
+          "evidence": {
+            "fbsScoringMargin": -7.7560975609756095,
+            "fcsResultAdjustment": 0.8999999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 278,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UConn",
+          "oldRank": 84,
+          "newRank": 84,
+          "oldRating": -3.377126722735939,
+          "newRating": -3.0133469332933207,
+          "delta": 0.36377978944261846,
+          "evidence": {
+            "fbsScoringMargin": 4.024390243902439,
+            "fcsResultAdjustment": 1.3199999999999998,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 246,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Liberty",
+          "oldRank": 83,
+          "newRank": 85,
+          "oldRating": -3.2199627534598316,
+          "newRating": -3.036225713168854,
+          "delta": 0.18373704029097748,
+          "evidence": {
+            "fbsScoringMargin": 20.024390243902438,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 256,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Toledo",
+          "oldRank": 87,
+          "newRank": 86,
+          "oldRating": -3.6388898577690525,
+          "newRating": -3.2261803460286087,
+          "delta": 0.4127095117404438,
+          "evidence": {
+            "fbsScoringMargin": 15.439024390243903,
+            "fcsResultAdjustment": 1.56,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 271,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Utah State",
+          "oldRank": 93,
+          "newRank": 87,
+          "oldRating": -4.918673189041322,
+          "newRating": -3.553389339782783,
+          "delta": 1.3652838492585393,
+          "evidence": {
+            "fbsScoringMargin": -12.219512195121952,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 215,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Rutgers",
+          "oldRank": 92,
+          "newRank": 88,
+          "oldRating": -4.937334815669454,
+          "newRating": -3.6712389080941246,
+          "delta": 1.266095907575329,
+          "evidence": {
+            "fbsScoringMargin": -19.195121951219516,
+            "fcsResultAdjustment": 1.44,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 242,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Louisiana Tech",
+          "oldRank": 81,
+          "newRank": 89,
+          "oldRating": -2.4760257994282413,
+          "newRating": -3.7398880322389756,
+          "delta": -1.2638622328107343,
+          "evidence": {
+            "fbsScoringMargin": -10.463414634146345,
+            "fcsResultAdjustment": 2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 182,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Massachusetts",
+          "oldRank": 89,
+          "newRank": 90,
+          "oldRating": -3.9927341663737255,
+          "newRating": -3.8437061847625125,
+          "delta": 0.149027981611213,
+          "evidence": {
+            "fbsScoringMargin": 0.6097560975609757,
+            "fcsResultAdjustment": -1.6666666666666667,
+            "fcsGamesPlayed": 2,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 166,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Louisiana",
+          "oldRank": 91,
+          "newRank": 91,
+          "oldRating": -4.609874739574265,
+          "newRating": -4.274940503231496,
+          "delta": 0.334934236342769,
+          "evidence": {
+            "fbsScoringMargin": 11.390243902439027,
+            "fcsResultAdjustment": 0.24,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 260,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "San Diego State",
+          "oldRank": 95,
+          "newRank": 92,
+          "oldRating": -6.415778325325057,
+          "newRating": -4.503005740761642,
+          "delta": 1.912772584563415,
+          "evidence": {
+            "fbsScoringMargin": -9.487804878048781,
+            "fcsResultAdjustment": 0.36,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 246,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Georgia Tech",
+          "oldRank": 90,
+          "newRank": 93,
+          "oldRating": -4.357312038834753,
+          "newRating": -4.583791108642684,
+          "delta": -0.2264790698079313,
+          "evidence": {
+            "fbsScoringMargin": -10.26829268292683,
+            "fcsResultAdjustment": 0.36,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 187,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Temple",
+          "oldRank": 94,
+          "newRank": 94,
+          "oldRating": -5.334464708653749,
+          "newRating": -4.653893007846686,
+          "delta": 0.6805717008070626,
+          "evidence": {
+            "fbsScoringMargin": 0.48780487804878053,
+            "fcsResultAdjustment": -1.6500000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 223,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "App State",
+          "oldRank": 86,
+          "newRank": 95,
+          "oldRating": -3.4299042354689844,
+          "newRating": -4.8243706606213355,
+          "delta": -1.394466425152351,
+          "evidence": {
+            "fbsScoringMargin": -2.707317073170732,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 206,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UNLV",
+          "oldRank": 96,
+          "newRank": 96,
+          "oldRating": -6.472555348769369,
+          "newRating": -5.504166018392346,
+          "delta": 0.9683893303770228,
+          "evidence": {
+            "fbsScoringMargin": 5.951219512195122,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 322,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UAB",
+          "oldRank": 98,
+          "newRank": 97,
+          "oldRating": -6.865758179621411,
+          "newRating": -5.6973789154860155,
+          "delta": 1.1683792641353952,
+          "evidence": {
+            "fbsScoringMargin": 0.9024390243902443,
+            "fcsResultAdjustment": -4.4,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 248,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Washington State",
+          "oldRank": 99,
+          "newRank": 98,
+          "oldRating": -7.2438291638153425,
+          "newRating": -5.7396621425397125,
+          "delta": 1.50416702127563,
+          "evidence": {
+            "fbsScoringMargin": -18.195121951219512,
+            "fcsResultAdjustment": 0.84,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 220,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Jacksonville State",
+          "oldRank": 97,
+          "newRank": 99,
+          "oldRating": -6.747058053629107,
+          "newRating": -6.248001478891372,
+          "delta": 0.4990565747377351,
+          "evidence": {
+            "fbsScoringMargin": 5.75609756097561,
+            "fcsResultAdjustment": 0.8999999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 237,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Georgia Southern",
+          "oldRank": 102,
+          "newRank": 100,
+          "oldRating": -7.861474966536102,
+          "newRating": -7.111089288428821,
+          "delta": 0.7503856781072811,
+          "evidence": {
+            "fbsScoringMargin": -1.8048780487804876,
+            "fcsResultAdjustment": 0.24,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 254,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Navy",
+          "oldRank": 100,
+          "newRank": 101,
+          "oldRating": -7.280695881556805,
+          "newRating": -7.283965132150039,
+          "delta": -0.0032692505932336857,
+          "evidence": {
+            "fbsScoringMargin": -5.26829268292683,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 169,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Tulane",
+          "oldRank": 108,
+          "newRank": 102,
+          "oldRating": -9.51222024219483,
+          "newRating": -7.346646517887428,
+          "delta": 2.1655737243074027,
+          "evidence": {
+            "fbsScoringMargin": -1.2439024390243907,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 230,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "San José State",
+          "oldRank": 107,
+          "newRank": 103,
+          "oldRating": -9.021930067092411,
+          "newRating": -7.618976855105684,
+          "delta": 1.402953211986727,
+          "evidence": {
+            "fbsScoringMargin": -1.9512195121951221,
+            "fcsResultAdjustment": -9.350000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 256,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Western Michigan",
+          "oldRank": 106,
+          "newRank": 104,
+          "oldRating": -8.614754647412067,
+          "newRating": -7.664772436034934,
+          "delta": 0.949982211377133,
+          "evidence": {
+            "fbsScoringMargin": -5.097560975609756,
+            "fcsResultAdjustment": 0.48,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 235,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Sam Houston",
+          "oldRank": 101,
+          "newRank": 105,
+          "oldRating": -7.667972740115429,
+          "newRating": -8.273695013529355,
+          "delta": -0.6057222734139263,
+          "evidence": {
+            "fbsScoringMargin": -19.5609756097561,
+            "fcsResultAdjustment": 1.92,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 190,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Troy",
+          "oldRank": 104,
+          "newRank": 106,
+          "oldRating": -8.13531264714002,
+          "newRating": -8.38554197007914,
+          "delta": -0.2502293229391199,
+          "evidence": {
+            "fbsScoringMargin": -7.951219512195123,
+            "fcsResultAdjustment": -5.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 211,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Nevada",
+          "oldRank": 105,
+          "newRank": 107,
+          "oldRating": -8.219465166370831,
+          "newRating": -8.732382284281899,
+          "delta": -0.5129171179110674,
+          "evidence": {
+            "fbsScoringMargin": 3.1463414634146343,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 178,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Miami (OH)",
+          "oldRank": 109,
+          "newRank": 108,
+          "oldRating": -9.726480711071211,
+          "newRating": -8.768490585270165,
+          "delta": 0.9579901258010466,
+          "evidence": {
+            "fbsScoringMargin": -1.7804878048780488,
+            "fcsResultAdjustment": 0.6599999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 222,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Wyoming",
+          "oldRank": 110,
+          "newRank": 109,
+          "oldRating": -10.094783879098905,
+          "newRating": -8.781692943385734,
+          "delta": 1.3130909357131717,
+          "evidence": {
+            "fbsScoringMargin": -11.000000000000002,
+            "fcsResultAdjustment": -10.450000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 214,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Florida International",
+          "oldRank": 103,
+          "newRank": 110,
+          "oldRating": -8.002518142497346,
+          "newRating": -8.809100794322752,
+          "delta": -0.8065826518254067,
+          "evidence": {
+            "fbsScoringMargin": -0.7560975609756093,
+            "fcsResultAdjustment": -5.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 227,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Stanford",
+          "oldRank": 114,
+          "newRank": 111,
+          "oldRating": -11.845091616659086,
+          "newRating": -9.345506303475034,
+          "delta": 2.4995853131840526,
+          "evidence": {
+            "fbsScoringMargin": -20.317073170731707,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 324,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Ohio",
+          "oldRank": 111,
+          "newRank": 112,
+          "oldRating": -10.595784304816556,
+          "newRating": -9.514846599715847,
+          "delta": 1.080937705100709,
+          "evidence": {
+            "fbsScoringMargin": 0.26829268292682923,
+            "fcsResultAdjustment": 0.06,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 235,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Arkansas State",
+          "oldRank": 112,
+          "newRank": 113,
+          "oldRating": -10.873503646557772,
+          "newRating": -9.542543899433836,
+          "delta": 1.330959747123936,
+          "evidence": {
+            "fbsScoringMargin": -5.195121951219513,
+            "fcsResultAdjustment": 1.08,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 223,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Rice",
+          "oldRank": 113,
+          "newRank": 114,
+          "oldRating": -11.448806969288496,
+          "newRating": -10.105229072915957,
+          "delta": 1.3435778963725387,
+          "evidence": {
+            "fbsScoringMargin": -6.7804878048780495,
+            "fcsResultAdjustment": 0.06,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 224,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "South Alabama",
+          "oldRank": 115,
+          "newRank": 115,
+          "oldRating": -12.020288141878162,
+          "newRating": -10.286307949211974,
+          "delta": 1.7339801926661877,
+          "evidence": {
+            "fbsScoringMargin": 1.6585365853658531,
+            "fcsResultAdjustment": -1.1,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 276,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Eastern Michigan",
+          "oldRank": 117,
+          "newRank": 116,
+          "oldRating": -12.371061651810077,
+          "newRating": -10.923806893138153,
+          "delta": 1.4472547586719244,
+          "evidence": {
+            "fbsScoringMargin": -4.8536585365853675,
+            "fcsResultAdjustment": -0.55,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 309,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kennesaw State",
+          "oldRank": 116,
+          "newRank": 117,
+          "oldRating": -12.152699753652804,
+          "newRating": -11.184984549339477,
+          "delta": 0.9677152043133272,
+          "evidence": {
+            "fbsScoringMargin": -14.658536585365855,
+            "fcsResultAdjustment": 1.2,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 179,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Delaware",
+          "oldRank": 119,
+          "newRank": 118,
+          "oldRating": -12.52699361679799,
+          "newRating": -11.28889438650159,
+          "delta": 1.238099230296399,
+          "evidence": {
+            "fbsScoringMargin": -17.341463414634145,
+            "fcsResultAdjustment": 0.48,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 236,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "New Mexico State",
+          "oldRank": 118,
+          "newRank": 119,
+          "oldRating": -12.457958377317723,
+          "newRating": -11.3942286682997,
+          "delta": 1.0637297090180233,
+          "evidence": {
+            "fbsScoringMargin": 0.6829268292682921,
+            "fcsResultAdjustment": 0.6,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 253,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Southern Miss",
+          "oldRank": 121,
+          "newRank": 120,
+          "oldRating": -13.80207290308722,
+          "newRating": -12.12556873803264,
+          "delta": 1.6765041650545793,
+          "evidence": {
+            "fbsScoringMargin": -17.170731707317078,
+            "fcsResultAdjustment": 1.14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 191,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Coastal Carolina",
+          "oldRank": 120,
+          "newRank": 121,
+          "oldRating": -13.523820544400955,
+          "newRating": -12.048526526862425,
+          "delta": 1.4752940175385305,
+          "evidence": {
+            "fbsScoringMargin": -10.365853658536587,
+            "fcsResultAdjustment": 0.6599999999999999,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 244,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Middle Tennessee",
+          "oldRank": 124,
+          "newRank": 122,
+          "oldRating": -14.147816241424584,
+          "newRating": -12.147729254136431,
+          "delta": 2.000086987288153,
+          "evidence": {
+            "fbsScoringMargin": -18.87804878048781,
+            "fcsResultAdjustment": -1.6500000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 230,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Central Michigan",
+          "oldRank": 122,
+          "newRank": 123,
+          "oldRating": -13.824515912817056,
+          "newRating": -12.228546572168119,
+          "delta": 1.5959693406489368,
+          "evidence": {
+            "fbsScoringMargin": 3.3414634146341475,
+            "fcsResultAdjustment": -13.200000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 220,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Hawai'i",
+          "oldRank": 123,
+          "newRank": 124,
+          "oldRating": -14.196381556866669,
+          "newRating": -12.326080417964588,
+          "delta": 1.8703011389020805,
+          "evidence": {
+            "fbsScoringMargin": -5.390243902439026,
+            "fcsResultAdjustment": 0,
+            "fcsGamesPlayed": 0,
+            "fbsGamesPlayed": 5,
+            "fbsPlays": 338,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Marshall",
+          "oldRank": 125,
+          "newRank": 125,
+          "oldRating": -14.803584838271158,
+          "newRating": -12.62275499153991,
+          "delta": 2.180829846731248,
+          "evidence": {
+            "fbsScoringMargin": -11.365853658536587,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 263,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Old Dominion",
+          "oldRank": 126,
+          "newRank": 126,
+          "oldRating": -15.189672570407135,
+          "newRating": -13.516708005709486,
+          "delta": 1.672964564697649,
+          "evidence": {
+            "fbsScoringMargin": -24.439024390243905,
+            "fcsResultAdjustment": -3.3000000000000003,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 222,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Northern Illinois",
+          "oldRank": 134,
+          "newRank": 127,
+          "oldRating": -19.05864265386233,
+          "newRating": -14.467799913002136,
+          "delta": 4.590842740860193,
+          "evidence": {
+            "fbsScoringMargin": -25.000000000000004,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 181,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Kent State",
+          "oldRank": 127,
+          "newRank": 128,
+          "oldRating": -16.533365872509986,
+          "newRating": -14.542026023862357,
+          "delta": 1.9913398486476286,
+          "evidence": {
+            "fbsScoringMargin": -4.170731707317073,
+            "fcsResultAdjustment": -3.3000000000000003,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 232,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Missouri State",
+          "oldRank": 129,
+          "newRank": 129,
+          "oldRating": -17.518115274670663,
+          "newRating": -14.68900507716633,
+          "delta": 2.829110197504333,
+          "evidence": {
+            "fbsScoringMargin": -13.609756097560975,
+            "fcsResultAdjustment": 0.42,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 159,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Buffalo",
+          "oldRank": 128,
+          "newRank": 130,
+          "oldRating": -17.157659437019777,
+          "newRating": -15.164131117757996,
+          "delta": 1.993528319261781,
+          "evidence": {
+            "fbsScoringMargin": -15.097560975609756,
+            "fcsResultAdjustment": -12.983333333333334,
+            "fcsGamesPlayed": 2,
+            "fbsGamesPlayed": 3,
+            "fbsPlays": 184,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Charlotte",
+          "oldRank": 131,
+          "newRank": 131,
+          "oldRating": -18.159316636499298,
+          "newRating": -15.690506115824602,
+          "delta": 2.4688105206746958,
+          "evidence": {
+            "fbsScoringMargin": -26.609756097560975,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 201,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UTEP",
+          "oldRank": 135,
+          "newRank": 132,
+          "oldRating": -19.157415286636844,
+          "newRating": -15.768521377622154,
+          "delta": 3.3888939090146906,
+          "evidence": {
+            "fbsScoringMargin": -32.14634146341464,
+            "fcsResultAdjustment": 0.84,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 203,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Sacramento State",
+          "oldRank": 130,
+          "newRank": 133,
+          "oldRating": -17.687187316706556,
+          "newRating": -15.786493056602762,
+          "delta": 1.9006942601037942,
+          "evidence": {
+            "fbsScoringMargin": -27.634146341463417,
+            "fcsResultAdjustment": 1.5,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 265,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Bowling Green",
+          "oldRank": 133,
+          "newRank": 134,
+          "oldRating": -18.58433046919999,
+          "newRating": -16.293322535557333,
+          "delta": 2.291007933642657,
+          "evidence": {
+            "fbsScoringMargin": -7.414634146341464,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 215,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Western Kentucky",
+          "oldRank": 132,
+          "newRank": 135,
+          "oldRating": -18.88033344998859,
+          "newRating": -16.61696601163989,
+          "delta": 2.263367438348702,
+          "evidence": {
+            "fbsScoringMargin": -28.170731707317074,
+            "fcsResultAdjustment": 1.08,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 279,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Ball State",
+          "oldRank": 136,
+          "newRank": 136,
+          "oldRating": -19.26827813823271,
+          "newRating": -16.778979275464785,
+          "delta": 2.4892988627679244,
+          "evidence": {
+            "fbsScoringMargin": -18.268292682926834,
+            "fcsResultAdjustment": -1.6500000000000001,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 225,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "Akron",
+          "oldRank": 137,
+          "newRank": 137,
+          "oldRating": -20.290150816949854,
+          "newRating": -17.909333011178823,
+          "delta": 2.3808178057710307,
+          "evidence": {
+            "fbsScoringMargin": -27.21951219512195,
+            "fcsResultAdjustment": 0.48,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 244,
+            "scheduleConnectivity": 1
+          }
+        },
+        {
+          "team": "UL Monroe",
+          "oldRank": 138,
+          "newRank": 138,
+          "oldRating": -22.049407539398064,
+          "newRating": -19.2721230426043,
+          "delta": 2.777284496793765,
+          "evidence": {
+            "fbsScoringMargin": -18.34146341463415,
+            "fcsResultAdjustment": -14,
+            "fcsGamesPlayed": 1,
+            "fbsGamesPlayed": 4,
+            "fbsPlays": 248,
+            "scheduleConnectivity": 1
+          }
+        }
+      ]
+    }
+  ]
+}

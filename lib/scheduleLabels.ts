@@ -1,3 +1,5 @@
+import { weekLabel } from "./weekLabels";
+
 export type ScheduleLabelGame={
   season:number;
   week:number;
@@ -51,9 +53,9 @@ function playoffRound(game:ScheduleLabelGame){
 }
 
 export function scheduleGameLabel(game:ScheduleLabelGame){
-  if(isArmyNavy(game))return`W${game.week}`;
+  if(isArmyNavy(game))return weekLabel(game.week,"compact");
   const seasonType=(game.seasonType??"regular").toLowerCase();
   if(seasonType==="conference-championship"||seasonType!=="postseason"&&game.week===15)return"CC";
-  if(seasonType!=="postseason")return`W${game.week}`;
+  if(seasonType!=="postseason")return weekLabel(game.week,"compact");
   return isPlayoffGame(game)?playoffRound(game):"BOWL";
 }

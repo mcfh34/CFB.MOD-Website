@@ -41,20 +41,19 @@ The site uses CollegeFootballData from the server only. Raw schedules, scores, t
 
 Scheduled updates:
 
-- Team, advanced and player statistics refresh Sundays at **12:00 PM America/Chicago**. Two UTC cron candidates cover daylight saving; only the one matching local noon proceeds.
-- A persistent weekly slot claim prevents duplicate deliveries or failed jobs from retrying and spending more quota.
-- A shared request context deduplicates matching bulk feeds and enforces a maximum of **40 external API requests per weekly run** (at most 200 in a five-Sunday month).
-- Visitor requests, including advanced/player detail pages, read cached data and never contact CFBD. Uncached detail remains unavailable until a scheduled run populates it.
-- Historical backfill and the old every-two-minute job are disabled in routine operation. Weekly player production reuses existing roster, recruiting and transfer history.
-- Authentication failures or HTTP 429 stop further external requests in that run; previously published data remains available. Existing provider quota must reset before new data can be imported.
-- Test these safeguards with `node --import tsx --test tests/weekly-api-policy.test.ts`.
+- Team, advanced and player statistics update Sundays at 12:00 PM America/Chicago. Duplicate deliveries share a permanent slot claim. Each run has a hard 40-request provider budget; visitor traffic never calls CFBD.
+- R2 stores raw API payloads, immutable source history and model reports. D1 stores structured statistics and small archive/report pointers. Verified legacy payloads can be migrated without contacting CFBD.
+- GitHub Actions computes current-season All137 results and 50,000 regular-season outcome samples from stored data at Sunday 12:30 Central. OIDC authorizes only this repository's exact main-branch workflow to publish its results. No provider key is shared with GitHub.
+- Five main destinations organize the existing tools. Shared query caching, searchable selectors, virtualized tables, on-demand chart/game bundles and browser workers reduce repeated loading and UI-thread work.
+
+See [the efficiency architecture](docs/efficiency-architecture.md) for data flow, migration, authorization, model interpretation and verification.
 
 ## Security
 
 - `CFBD_API_KEY` and `SYNC_TOKEN` are server-side environment variables and must never be placed in client code or committed files.
 - `.env*`, certificates, build output, local databases, and runtime state are ignored by Git.
 - administrative data-changing endpoints require the private bearer token
-- public archive status checks are read-only; ingestion writes are restricted to the weekly scheduled context
+- visitor routes are read-only with respect to provider ingestion; the Sunday scheduled context owns source access
 - responses include CSP, anti-framing, MIME-sniffing, referrer, permissions, and HTTPS security headers
 
 ## Local development

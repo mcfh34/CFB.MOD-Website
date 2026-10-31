@@ -166,7 +166,11 @@ export function validateDepthChart(input: unknown, requireComplete = true): Dept
     const exactKey = `${side}|${role}|${depth}|${personKey(player)}|${jersey ?? ""}`;
     if (exactEntries.has(exactKey)) errors.push(`Entry ${index + 1} duplicates ${player} at ${role} ${depth}.`);
     exactEntries.add(exactKey);
-    entries.push({ side, role, position, depth, player, jersey });
+    const optional:Pick<PublishedDepthEntry,"expectedSnapShare"|"availabilityProbability"|"starterProbability">={};
+    for(const key of ["expectedSnapShare","availabilityProbability","starterProbability"] as const)if(raw[key]!==undefined){
+      const n=raw[key];if(typeof n!=="number"||!Number.isFinite(n)||n<0||n>1)errors.push(`Entry ${index+1}: ${key} must be between zero and one.`);else optional[key]=n;
+    }
+    entries.push({ side, role, position, depth, player, jersey, ...optional });
   }
 
   const offenseCount = entries.filter((entry) => entry.side === "offense").length;
@@ -190,6 +194,7 @@ export function validateDepthChart(input: unknown, requireComplete = true): Dept
     sourceUrl,
     sourceKind,
     entries,
+    coachingContinuity:value.coachingContinuity && typeof value.coachingContinuity.offense==="boolean" && typeof value.coachingContinuity.defense==="boolean" ? value.coachingContinuity : undefined,
   };
   return { valid: errors.length === 0, errors, warnings, chart };
 }

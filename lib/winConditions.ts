@@ -1,5 +1,6 @@
 import type { AdvancedSideProjection } from "./advancedMetrics";
 import { predictPointsPerPossession, type PossessionFeatures, type PossessionScoreReceipt } from "./scoringModel";
+import { winProbabilityCalibration } from "./winProbability";
 
 export type WinConditionMetric =
   | "successRate"
@@ -231,7 +232,7 @@ type SimulationRow = {
   cluster:number;
 };
 
-const logisticScale=11.8;
+const logisticScale=winProbabilityCalibration.marginScale;
 const clamp=(value:number,minimum:number,maximum:number)=>Math.max(minimum,Math.min(maximum,value));
 const finite=(value:number|null|undefined):value is number=>value!==null&&value!==undefined&&Number.isFinite(value);
 const average=(values:number[])=>values.length?values.reduce((sum,value)=>sum+value,0)/values.length:0;

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { baselines } from "../app/modelData";
 import { parseAdvancedProfile, type AdvancedProfile, type AdvancedSideProjection } from "../lib/advancedMetrics";
 import { assessOffensiveViability } from "../lib/offensiveViability";
 import {
@@ -118,14 +119,18 @@ function sideFeatures(projection:AdvancedSideProjection,profile:AdvancedProfile,
     Math.log(clamp(ratio(projection.overall.thirdDownSuccessRate,baseline.thirdDownSuccessRate),.55,1.65)),
     Math.log(clamp(ratio(projection.overall.redZoneEfficiency,baseline.redZoneEfficiency),.65,1.45)),
   ]);
-  const protection=average([
+  const advancedProtection=average([
     Math.log(clamp(ratio(baseline.havocRate,projection.overall.havocRate),.55,1.75)),
     Math.log(clamp(ratio(projection.pass.passingDownSuccessRate,baseline.passingDownSuccessRate),.55,1.65)),
   ]);
-  const runPassBalance=Math.min(
+  const passingEfficiency=Math.log(clamp(ratio(projection.pass.adjustedYpa,baselines.ypa),.55,1.65));
+  const rushingEfficiency=Math.log(clamp(ratio(projection.run.adjustedYpc,baselines.ypc),.55,1.65));
+  const protection=.55*advancedProtection+.45*passingEfficiency;
+  const advancedRunPassBalance=Math.min(
     Math.log(clamp(ratio(projection.run.rushingSuccessRate,baseline.rushingSuccessRate),.55,1.65)),
     Math.log(clamp(ratio(projection.pass.passingSuccessRate,baseline.passingSuccessRate),.55,1.65)),
   );
+  const runPassBalance=.7*advancedRunPassBalance+.3*rushingEfficiency;
   const fieldPosition=(finite(projection.specialTeams.fieldPosition,finite(baseline.fieldPosition,25))-finite(baseline.fieldPosition,25))/10
     + finite(projection.specialTeams.hiddenYards,0)/100;
   const pointsPerDrive=finite(projection.overall.pointsPerDrive,finite(baseline.pointsPerDrive,2.45));

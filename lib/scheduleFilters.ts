@@ -1,6 +1,16 @@
 export type SchedulePickFilter = "all" | "ats" | "total" | "any";
 export type ScheduleSortMode = "date" | "week" | "conference";
 
+const scoreDateFormatter = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "America/Chicago" });
+
+export function scoreboardDay(value?: string) {
+  if (!value) return "9999-99-99";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "9999-99-99";
+  const parts = Object.fromEntries(scoreDateFormatter.formatToParts(date).map(({ type, value }) => [type, value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 export type ScheduleFilterRow = {
   gameId: string;
   week: number;

@@ -1,0 +1,1 @@
+ALTER TABLE `team_game_stats` ADD `sack_adjustment_version` integer DEFAULT 0 NOT NULL;

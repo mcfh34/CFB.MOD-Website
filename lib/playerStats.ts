@@ -52,6 +52,7 @@ export type PlayerStatsRow = PlayerStatsSortableRow & {
   position:PlayerStatsPosition;
   year:number|null;
   advancedEvidence:boolean;
+  metricRanks?:Partial<Record<PlayerStatsMetricKey,number>>;
 };
 
 export type PlayerStatsColumn = {
@@ -304,6 +305,15 @@ export function playerStatsColumns(position:PlayerStatsPosition) {
 
 export function playerStatsMetricColumns(position:PlayerStatsPosition) {
   return [...positionMetrics[position]];
+}
+
+const advancedPlayerStatKeys = new Set<PlayerStatsMetricKey>([
+  "usageRate","passPpa","rushPpa","passingSuccessRate","rushingSuccessRate",
+  "opponentRelative","opponentUnitQuality","supportQuality",
+]);
+
+export function playerStatsGroupColumns(position:PlayerStatsPosition,group:"basic"|"advanced") {
+  return positionMetrics[position].filter((column)=>advancedPlayerStatKeys.has(column.key)===(group==="advanced"));
 }
 
 export function playerStatsDefaultSortKey(position:PlayerStatsPosition):PlayerStatsMetricKey {

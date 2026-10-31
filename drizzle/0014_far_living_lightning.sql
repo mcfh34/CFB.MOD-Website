@@ -1,0 +1,1 @@
+ALTER TABLE `model_predictions` ADD `forecast_json` text DEFAULT '{}' NOT NULL;

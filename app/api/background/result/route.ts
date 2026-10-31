@@ -1,0 +1,15 @@
+import {verifyJobToken} from "../../../../lib/githubJobAuth";
+import {currentMatchupFormulaRevision} from "../../../../lib/formulaRevision";
+import type {ModelOutput} from "../../../../lib/backgroundModel";
+import type {ArchiveBucket} from "../../../../lib/payloadArchive";
+type Runtime={DB:D1Database;BUCKET?:ArchiveBucket};
+export async function GET(request:Request){const {env}=await import("cloudflare:workers");const runtime=env as unknown as Runtime;const season=Number(new URL(request.url).searchParams.get("season"));if(!Number.isInteger(season))return Response.json({status:"invalid"},{status:400});const pointer=await runtime.DB.prepare("SELECT object_key AS key FROM background_outputs WHERE id=?").bind(`season:${season}`).first<{key:string}>();const object=pointer&&runtime.BUCKET?await runtime.BUCKET.get(pointer.key):null;return object?new Response(await object.text(),{headers:{"content-type":"application/json","cache-control":"public, max-age=300"}}):Response.json({status:"pending"},{status:202,headers:{"cache-control":"no-store"}});}
+export async function POST(request:Request){
+ const token=request.headers.get("authorization")?.replace(/^Bearer /,"")??"";if(!await verifyJobToken(token))return Response.json({error:"Unauthorized job"},{status:401});
+ const {env}=await import("cloudflare:workers");const runtime=env as unknown as Runtime;if(!runtime.BUCKET)return Response.json({error:"Storage unavailable"},{status:503});
+ const body=await request.text();if(body.length>4_000_000)return Response.json({error:"Output too large"},{status:413});let output:ModelOutput;try{output=JSON.parse(body);}catch{return Response.json({error:"Invalid JSON"},{status:400});}
+ if(!Number.isInteger(output.season)||!Number.isInteger(output.week)||output.iterations!==50000||output.formulaRevision!==currentMatchupFormulaRevision||!Array.isArray(output.roundRobin)||output.roundRobin.length<100||output.roundRobin.length>200||!Array.isArray(output.winDistributions)||!output.inputHash)return Response.json({error:"Invalid calculation output"},{status:400});
+ const stamp=await runtime.DB.prepare("SELECT MAX(week) AS week,MAX(created_at) AS stamp FROM weekly_profiles WHERE season=?").bind(output.season).first<{week:number;stamp:string}>();if(stamp?.stamp!==output.sourceStamp||stamp.week!==output.week)return Response.json({error:"Input is stale; existing output preserved"},{status:409});
+ const key=`model-results/${output.season}/${output.formulaRevision}/${output.sourceStamp.replace(/[^\d]/g,"")}-${output.inputHash}.json`;await runtime.BUCKET.put(key,body,{httpMetadata:{contentType:"application/json"}});
+ await runtime.DB.prepare("INSERT INTO background_outputs(id,season,week,input_hash,object_key,created_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET week=excluded.week,input_hash=excluded.input_hash,object_key=excluded.object_key,created_at=CURRENT_TIMESTAMP").bind(`season:${output.season}`,output.season,output.week,output.inputHash,key).run();return Response.json({status:"published",season:output.season,teams:output.roundRobin.length});
+}
