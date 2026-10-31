@@ -1,15 +1,9 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { ARCHIVE_REPAIR_COOLDOWN_SECONDS, claimArchiveRepair, currentCollegeFootballSeason, getBackfillStatus, syncArchiveBatch, syncSeason } from "../lib/dataPipeline";
-import {
-  claimPlayerSync,
-  getPlayerArchiveStatus,
-  queueActivePlayerSeasonRefresh,
-  refreshPlayerProductionBaselineIfNeeded,
-  syncPlayerSeasonBatch,
-} from "../lib/playerPipeline";
-import { maintainDepthChartArchive } from "../lib/depthChartArchive";
+import {currentCollegeFootballSeason, syncSeason, cfbd} from "../lib/dataPipeline";
+import {syncWeeklyPlayers} from "../lib/playerPipeline";
+import {sundayNoonSlot, withApiPolicy} from "../lib/weeklyApiPolicy";
 
 interface Env {
   ASSETS: Fetcher;
@@ -38,6 +32,7 @@ function secure(response: Response) {
   secured.headers.set("x-content-type-options", "nosniff");
   secured.headers.set("x-frame-options", "DENY");
   secured.headers.set("cross-origin-opener-policy", "same-origin");
+  secured.headers.set("cross-origin-resource-policy", "same-origin");
   secured.headers.set("strict-transport-security", "max-age=31536000; includeSubDomains");
   return secured;
 }
@@ -63,40 +58,32 @@ const worker = {
       }, allowedWidths));
     }
 
-    return secure(await handler.fetch(request, env, ctx));
+    // All visitor routes, including advanced/player detail, read stored data only.
+    if(request.method !== "GET" && ["/api/refresh","/api/sync","/api/bootstrap","/api/maintenance"].includes(url.pathname))
+      return secure(Response.json({status:"scheduled",message:"Stats update Sundays at 12:00 PM Central. Previously published data remains available."},{status:403}));
+    return withApiPolicy(env.DB, false, async () => secure(await handler.fetch(request, env, ctx)));
   },
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil((async () => {
-      // This archive uses official documents rather than the CFBD feed, so it
-      // remains independently maintainable even when CFBD is unavailable.
-      await maintainDepthChartArchive(env.DB).catch(() => null);
-      if (!env.CFBD_API_KEY) return;
-      const currentSeason = currentCollegeFootballSeason();
-      const backfill = await getBackfillStatus(env);
-      if (controller.cron === "0 11 * * 1") {
-        // The active season always gets the Monday refresh, independent of the
-        // historical archive's state.
-        await syncSeason(env, currentSeason, "scheduled");
-        await queueActivePlayerSeasonRefresh(env, currentSeason);
-        return;
-      }
-      // Each repair run is globally leased and advances a paced batch. This
-      // lets one-time history complete even when the hosting tier skips cron
-      // deliveries, without allowing overlapping CFBD traffic.
-      const repairSeason = backfill.missing[0];
-      if (repairSeason && await claimArchiveRepair(env, ARCHIVE_REPAIR_COOLDOWN_SECONDS)) {
-        await syncArchiveBatch(env, repairSeason, "scheduled");
-        return;
-      }
-      if (!repairSeason) {
-        const playerArchive = await getPlayerArchiveStatus(env);
-        const playerSeason = playerArchive.missing[0];
-        if (playerSeason && await claimPlayerSync(env)) {
-          await syncPlayerSeasonBatch(env, playerSeason).catch(() => null);
-        }
-        // Percentile ratings depend only on completed player seasons. An
-        // unpublished upcoming roster must not block historical normalization.
-        await refreshPlayerProductionBaselineIfNeeded(env.DB).catch(() => null);
+    const slot=sundayNoonSlot(new Date(controller.scheduledTime));
+    if(!slot || !env.CFBD_API_KEY)return;
+    ctx.waitUntil((async()=>{
+      // Permanent slot claim: duplicate cron deliveries and failed runs never retry the API.
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS weekly_stats_runs (slot TEXT PRIMARY KEY,status TEXT NOT NULL,detail TEXT,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)").run();
+      const claim=await env.DB.prepare("INSERT OR IGNORE INTO weekly_stats_runs(slot,status) VALUES(?,'running')").bind(slot).run();
+      if(!claim.meta.changes)return;
+      try {
+        await withApiPolicy(env.DB,true,async()=>{
+          const season=currentCollegeFootballSeason();
+          // Bulk feeds, active season only. No historical archive repairs.
+          await syncWeeklyPlayers(env,season);
+          await syncSeason(env,season,"scheduled");
+          // Shared bulk caches for public player and advanced detail pages.
+          for(const path of ["/games/players","/passing/players/season","/rushing/players/season","/ppa/players/games","/stats/player/success/game","/rankings","/passing/teams/season","/passing/teams/games","/passing/players/games","/rushing/teams/season","/rushing/teams/games","/rushing/players/games"])
+            await cfbd(path,env.CFBD_API_KEY!,{year:season});
+        });
+        await env.DB.prepare("UPDATE weekly_stats_runs SET status='complete',updated_at=CURRENT_TIMESTAMP WHERE slot=?").bind(slot).run();
+      }catch(error){
+        await env.DB.prepare("UPDATE weekly_stats_runs SET status='error',detail=?,updated_at=CURRENT_TIMESTAMP WHERE slot=?").bind(error instanceof Error?error.message:'Refresh failed',slot).run();
       }
     })());
   },

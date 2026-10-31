@@ -14,11 +14,8 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
-  // One archive slice every two minutes remains single-flight through the D1
-  // lease, so CFBD requests never burst even when browser recovery also polls. Once the
-  // archive is complete, the repair invocation performs only a D1 status check
-  // and makes no external API request.
-  triggers: { crons: ["0 11 * * 1", "*/2 * * * *"] },
+  // UTC candidates cover CST/CDT; the Worker checks America/Chicago first.
+  triggers: { crons: ["0 17 * * 0", "0 18 * * 0"] },
   d1_databases: d1
     ? [
         {

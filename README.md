@@ -39,18 +39,22 @@ Selecting `Final · bowls + playoff` for both Matchup Lab teams and keeping the 
 
 The site uses CollegeFootballData from the server only. Raw schedules, scores, team-game statistics, advanced team-game components, lines, team identities, and logos are stored in D1. Historical source data is cached once; changing `MODEL_VERSION` recomputes profiles and predictions without repeatedly downloading completed seasons. Advanced game data is fetched in one season-level request and refreshed only when that season's completed-game count changes. Older box-score rows receive a bounded, one-week-at-a-time completion-data repair so completion rate and yards per completion remain historically time-safe without causing an API burst. Accuracy requests can calculate the current formula read-only from that cached archive while the background repair queue persists the most recent incomplete season first. Schedule displays are ordered by kickoff date so postseason week-number resets cannot mix bowl games into opening week.
 
-Scheduled jobs:
+Scheduled updates:
 
-- Monday 11:00 UTC: refresh the active season
-- Every 2 minutes: repair up to eight rate-limit-safe archive slices, completing each season oldest-to-newest so later preseason priors can use the finished earlier archive. Once complete, the scheduled check makes no CollegeFootballData request.
-- If the hosting tier delays cron delivery, the archive status request uses the same server-controlled queue and can advance a paced batch. An atomic D1 lease prevents overlapping cron and visitor jobs, while two-second spacing prevents a CFBD request burst.
+- Team, advanced and player statistics refresh Sundays at **12:00 PM America/Chicago**. Two UTC cron candidates cover daylight saving; only the one matching local noon proceeds.
+- A persistent weekly slot claim prevents duplicate deliveries or failed jobs from retrying and spending more quota.
+- A shared request context deduplicates matching bulk feeds and enforces a maximum of **40 external API requests per weekly run** (at most 200 in a five-Sunday month).
+- Visitor requests, including advanced/player detail pages, read cached data and never contact CFBD. Uncached detail remains unavailable until a scheduled run populates it.
+- Historical backfill and the old every-two-minute job are disabled in routine operation. Weekly player production reuses existing roster, recruiting and transfer history.
+- Authentication failures or HTTP 429 stop further external requests in that run; previously published data remains available. Existing provider quota must reset before new data can be imported.
+- Test these safeguards with `node --import tsx --test tests/weekly-api-policy.test.ts`.
 
 ## Security
 
 - `CFBD_API_KEY` and `SYNC_TOKEN` are server-side environment variables and must never be placed in client code or committed files.
 - `.env*`, certificates, build output, local databases, and runtime state are ignored by Git.
 - administrative data-changing endpoints require the private bearer token
-- public archive status checks cannot select CFBD endpoints or seasons; a server-side D1 lease limits the recovery queue to one bounded, paced batch every 75 seconds
+- public archive status checks are read-only; ingestion writes are restricted to the weekly scheduled context
 - responses include CSP, anti-framing, MIME-sniffing, referrer, permissions, and HTTPS security headers
 
 ## Local development

@@ -2038,3 +2038,18 @@ export async function loadOffensiveLineUnitScores(db: D1Database, season: number
 export async function loadSeasonOffensiveLineUnitScores(db: D1Database, season: number, requestedTeams: string[]) {
   return loadOffensiveLineScores(db, season, requestedTeams, 160);
 }
+
+/** Refresh production in bulk without re-downloading years of recruiting/portal history. */
+export async function syncWeeklyPlayers(env:PipelineEnv,season:number) {
+  const status=await getPlayerSyncStatus(env,season);
+  await env.DB.prepare("UPDATE player_sync_state SET stage=?,updated_at=CURRENT_TIMESTAMP WHERE season=?")
+    .bind(status.rosterCount ? "stats" : "roster",season).run();
+  for(let step=0;step<7;step++) {
+    const current=await getPlayerSyncStatus(env,season);
+    if(current.stage === "transfers" || current.stage === "recruiting")
+      await env.DB.prepare("UPDATE player_sync_state SET stage='finalize' WHERE season=?").bind(season).run();
+    if((await getPlayerSyncStatus(env,season)).ready)break;
+    await syncPlayerSeasonStep(env,season);
+  }
+  await refreshPlayerProductionBaselineIfNeeded(env.DB);
+}

@@ -10,7 +10,7 @@ async function runtimeEnv() {
 export async function GET() {
   const env = await runtimeEnv();
   const latestRun = await env.DB.prepare("SELECT season,week,source,status,game_count AS gameCount,detail,created_at AS createdAt FROM refresh_runs ORDER BY id DESC LIMIT 1").first().catch(() => null);
-  return Response.json({ configured: Boolean(env.CFBD_API_KEY), latestRun, automaticSchedule: "Active season Mondays at 11:00 UTC; up to eight paced archive slices per repair trigger" });
+  return Response.json({ configured: Boolean(env.CFBD_API_KEY), latestRun, automaticSchedule: "Team, advanced and player stats Sundays at 12:00 PM America/Chicago; maximum 40 external requests; no automatic archive backfill" });
 }
 
 export async function POST(request: Request) {

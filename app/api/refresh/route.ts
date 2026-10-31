@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   }
   try {
     const recent = await env.DB.prepare("SELECT season,week,created_at AS createdAt FROM refresh_runs WHERE status='complete' AND season=? AND datetime(created_at)>=datetime('now','-6 hours') ORDER BY id DESC LIMIT 1").bind(season).first<{ season: number; week: number; createdAt: string }>();
-    if (recent) return Response.json({ status: "current", message: `Data is already current through ${recent.season} week ${recent.week}. The next automatic check runs Monday morning.`, recent });
+    if (recent) return Response.json({ status: "current", message: `Data is already current through ${recent.season} week ${recent.week}. Stats update Sundays at 12:00 PM Central.`, recent });
     const result = await syncSeason(env, season, "manual");
     const complete = result.stage === "complete";
     const remainingWeeks = "remainingWeeks" in result ? result.remainingWeeks : [];

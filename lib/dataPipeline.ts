@@ -1,3 +1,4 @@
+import {cachedApiRequest} from "./weeklyApiPolicy";
 import { baselines, modelCalibration } from "../app/modelData";
 import { buildWeeklyAdvancedProfiles, type AdvancedGameComponentRow, type WeeklyAdvancedProfile } from "./advancedProfileBuilder";
 import { parseAdvancedProfile, type AdvancedProfile } from "./advancedMetrics";
@@ -156,6 +157,7 @@ function retryDelaySeconds(response: Response) {
 export async function cfbd(path: string, key: string, params: Record<string, string | number | undefined>) {
   const url = new URL(path, BASE_URL);
   for (const [name, parameter] of Object.entries(params)) if (parameter !== undefined) url.searchParams.set(name, String(parameter));
+  return cachedApiRequest(url, async () => {
   const response = await fetch(url, { headers: { Authorization: `Bearer ${key}`, Accept: "application/json" } });
   const body = await response.text().catch(() => "");
   const detail = body.replace(/\s+/g, " ").trim().slice(0, 240);
@@ -167,6 +169,7 @@ export async function cfbd(path: string, key: string, params: Record<string, str
   } catch {
     throw new CollegeFootballDataError(path, 502, `expected JSON but received ${detail || "an empty response"}`);
   }
+  });
 }
 
 async function cfbdOptional(path: string, key: string, params: Record<string, string | number | undefined>) {
